@@ -1,0 +1,25 @@
+{
+  "name": "@pocketops/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test",
+    "lint": "node --check src/app.js && node --check src/server.js && node --check src/config/database.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "helmet": "^8.0.0",
+    "dotenv": "^16.4.7",
+    "sequelize": "^6.37.5",
+    "pg": "^8.13.1",
+    "pg-hstore": "^2.3.4",
+    "pino": "^9.6.0",
+    "pino-http": "^10.4.0",
+    "zod": "^3.24.2",
+    "express-rate-limit": "^7.5.0"
+  }
+}

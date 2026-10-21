@@ -1,0 +1,17 @@
+{
+  "name": "pocketops",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "mobile",
+    "server"
+  ],
+  "scripts": {
+    "mobile": "npm run start -w mobile",
+    "android": "npm run android -w mobile",
+    "api": "npm run dev -w server",
+    "api:start": "npm run start -w server",
+    "test": "npm run test -w server",
+    "lint": "npm run lint -w server"
+  }
+}

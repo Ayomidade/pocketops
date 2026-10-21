@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "PocketOps",
+    "slug": "pocketops",
+    "scheme": "pocketops",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["android", "ios"],
+    "newArchEnabled": true,
+    "plugins": ["expo-router", "expo-secure-store"],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "android": {
+      "package": "com.pocketops.mobile"
+    },
+    "ios": {
+      "bundleIdentifier": "com.pocketops.mobile"
+    }
+  }
+}
