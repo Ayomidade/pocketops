@@ -1,14 +1,24 @@
 import { Sequelize } from "sequelize";
-import "dotenv/config";
-export const sequelize = new Sequelize(
-  process.env.DATABASE_URL ||
-    "postgres://pocketops:pocketops@localhost:5432/pocketops",
-  {
+
+export function createDatabase(config) {
+  if (!config.databaseUrl) return null;
+
+  return new Sequelize(config.databaseUrl, {
     dialect: "postgres",
     logging: false,
-    dialectOptions:
-      process.env.DATABASE_SSL === "true"
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 1000,
+      idle: 10000,
+    },
+    retry: { max: 0 },
+    dialectOptions: {
+      connectionTimeoutMillis: 1000,
+      statement_timeout: 1000,
+      ...(config.databaseSsl
         ? { ssl: { require: true, rejectUnauthorized: true } }
-        : {},
-  },
-);
+        : {}),
+    },
+  });
+}

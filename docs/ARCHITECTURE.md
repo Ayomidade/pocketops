@@ -1,6 +1,6 @@
 # PocketOps — Technical Architecture
 
-**Version:** 1.1 | **Status:** Target architecture (not all implemented)
+**Version:** 1.2 | **Status:** Target architecture with foundation, identity/session and GitHub App read-only integration implemented
 
 ## 1. Architectural decisions
 
@@ -32,7 +32,7 @@ flowchart TD
 
 **Worker:** retryable and scheduled work, reconciliation, notifications, health verification. It should have separate process entrypoint and constrained provider credentials. Do not assume worker tasks are exactly-once: design for at-least-once delivery.
 
-**PostgreSQL:** source of truth for users, connections, repository/project mapping, deployments, incidents, operations and audit history.
+**PostgreSQL:** source of truth for users, sessions, OAuth transactions, authentication audit events, GitHub App installation links/memberships, repository catalog/selections and webhook deliveries, plus later planned provider/project/deployment/incident state.
 
 **Redis:** queue transport and transient coordination, not authoritative record of production operations. Durable operation state lives in PostgreSQL.
 
@@ -110,7 +110,9 @@ sequenceDiagram
   A-->>U: Opaque PocketOps credential
 ```
 
-The handoff code must be short-lived, one-use and bound to the original flow. Verify deep-link host/scheme. GitHub App installation permissions are independent of OAuth identity; check user-to-installation access on each sensitive request, including current GitHub permissions.
+The implemented identity flow creates a hashed state transaction through a mobile-start request, uses the system browser, exchanges the code on the backend, and binds the one-use handoff to an in-memory mobile completion secret. OAuth transactions and handoffs expire and are consumed once. GitHub's published OAuth App authorization parameters do not document PKCE, so the current confidential backend client uses state and the completion-secret binding rather than unsupported PKCE parameters. Identity sign-in grants no GitHub App installation or repository permissions.
+
+The separate GitHub App flow uses its own hashed OAuth/setup state and native system-browser callback. The backend verifies the GitHub identity against the signed-in PocketOps user, encrypts expiring GitHub user/refresh tokens, and maps installation access per PocketOps user. It intersects the user's current GitHub repository visibility with the App installation's visible repositories, stores explicit per-user selections, and revalidates upstream access before each repository read. App private keys, GitHub user/refresh tokens and installation tokens remain server-side. GitHub webhooks are raw-body HMAC verified and deduplicated into a durable PostgreSQL queue processed by a loop in the API process; Redis and a separate worker are not used yet. Mobile screens provide connection and repository-selection UX; the repository explorer remains a later milestone.
 
 ## 6. Repository edit sequence
 
@@ -170,7 +172,7 @@ Normalize errors to `{success:false,error:{code,message},meta:{requestId}}`; map
 
 ## 10. Scaling and deployment
 
-Initial hosting: mobile built with Expo/EAS; Express on a managed web service; PostgreSQL managed database; managed Redis; separate worker. Keep migrations explicit, versioned and deploy-safe. Use CI for lint, tests, migrations dry-run and mobile configuration validation. Distinguish readiness (`/ready`, DB/queue dependencies) from liveness (`/health`, process alive) once DB-backed modules ship.
+Initial hosting: mobile built with Expo/EAS; Express on a managed web service; PostgreSQL managed database; managed Redis; separate worker. Keep migrations explicit, versioned and deploy-safe. Use CI for lint, tests, migrations and mobile configuration validation. The foundation implements `/health` as database-independent liveness and `/ready` as a bounded PostgreSQL readiness check. Redis/BullMQ is not configured or required until worker functionality is introduced.
 
 ## 11. Future cloud IDE extension (not MVP)
 

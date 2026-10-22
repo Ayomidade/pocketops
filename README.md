@@ -1,52 +1,57 @@
 # PocketOps
 
-Native mobile incident response and repository repair. This is a **foundation scaffold**, not a finished production tool.
+PocketOps is a native mobile incident-response product. The repository contains the foundation, identity/session workflow and server-mediated GitHub App installation with read-only repository APIs. It is not production-ready and does not provide repository writes or deployment integrations.
 
-## Prerequisites
+## Requirements and quick start
 
-- Node.js 22+, npm, Android device with Expo Go or an Expo development build
-- PostgreSQL 16+ (optional for the health endpoint; Docker Compose provided)
-- Android phone and laptop on the same Wi-Fi network for local API access
-
-## Quick start
+- Node.js 22.13+ (see `.nvmrc`) and npm
+- PostgreSQL 16+ for readiness checks and database migrations
+- Android device/emulator for native UI verification; Expo Go or a development build
 
 ```bash
-npm install
+npm ci
 cp server/.env.example server/.env
 cp mobile/.env.example mobile/.env
-# Edit mobile/.env: use your computer's LAN IP, not localhost, for a physical phone.
+# For a physical phone, set EXPO_PUBLIC_API_URL to your computer's LAN IP.
 npm run api
 # In a second terminal:
 npm run mobile
 ```
 
-Open the QR code in Expo Go, or use an Expo development build if required by installed native dependencies. If Expo warns about package version alignment, run `npx expo install --fix` from `mobile/` and recheck compatibility.
+The API is available at `http://localhost:4000`. `GET /health` and `/api/v1/health` are liveness checks and do not require PostgreSQL. `GET /ready` and `/api/v1/ready` require a reachable PostgreSQL database.
 
-API health: `http://localhost:4000/api/v1/health`
+## Database
 
-## Database (optional for starter)
+Start the optional local database with `docker compose up -d postgres`, then apply the versioned migrations:
 
 ```bash
-docker compose up -d postgres
+npm run db:migrate
 ```
 
-The scaffold defines a Sequelize connection but does not connect on boot or create tables. Schema design is in `docs/DATABASE.md`; implement versioned migrations in Milestone 1. Never use `sequelize.sync({ alter: true })` in production.
+Rollback the most recent migration with `npm run db:migrate:undo`; `npm run db:migrate:undo:all` reverses every applied migration. Use only a disposable database for rollback testing. PostgreSQL credentials in Compose and `.env.example` are local development defaults, not production credentials. There is no `sequelize.sync()` or automatic schema mutation at startup.
 
-## Tests
+The migrations create users and sessions, then add hashed identity OAuth transactions/audit events and GitHub App installation state, memberships, repository selections and webhook deliveries. GitHub identity sign-in is distinct from GitHub App authorization. GitHub App user/refresh tokens are encrypted server-side; no GitHub token is returned to the app. The app stores only opaque PocketOps sessions in Expo SecureStore. See [docs/DATABASE.md](docs/DATABASE.md) for migration and retention details.
+
+## Checks
 
 ```bash
 npm test
 npm run lint
+npm exec --workspace=mobile -- expo install --check
+npm exec --workspace=mobile -- expo export --platform android --output-dir /tmp/pocketops-android
 ```
 
-## Architecture
+The migration integration test runs when `DATABASE_URL_TEST` points to a dedicated database whose name ends in `_test`; otherwise Vitest skips that database-dependent case. CI provisions an isolated PostgreSQL service and runs it.
 
-- `mobile/`: Expo Router + React Native + NativeWind native screens
-- `server/`: Express API, future Sequelize models and integration modules
-- `docs/`: requirements, architecture, security and development plan
-- `prompts/`: milestone-specific Codex implementation briefs
-- `AGENTS.md`: repository-wide engineering instructions
+## Structure and scope
 
-## Current functionality
+- `mobile/app/`: Expo Router screens and native tabs
+- `mobile/src/features/`: feature-specific UI and behavior as features are added
+- `mobile/src/components/`, `hooks/`, `services/`, `theme/`: shared UI, hooks, API and style tokens
+- `server/src/`: Express app, environment/configuration, database models/migrations, authentication modules and middleware
+- `docs/`: product, architecture, API, database, security, setup and roadmap
+- `prompts/`: milestone-specific implementation briefs
 
-Native tab navigation and placeholder screens; HTTP health endpoint; basic middleware and a Node test. **Not yet implemented:** OAuth, GitHub App, Render, code editor, database migrations, queue, push notifications, and cloud execution.
+Native screens remain native; a WebView is reserved for the future source editor. Implemented: GitHub identity sign-in, PocketOps session hydration/rotation/logout, GitHub App connection/repository selection UX, authenticated read-only repository/tree/file/branch endpoints, signed webhook verification and durable PostgreSQL webhook processing. The mobile repository browsing screen remains a placeholder. Not implemented: repository writes, Render connections, source editing, deployments, incidents, notifications, Redis/BullMQ, or remote execution. Redis is not required by the current API or readiness check.
+
+To enable identity sign-in, configure its five server-only OAuth variables. To enable GitHub App connections, register an App with read-only Contents and Metadata permissions and configure all `GITHUB_APP_*` variables plus a fresh token-encryption key. Apply migrations and use an Android/iOS development build with the `pocketops` app scheme. See [docs/SETUP.md](docs/SETUP.md). Never place provider credentials, private keys or tokens in an `EXPO_PUBLIC_*` variable.

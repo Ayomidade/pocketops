@@ -1,7 +1,10 @@
 import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import ConnectivityBanner from "./ConnectivityBanner";
+
 export default function Screen({ title, subtitle, children }) {
   return (
     <SafeAreaView className="flex-1 bg-ink">
+      <ConnectivityBanner />
       <ScrollView
         contentContainerStyle={{
           padding: 22,

@@ -16,37 +16,45 @@ Build a runnable, testable native mobile app and backend first. Add GitHub ident
 
 ## 3. Milestones and exit gates
 
-### Milestone 0 — Scaffold validation (before feature work)
+### Milestone 0 — Foundation and database baseline
 
-**Tasks:** install root workspace dependencies; verify Expo/React Native/NativeWind compatibility; boot mobile on physical Android; boot Express; run health test; bring up PostgreSQL; check lint/test scripts; confirm no secrets in repo; document deviations. **Exit:** repeatable install/launch, CI green. **Do not claim this gate has passed until executed locally.**
+**Tasks:** install root workspace dependencies; verify Expo/React Native/NativeWind compatibility; boot mobile on physical Android; boot Express; add liveness/readiness checks, request correlation and safe structured errors; add reversible users/sessions schema-only migrations; run tests/lint; confirm no secrets in repo; document deviations. **Exit:** repeatable install/launch, disposable-PostgreSQL migration up/down, CI green. Do not claim the device gate has passed until verified locally.
 
-### Milestone 1 — Identity, sessions and database (weeks 1–2)
+### Milestone 1 — Identity and session workflows (weeks 1–2)
 
-**Backend:** migrations for users/sessions/oauth state; GitHub OAuth initiation/callback; one-use mobile handoff; session issuance/revocation; auth middleware; auth tests. **Mobile:** login/logout, AuthSession system browser, deep links, SecureStore, protected route groups. **Security:** state/PKCE, expired/replayed callback tests, no provider token on device. **Exit:** sign in and out on physical device; revoked session rejected.
+**Backend:** OAuth state schema; GitHub OAuth initiation/callback; one-use mobile handoff; session issuance/revocation using the foundation sessions table; auth middleware; auth tests. **Mobile:** login/logout, system-browser auth session, deep links, SecureStore, protected route groups. **Security:** state, PKCE only if the provider documents support, expired/replayed callback tests, no provider token on device. **Exit:** sign in and out on physical device; revoked session rejected.
 
-### Milestone 2 — GitHub App and repository explorer (weeks 3–4)
+**Implementation status (2026-10):** backend identity/session endpoints, migrations, audit events, native system-browser flow, SecureStore session hydration/rotation/logout, and automated tests are implemented. GitHub's published OAuth App authorization parameters do not document PKCE, so this flow uses a confidential backend client, state validation and a separate mobile completion-secret binding. GitHub App installation and repository access remain separate Milestone 2 work. The physical Android sign-in/logout exit gate still requires a configured OAuth App, reachable HTTPS callback and development build; it is not claimed passed by automated tests or JS export.
 
-**Backend:** installation webhook verification, installation access, Octokit adapter, repository/tree/file/branch read APIs; pagination, rate limits and permission checks. **Mobile:** installations, repository list, branch picker, native file tree and text preview; empty/offline/error states. **Exit:** selected private test repo browsable, removed repo immediately denied, cross-user tests pass.
+### Milestone 2 — GitHub App connection and read-only APIs (weeks 3–4)
 
-### Milestone 3 — Code editor and Git workflow (weeks 4–5)
+**Backend:** App installation/user authorization handoff, webhook verification, Octokit adapter, installation/repository reconciliation, selected-repository/tree/file/branch read APIs; pagination, rate limits and live permission checks. **Mobile:** connection status and explicit repository selection; reusable read-only API service. Native repository browsing is Milestone 3.
+
+**Implementation status (2026-10; prompt `03-github-integration.md`):** server-side GitHub App authorization and encrypted expiring user tokens, per-user installation membership and repository selection, raw-body signed webhook handling with durable PostgreSQL delivery processing, read-only repository APIs and native connection/selection UX are implemented with mocked-provider tests. The GitHub App is not configured in this environment; live GitHub/App setup and physical-device verification are NOT RUN. Repository browsing, branch selection and file preview remain deferred.
+
+### Milestone 3 — Native repository explorer (weeks 4–5)
+
+**Mobile:** selected repository list, native tree navigation, branch selection and text preview; loading/empty/offline/error/retry states and accessibility. Consume the existing read-only API and do not add repository writes. **Exit:** selected test repository browsable on Android and access revocation promptly reflected.
+
+### Milestone 4 — Code editor and Git workflow (weeks 5–6)
 
 **Backend:** branch creation, SHA-checked single-file commits, PR creation, audit events, conflict response. **Mobile:** packaged CodeMirror WebView, safe bridge, unsaved draft, diff screen, commit confirmation, PR details. **Exit:** phone-only fix branch → edit → commit → PR on test repo; stale SHA yields 409; no direct production-branch write by default.
 
-### Milestone 4 — Render connections and deployments (weeks 6–7)
+### Milestone 5 — Render connections and deployments (weeks 6–7)
 
 **Backend:** encrypted credential store, provider adapter, service mapping, deployment/log APIs, idempotent operation table, worker queue and reconciliation. **Mobile:** connection setup, project mapping, deployment list, log viewer, confirmation UI and operation progress. **Exit:** authorized developer can inspect logs and request exactly one test redeploy; duplicate request does not duplicate upstream action.
 
-### Milestone 5 — Incident workflow and alerts (weeks 8–9)
+### Milestone 6 — Incident workflow and alerts (weeks 8–9)
 
 **Backend:** incidents, timeline, event correlation, verified webhooks where supported, approved health checks, push token registration/preferences. **Mobile:** native incident list/detail, project context, notification deep links, resolution controls. **Exit:** simulated failure creates actionable incident; deploy success is separate from verified health; notification fallback works.
 
-### Milestone 6 — Hardening and private beta (weeks 10–12+)
+### Milestone 7 — Hardening and private beta (weeks 10–12+)
 
 **Tasks:** full authorization regression, threat model review, offline/reconnect tests, background job failure drills, monitoring, backup/restore, staging rollout, device performance, accessibility, 10–15 developer pilot. **Exit:** complete phone-only recovery demonstration and documented operational runbook.
 
 ## 4. Dependencies and sequencing
 
-`M0 → M1 → M2 → M3`; `M1 → M4`; `M3 + M4 → M5`; `M1–M5 → M6`. Do not block all backend work on editor UI, but freeze API contracts before implementing both sides. Integrate with a noncritical test repo and Render service until security gates pass.
+`M0 → M1 → M2 → M3 → M4`; `M1 → M5`; `M4 + M5 → M6`; `M1–M6 → M7`. Do not block all backend work on editor UI, but freeze API contracts before implementing both sides. Integrate with a noncritical test repo and Render service until security gates pass.
 
 ## 5. Codex development protocol
 
@@ -57,7 +65,7 @@ Build a runnable, testable native mobile app and backend first. Add GitHub ident
 5. Produce a change summary, migrations, security impact, manual steps and known gaps.
 6. Request review before proceeding to the next milestone.
 
-**Suggested prompt order:** `prompts/01-foundation.md`, `02-authentication.md`, `03-github-integration.md`, `04-repository-explorer.md`, `05-code-editor.md`, `06-deployments.md`, `07-incidents.md`, `08-beta-hardening.md`. Each prompt should cite the detailed specification sections and require tests.
+**Suggested prompt order:** `prompts/01-foundation.md`, `02-authentication.md`, `03-github-integration.md`, `04-repository-explorer.md`, `05-code-editor.md`, `06-deployments.md`, `07-incidents.md`, `08-beta-hardening.md`. Each prompt implements one milestone and cites the detailed specification sections.
 
 ## 6. Definition of done
 
@@ -75,11 +83,12 @@ Build a runnable, testable native mobile app and backend first. Add GitHub ident
 | ------ | ----------------------- | -------------------------------- |
 | 0      | App opens; API responds | Baseline validation              |
 | 1      | GitHub login            | Sessions and OAuth               |
-| 2      | Connected repos         | GitHub App and browse            |
-| 3      | Mobile fix PR           | Editor and Git writes            |
-| 4      | Deploy overview         | Render integration               |
-| 5      | Emergency workflow      | Incidents, notifications, health |
-| 6      | Pilot-ready app         | Security and recovery drills     |
+| 2      | Connected repos         | GitHub App and read APIs         |
+| 3      | Browse selected repos   | Native repository explorer       |
+| 4      | Mobile fix PR           | Editor and Git writes            |
+| 5      | Deploy overview         | Render integration               |
+| 6      | Emergency workflow      | Incidents, notifications, health |
+| 7      | Pilot-ready app         | Security and recovery drills     |
 
 ## 8. Risks and contingency
 

@@ -5,11 +5,30 @@ on:
 jobs:
   server:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pocketops
+          POSTGRES_PASSWORD: pocketops
+          POSTGRES_DB: pocketops_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pocketops -d pocketops_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL_TEST: postgres://pocketops:pocketops@127.0.0.1:5432/pocketops_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
-      - run: npm install
+          node-version: "22.13.0"
+          cache: npm
+      - run: npm ci
       - run: npm test
       - run: npm run lint
+      - run: npm exec --workspace=mobile -- expo install --check
+      - run: npm exec --workspace=mobile -- expo export --platform android --output-dir /tmp/pocketops-android
