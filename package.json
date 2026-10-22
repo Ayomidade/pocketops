@@ -2,6 +2,9 @@
   "name": "pocketops",
   "private": true,
   "version": "0.1.0",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "workspaces": [
     "mobile",
     "server"
@@ -11,7 +14,14 @@
     "android": "npm run android -w mobile",
     "api": "npm run dev -w server",
     "api:start": "npm run start -w server",
-    "test": "npm run test -w server",
-    "lint": "npm run lint -w server"
+    "test": "npm run test -w server && npm run test -w mobile",
+    "lint": "npm run lint -w server",
+    "db:migrate": "npm run db:migrate -w server",
+    "db:migrate:undo": "npm run db:migrate:undo -w server",
+    "db:migrate:undo:all": "npm run db:migrate:undo:all -w server"
+  },
+  "devDependencies": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   }
 }
