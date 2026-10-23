@@ -6,22 +6,42 @@ const githubTokenUrl = "https://github.com/login/oauth/access_token";
 
 function providerError(error) {
   if (error.status === 401) {
-    return new AppError(401, "GITHUB_AUTH_REVOKED", "GitHub authorization must be renewed");
+    return new AppError(
+      401,
+      "GITHUB_AUTH_REVOKED",
+      "GitHub authorization must be renewed",
+    );
   }
   if (error.status === 404) {
-    return new AppError(404, "RESOURCE_NOT_FOUND", "GitHub resource was not found");
+    return new AppError(
+      404,
+      "RESOURCE_NOT_FOUND",
+      "GitHub resource was not found",
+    );
   }
   if (
     error.status === 403 &&
     (error.response?.headers?.["x-ratelimit-remaining"] === "0" ||
       error.response?.headers?.["retry-after"])
   ) {
-    return new AppError(429, "GITHUB_RATE_LIMITED", "GitHub rate limit reached; retry later");
+    return new AppError(
+      429,
+      "GITHUB_RATE_LIMITED",
+      "GitHub rate limit reached; retry later",
+    );
   }
   if (error.status === 403) {
-    return new AppError(403, "GITHUB_PERMISSION_DENIED", "GitHub denied access to this resource");
+    return new AppError(
+      403,
+      "GITHUB_PERMISSION_DENIED",
+      "GitHub denied access to this resource",
+    );
   }
-  return new AppError(502, "GITHUB_UNAVAILABLE", "GitHub is temporarily unavailable");
+  return new AppError(
+    502,
+    "GITHUB_UNAVAILABLE",
+    "GitHub is temporarily unavailable",
+  );
 }
 
 function normalizedRepository(repo) {
@@ -52,13 +72,21 @@ async function allPages(requestPage, firstParams, collectionKey = null) {
       ? response.data[collectionKey]
       : response.data;
     if (!Array.isArray(pageEntries)) {
-      throw new AppError(502, "GITHUB_INVALID_RESPONSE", "GitHub returned an invalid response");
+      throw new AppError(
+        502,
+        "GITHUB_INVALID_RESPONSE",
+        "GitHub returned an invalid response",
+      );
     }
     entries.push(...pageEntries);
     page = nextPage(response.headers.link || "");
     if (!page) return entries;
   }
-  throw new AppError(502, "GITHUB_PAGINATION_LIMIT", "GitHub returned too many pages");
+  throw new AppError(
+    502,
+    "GITHUB_PAGINATION_LIMIT",
+    "GitHub returned too many pages",
+  );
 }
 
 export function createGitHubAppAdapter({
@@ -92,7 +120,11 @@ export function createGitHubAppAdapter({
       }
       return body;
     } catch {
-      throw new AppError(502, "GITHUB_UNAVAILABLE", "GitHub authorization could not be completed");
+      throw new AppError(
+        502,
+        "GITHUB_UNAVAILABLE",
+        "GitHub authorization could not be completed",
+      );
     }
   }
 
@@ -149,7 +181,11 @@ export function createGitHubAppAdapter({
         !Number.isFinite(Number(body.expires_in)) ||
         !Number.isFinite(Number(body.refresh_token_expires_in))
       ) {
-        throw new AppError(502, "GITHUB_TOKEN_EXPIRY_REQUIRED", "GitHub App expiring user tokens must be enabled");
+        throw new AppError(
+          502,
+          "GITHUB_TOKEN_EXPIRY_REQUIRED",
+          "GitHub App expiring user tokens must be enabled",
+        );
       }
       return {
         accessToken: body.access_token,
@@ -173,7 +209,11 @@ export function createGitHubAppAdapter({
         !Number.isFinite(Number(body.expires_in)) ||
         !Number.isFinite(Number(body.refresh_token_expires_in))
       ) {
-        throw new AppError(401, "GITHUB_AUTH_REVOKED", "GitHub authorization must be renewed");
+        throw new AppError(
+          401,
+          "GITHUB_AUTH_REVOKED",
+          "GitHub authorization must be renewed",
+        );
       }
       return {
         accessToken: body.access_token,
@@ -187,7 +227,8 @@ export function createGitHubAppAdapter({
 
     async getAuthenticatedUser(accessToken) {
       try {
-        const { data } = await userClient(accessToken).rest.users.getAuthenticated();
+        const { data } =
+          await userClient(accessToken).rest.users.getAuthenticated();
         return { id: String(data.id), login: data.login };
       } catch (error) {
         normalizeCall(error);
@@ -233,7 +274,9 @@ export function createGitHubAppAdapter({
 
     async getAppInstallationRepositories(installationId) {
       try {
-        const octokit = await app.getInstallationOctokit(Number(installationId));
+        const octokit = await app.getInstallationOctokit(
+          Number(installationId),
+        );
         const repositories = await readAllInstallationRepos(octokit);
         return repositories.map(normalizedRepository);
       } catch (error) {
@@ -243,7 +286,9 @@ export function createGitHubAppAdapter({
 
     async getRepository(installationId, owner, repo) {
       try {
-        const octokit = await app.getInstallationOctokit(Number(installationId));
+        const octokit = await app.getInstallationOctokit(
+          Number(installationId),
+        );
         const { data } = await octokit.rest.repos.get({ owner, repo });
         return data;
       } catch (error) {
@@ -251,30 +296,35 @@ export function createGitHubAppAdapter({
       }
     },
 
-    async listDirectory(installationId, owner, repo, path, ref, page) {
+    async listDirectory(installationId, owner, repo, path, ref) {
       try {
-        const octokit = await app.getInstallationOctokit(Number(installationId));
-        const { data, headers } = await octokit.rest.repos.getContent({
+        const octokit = await app.getInstallationOctokit(
+          Number(installationId),
+        );
+        const { data } = await octokit.rest.repos.getContent({
           owner,
           repo,
           path,
           ref,
-          per_page: 100,
-          page,
           request: { timeout: timeoutMs },
         });
         if (!Array.isArray(data)) {
-          throw new AppError(422, "NOT_A_DIRECTORY", "The requested path is not a directory");
+          throw new AppError(
+            422,
+            "NOT_A_DIRECTORY",
+            "The requested path is not a directory",
+          );
         }
         return {
-          entries: data.map((item) => ({
+          entries: data.slice(0, 1000).map((item) => ({
             name: item.name,
             path: item.path,
-            type: item.type,
+            type: item.submodule_git_url ? "submodule" : item.type,
             sha: item.sha,
             size: item.size,
           })),
-          nextPage: nextPage(headers.link || ""),
+          nextPage: null,
+          directoryLimitReached: data.length >= 1000,
         };
       } catch (error) {
         normalizeCall(error);
@@ -283,7 +333,9 @@ export function createGitHubAppAdapter({
 
     async getFile(installationId, owner, repo, path, ref) {
       try {
-        const octokit = await app.getInstallationOctokit(Number(installationId));
+        const octokit = await app.getInstallationOctokit(
+          Number(installationId),
+        );
         const { data } = await octokit.rest.repos.getContent({
           owner,
           repo,
@@ -292,7 +344,11 @@ export function createGitHubAppAdapter({
           request: { timeout: timeoutMs },
         });
         if (Array.isArray(data) || data.type !== "file") {
-          throw new AppError(422, "NOT_A_FILE", "The requested path is not a file");
+          throw new AppError(
+            422,
+            "NOT_A_FILE",
+            "The requested path is not a file",
+          );
         }
         return data;
       } catch (error) {
@@ -302,7 +358,9 @@ export function createGitHubAppAdapter({
 
     async listBranches(installationId, owner, repo, page) {
       try {
-        const octokit = await app.getInstallationOctokit(Number(installationId));
+        const octokit = await app.getInstallationOctokit(
+          Number(installationId),
+        );
         const { data, headers } = await octokit.rest.repos.listBranches({
           owner,
           repo,

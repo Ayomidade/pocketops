@@ -73,8 +73,7 @@ export function createGitHubOAuthClient({
           id: String(profile.id),
           login: profile.login,
           email:
-            typeof profile.email === "string" &&
-            profile.email.length <= 255
+            typeof profile.email === "string" && profile.email.length <= 255
               ? profile.email
               : null,
           avatarUrl:

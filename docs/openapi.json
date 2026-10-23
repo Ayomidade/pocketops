@@ -1,0 +1,1902 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PocketOps implemented API",
+    "version": "0.1.0",
+    "description": "Identity and GitHub App read-only milestone. Unversioned health/auth aliases are legacy aliases. Provider credentials never belong in bearer authentication. Webhooks require HMAC over raw bytes, not a PocketOps session."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Health"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "ready",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Ready"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/start": {
+      "post": {
+        "operationId": "startIdentity",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Authorization"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "redirectUri": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "completionSecret": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{64}$"
+                  }
+                },
+                "required": ["redirectUri", "completionSecret"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/github": {
+      "get": {
+        "operationId": "authorizeIdentity",
+        "security": [],
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the provider or allowlisted native callback",
+            "headers": {
+              "Location": {
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/github/start": {
+      "get": {
+        "operationId": "authorizeIdentityAlias",
+        "security": [],
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the provider or allowlisted native callback",
+            "headers": {
+              "Location": {
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/github/callback": {
+      "get": {
+        "operationId": "identityCallback",
+        "security": [],
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the provider or allowlisted native callback",
+            "headers": {
+              "Location": {
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/mobile/exchange": {
+      "post": {
+        "operationId": "exchangeIdentity",
+        "security": [],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/SessionExchange"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "handoffCode": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{43}$"
+                  },
+                  "completionSecret": {
+                    "type": "string",
+                    "pattern": "^[a-fA-F0-9]{64}$"
+                  },
+                  "deviceLabel": {
+                    "type": "string",
+                    "maxLength": 100
+                  }
+                },
+                "required": ["handoffCode", "completionSecret"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "operationId": "currentIdentity",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Identity"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/session/rotate": {
+      "post": {
+        "operationId": "rotateSession",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Identity"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "replacementToken": {
+                    "type": "string",
+                    "pattern": "^(?:[A-Za-z0-9_-]{43}|[a-fA-F0-9]{64})$"
+                  }
+                },
+                "required": ["replacementToken"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LoggedOut"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/installations/start": {
+      "post": {
+        "operationId": "startInstallation",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Authorization"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/oauth/callback": {
+      "get": {
+        "operationId": "githubOAuthCallback",
+        "security": [],
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the provider or allowlisted native callback",
+            "headers": {
+              "Location": {
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/installations/callback": {
+      "get": {
+        "operationId": "installationCallback",
+        "security": [],
+        "parameters": [
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          },
+          {
+            "name": "installation_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{1,20}$"
+            }
+          },
+          {
+            "name": "setup_action",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["install", "update"]
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to the provider or allowlisted native callback",
+            "headers": {
+              "Location": {
+                "required": true,
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/installations": {
+      "get": {
+        "operationId": "listInstallations",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Installation"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/installations/{installationId}/repositories": {
+      "get": {
+        "operationId": "installationRepositories",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "installationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Repository"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/installations/sync": {
+      "post": {
+        "operationId": "selectRepositories",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Repository"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "installationId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "githubRepositoryIds": {
+                    "type": "array",
+                    "maxItems": 100,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "pattern": "^\\d{1,20}$"
+                    }
+                  }
+                },
+                "required": ["installationId", "githubRepositoryIds"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/repositories": {
+      "get": {
+        "operationId": "listRepositories",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Repository"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "directoryLimitReached": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["requestId", "nextCursor"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/repositories/{repositoryId}": {
+      "get": {
+        "operationId": "repositoryDetail",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "repositoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/RepositoryDetail"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/repositories/{repositoryId}/tree": {
+      "get": {
+        "operationId": "repositoryTree",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "repositoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TreeEntry"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "directoryLimitReached": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["requestId", "nextCursor"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/repositories/{repositoryId}/file": {
+      "get": {
+        "operationId": "repositoryFile",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "repositoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 1024
+            }
+          },
+          {
+            "name": "ref",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/File"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/github/repositories/{repositoryId}/branches": {
+      "get": {
+        "operationId": "repositoryBranches",
+        "security": [
+          {
+            "PocketOpsSession": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "repositoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Branch"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        },
+                        "nextCursor": {
+                          "type": "string",
+                          "nullable": true
+                        },
+                        "directoryLimitReached": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": ["requestId", "nextCursor"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhooks/github": {
+      "post": {
+        "operationId": "githubWebhook",
+        "security": [],
+        "parameters": [
+          {
+            "name": "X-Hub-Signature-256",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-GitHub-Delivery",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-GitHub-Event",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted for processing; not completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "enum": [true]
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/WebhookAccepted"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "requestId": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["requestId"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["success", "data", "meta"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Safe validation, authorization, throttling or upstream error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "PocketOpsSession": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Opaque PocketOps session"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "githubUserId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": ["id", "githubUserId", "username", "email", "avatarUrl"],
+        "additionalProperties": false
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": ["id", "expiresAt"],
+        "additionalProperties": false
+      },
+      "Authorization": {
+        "type": "object",
+        "properties": {
+          "authorizationUrl": {
+            "type": "string"
+          }
+        },
+        "required": ["authorizationUrl"],
+        "additionalProperties": false
+      },
+      "Identity": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "session": {
+            "$ref": "#/components/schemas/Session"
+          }
+        },
+        "required": ["user", "session"],
+        "additionalProperties": false
+      },
+      "SessionExchange": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "session": {
+            "$ref": "#/components/schemas/Session"
+          }
+        },
+        "required": ["token", "user", "session"],
+        "additionalProperties": false
+      },
+      "LoggedOut": {
+        "type": "object",
+        "properties": {
+          "loggedOut": {
+            "type": "boolean",
+            "enum": [true]
+          }
+        },
+        "required": ["loggedOut"],
+        "additionalProperties": false
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ok"]
+          },
+          "service": {
+            "type": "string",
+            "enum": ["pocketops-api"]
+          }
+        },
+        "required": ["status", "service"],
+        "additionalProperties": false
+      },
+      "Ready": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["ready"]
+          },
+          "dependencies": {
+            "type": "object",
+            "properties": {
+              "postgres": {
+                "type": "string",
+                "enum": ["ready"]
+              },
+              "redis": {
+                "type": "string",
+                "enum": ["not_required"]
+              }
+            },
+            "required": ["postgres", "redis"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["status", "dependencies"],
+        "additionalProperties": false
+      },
+      "Installation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "githubInstallationId": {
+            "type": "string"
+          },
+          "accountLogin": {
+            "type": "string"
+          },
+          "accountType": {
+            "type": "string"
+          },
+          "repositorySelection": {
+            "type": "string"
+          },
+          "suspended": {
+            "type": "boolean"
+          },
+          "lastSyncedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "repositoryCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "selectedRepositoryCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "githubInstallationId",
+          "accountLogin",
+          "accountType",
+          "repositorySelection",
+          "suspended",
+          "lastSyncedAt",
+          "repositoryCount",
+          "selectedRepositoryCount"
+        ],
+        "additionalProperties": false
+      },
+      "Repository": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "githubRepositoryId": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "defaultBranch": {
+            "type": "string",
+            "nullable": true
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "lastSyncedAt": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "githubRepositoryId",
+          "owner",
+          "name",
+          "fullName",
+          "defaultBranch",
+          "private",
+          "archived",
+          "selected"
+        ],
+        "additionalProperties": false
+      },
+      "RepositoryDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "githubRepositoryId": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "defaultBranch": {
+            "type": "string",
+            "nullable": true
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "archived": {
+            "type": "boolean"
+          },
+          "htmlUrl": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "githubRepositoryId",
+          "owner",
+          "name",
+          "fullName",
+          "description",
+          "defaultBranch",
+          "private",
+          "archived",
+          "htmlUrl"
+        ],
+        "additionalProperties": false
+      },
+      "TreeEntry": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "sha": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": ["name", "path", "type", "sha", "size"],
+        "additionalProperties": false
+      },
+      "File": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "ref": {
+            "type": "string",
+            "nullable": true
+          },
+          "sha": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 524288
+          },
+          "encoding": {
+            "type": "string",
+            "enum": ["utf-8", "binary"]
+          },
+          "content": {
+            "type": "string",
+            "nullable": true
+          },
+          "editable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "path",
+          "ref",
+          "sha",
+          "size",
+          "encoding",
+          "content",
+          "editable"
+        ],
+        "additionalProperties": false
+      },
+      "Branch": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "commitSha": {
+            "type": "string"
+          },
+          "protected": {
+            "type": "boolean"
+          }
+        },
+        "required": ["name", "commitSha", "protected"],
+        "additionalProperties": false
+      },
+      "WebhookAccepted": {
+        "type": "object",
+        "properties": {
+          "accepted": {
+            "type": "boolean",
+            "enum": [true]
+          },
+          "duplicate": {
+            "type": "boolean"
+          },
+          "ignored": {
+            "type": "boolean"
+          }
+        },
+        "required": ["accepted", "duplicate", "ignored"],
+        "additionalProperties": false
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [false]
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": ["code", "message"],
+            "additionalProperties": false
+          },
+          "meta": {
+            "type": "object",
+            "properties": {
+              "requestId": {
+                "type": "string"
+              }
+            },
+            "required": ["requestId"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["success", "error", "meta"],
+        "additionalProperties": false
+      }
+    }
+  }
+}

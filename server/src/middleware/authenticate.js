@@ -16,7 +16,11 @@ export function createSessionAuthentication(authService) {
     }
     if (!authService) {
       return next(
-        new AppError(503, "AUTH_UNAVAILABLE", "Authentication is temporarily unavailable"),
+        new AppError(
+          503,
+          "AUTH_UNAVAILABLE",
+          "Authentication is temporarily unavailable",
+        ),
       );
     }
     return authService

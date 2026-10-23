@@ -104,8 +104,16 @@ export function defineModels(sequelize) {
         allowNull: false,
         field: "redirect_uri",
       },
-      expiresAt: { type: DataTypes.DATE, allowNull: false, field: "expires_at" },
-      consumedAt: { type: DataTypes.DATE, allowNull: true, field: "consumed_at" },
+      expiresAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "expires_at",
+      },
+      consumedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: "consumed_at",
+      },
       handoffHash: {
         type: DataTypes.CHAR(64),
         allowNull: true,
@@ -172,7 +180,11 @@ export function defineModels(sequelize) {
   const GitHubInstallationLink = sequelize.define(
     "GitHubInstallationLink",
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
       stateHash: {
         type: DataTypes.CHAR(64),
         allowNull: false,
@@ -255,7 +267,11 @@ export function defineModels(sequelize) {
   const GitHubInstallation = sequelize.define(
     "GitHubInstallation",
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
       githubInstallationId: {
         type: DataTypes.BIGINT,
         allowNull: false,
@@ -267,19 +283,47 @@ export function defineModels(sequelize) {
         allowNull: false,
         field: "github_account_id",
       },
-      accountLogin: { type: DataTypes.STRING(255), allowNull: false, field: "account_login" },
-      accountType: { type: DataTypes.STRING(30), allowNull: false, field: "account_type" },
+      accountLogin: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        field: "account_login",
+      },
+      accountType: {
+        type: DataTypes.STRING(30),
+        allowNull: false,
+        field: "account_type",
+      },
       repositorySelection: {
         type: DataTypes.STRING(20),
         allowNull: false,
         field: "repository_selection",
       },
-      permissions: { type: DataTypes.JSONB, allowNull: false, defaultValue: {} },
-      suspendedAt: { type: DataTypes.DATE, allowNull: true, field: "suspended_at" },
+      permissions: {
+        type: DataTypes.JSONB,
+        allowNull: false,
+        defaultValue: {},
+      },
+      suspendedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: "suspended_at",
+      },
       removedAt: { type: DataTypes.DATE, allowNull: true, field: "removed_at" },
-      lastSyncedAt: { type: DataTypes.DATE, allowNull: true, field: "last_synced_at" },
-      createdAt: { type: DataTypes.DATE, allowNull: false, field: "created_at" },
-      updatedAt: { type: DataTypes.DATE, allowNull: false, field: "updated_at" },
+      lastSyncedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: "last_synced_at",
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "created_at",
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "updated_at",
+      },
     },
     { tableName: "github_installations", timestamps: false },
   );
@@ -287,7 +331,11 @@ export function defineModels(sequelize) {
   const InstallationMembership = sequelize.define(
     "InstallationMembership",
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
       installationId: {
         type: DataTypes.UUID,
         allowNull: false,
@@ -302,7 +350,11 @@ export function defineModels(sequelize) {
         references: { model: "users", key: "id" },
         onDelete: "CASCADE",
       },
-      githubUserId: { type: DataTypes.BIGINT, allowNull: false, field: "github_user_id" },
+      githubUserId: {
+        type: DataTypes.BIGINT,
+        allowNull: false,
+        field: "github_user_id",
+      },
       githubUserTokenEncrypted: {
         type: DataTypes.TEXT,
         allowNull: false,
@@ -323,14 +375,26 @@ export function defineModels(sequelize) {
         allowNull: false,
         field: "refresh_token_expires_at",
       },
-      status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: "active" },
+      status: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: "active",
+      },
       lastVerifiedAt: {
         type: DataTypes.DATE,
         allowNull: true,
         field: "last_verified_at",
       },
-      createdAt: { type: DataTypes.DATE, allowNull: false, field: "created_at" },
-      updatedAt: { type: DataTypes.DATE, allowNull: false, field: "updated_at" },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "created_at",
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "updated_at",
+      },
     },
     { tableName: "installation_memberships", timestamps: false },
   );
@@ -338,7 +402,11 @@ export function defineModels(sequelize) {
   const GitHubRepository = sequelize.define(
     "GitHubRepository",
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
       installationId: {
         type: DataTypes.UUID,
         allowNull: false,
@@ -352,17 +420,54 @@ export function defineModels(sequelize) {
         unique: true,
         field: "github_repository_id",
       },
-      ownerLogin: { type: DataTypes.STRING(255), allowNull: false, field: "owner_login" },
-      ownerGithubId: { type: DataTypes.BIGINT, allowNull: false, field: "owner_github_id" },
+      ownerLogin: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        field: "owner_login",
+      },
+      ownerGithubId: {
+        type: DataTypes.BIGINT,
+        allowNull: false,
+        field: "owner_github_id",
+      },
       name: { type: DataTypes.STRING(255), allowNull: false },
-      fullName: { type: DataTypes.STRING(511), allowNull: false, field: "full_name" },
-      defaultBranch: { type: DataTypes.STRING(255), allowNull: true, field: "default_branch" },
-      isPrivate: { type: DataTypes.BOOLEAN, allowNull: false, field: "is_private" },
-      isArchived: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: "is_archived" },
+      fullName: {
+        type: DataTypes.STRING(511),
+        allowNull: false,
+        field: "full_name",
+      },
+      defaultBranch: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: "default_branch",
+      },
+      isPrivate: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        field: "is_private",
+      },
+      isArchived: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        field: "is_archived",
+      },
       removedAt: { type: DataTypes.DATE, allowNull: true, field: "removed_at" },
-      lastSyncedAt: { type: DataTypes.DATE, allowNull: true, field: "last_synced_at" },
-      createdAt: { type: DataTypes.DATE, allowNull: false, field: "created_at" },
-      updatedAt: { type: DataTypes.DATE, allowNull: false, field: "updated_at" },
+      lastSyncedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: "last_synced_at",
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "created_at",
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "updated_at",
+      },
     },
     { tableName: "repositories", timestamps: false },
   );
@@ -370,7 +475,11 @@ export function defineModels(sequelize) {
   const RepositorySelection = sequelize.define(
     "RepositorySelection",
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
       repositoryId: {
         type: DataTypes.UUID,
         allowNull: false,
@@ -398,27 +507,59 @@ export function defineModels(sequelize) {
   const WebhookDelivery = sequelize.define(
     "WebhookDelivery",
     {
-      id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
       deliveryId: {
         type: DataTypes.STRING(100),
         allowNull: false,
         unique: true,
         field: "delivery_id",
       },
-      eventType: { type: DataTypes.STRING(80), allowNull: false, field: "event_type" },
+      eventType: {
+        type: DataTypes.STRING(80),
+        allowNull: false,
+        field: "event_type",
+      },
       payload: { type: DataTypes.JSONB, allowNull: false },
-      status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: "pending" },
+      status: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: "pending",
+      },
       attemptCount: {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0,
         field: "attempt_count",
       },
-      receivedAt: { type: DataTypes.DATE, allowNull: false, field: "received_at" },
-      nextAttemptAt: { type: DataTypes.DATE, allowNull: false, field: "next_attempt_at" },
-      claimExpiresAt: { type: DataTypes.DATE, allowNull: true, field: "claim_expires_at" },
-      processedAt: { type: DataTypes.DATE, allowNull: true, field: "processed_at" },
-      lastErrorCode: { type: DataTypes.STRING(80), allowNull: true, field: "last_error_code" },
+      receivedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "received_at",
+      },
+      nextAttemptAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        field: "next_attempt_at",
+      },
+      claimExpiresAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: "claim_expires_at",
+      },
+      processedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: "processed_at",
+      },
+      lastErrorCode: {
+        type: DataTypes.STRING(80),
+        allowNull: true,
+        field: "last_error_code",
+      },
     },
     { tableName: "webhook_deliveries", timestamps: false },
   );
@@ -432,18 +573,45 @@ export function defineModels(sequelize) {
   OAuthTransaction.belongsTo(User, { foreignKey: "userId", as: "user" });
   User.hasMany(AuthAuditEvent, { foreignKey: "actorUserId", as: "authEvents" });
   AuthAuditEvent.belongsTo(User, { foreignKey: "actorUserId", as: "actor" });
-  User.hasMany(GitHubInstallationLink, { foreignKey: "userId", as: "githubInstallationLinks" });
+  User.hasMany(GitHubInstallationLink, {
+    foreignKey: "userId",
+    as: "githubInstallationLinks",
+  });
   GitHubInstallationLink.belongsTo(User, { foreignKey: "userId", as: "user" });
-  GitHubInstallation.hasMany(InstallationMembership, { foreignKey: "installationId", as: "memberships" });
-  InstallationMembership.belongsTo(GitHubInstallation, { foreignKey: "installationId", as: "installation" });
-  User.hasMany(InstallationMembership, { foreignKey: "userId", as: "githubMemberships" });
+  GitHubInstallation.hasMany(InstallationMembership, {
+    foreignKey: "installationId",
+    as: "memberships",
+  });
+  InstallationMembership.belongsTo(GitHubInstallation, {
+    foreignKey: "installationId",
+    as: "installation",
+  });
+  User.hasMany(InstallationMembership, {
+    foreignKey: "userId",
+    as: "githubMemberships",
+  });
   InstallationMembership.belongsTo(User, { foreignKey: "userId", as: "user" });
-  GitHubInstallation.hasMany(GitHubRepository, { foreignKey: "installationId", as: "repositories" });
-  GitHubRepository.belongsTo(GitHubInstallation, { foreignKey: "installationId", as: "installation" });
-  User.hasMany(RepositorySelection, { foreignKey: "userId", as: "repositorySelections" });
-  GitHubRepository.hasMany(RepositorySelection, { foreignKey: "repositoryId", as: "selections" });
+  GitHubInstallation.hasMany(GitHubRepository, {
+    foreignKey: "installationId",
+    as: "repositories",
+  });
+  GitHubRepository.belongsTo(GitHubInstallation, {
+    foreignKey: "installationId",
+    as: "installation",
+  });
+  User.hasMany(RepositorySelection, {
+    foreignKey: "userId",
+    as: "repositorySelections",
+  });
+  GitHubRepository.hasMany(RepositorySelection, {
+    foreignKey: "repositoryId",
+    as: "selections",
+  });
   RepositorySelection.belongsTo(User, { foreignKey: "userId", as: "user" });
-  RepositorySelection.belongsTo(GitHubRepository, { foreignKey: "repositoryId", as: "repository" });
+  RepositorySelection.belongsTo(GitHubRepository, {
+    foreignKey: "repositoryId",
+    as: "repository",
+  });
   return {
     User,
     Session,

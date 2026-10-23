@@ -93,7 +93,11 @@ export function createGitHubRouter({ service, authService }) {
   const controller = service ? createGitHubController(service) : null;
   const authenticate = createSessionAuthentication(authService);
   const userRateLimit = apiRateLimit(60_000, 60, "GITHUB_RATE_LIMITED");
-  const oauthRateLimit = apiRateLimit(15 * 60_000, 10, "GITHUB_AUTH_RATE_LIMITED");
+  const oauthRateLimit = apiRateLimit(
+    15 * 60_000,
+    10,
+    "GITHUB_AUTH_RATE_LIMITED",
+  );
 
   function requireService(_request, _response, next) {
     if (!controller) {
@@ -113,7 +117,9 @@ export function createGitHubRouter({ service, authService }) {
     requireService,
     oauthRateLimit,
     validate(oauthCallbackSchema, "query"),
-    asyncHandler((request, response) => controller.oauthCallback(request, response)),
+    asyncHandler((request, response) =>
+      controller.oauthCallback(request, response),
+    ),
   );
   router.get(
     "/installations/callback",
@@ -208,9 +214,7 @@ export function createGitHubRouter({ service, authService }) {
     authenticate,
     validate(repositoryParams, "params"),
     validate(branchesQuery, "query"),
-    asyncHandler((request, response) =>
-      controller.branches(request, response),
-    ),
+    asyncHandler((request, response) => controller.branches(request, response)),
   );
   return router;
 }
@@ -233,7 +237,11 @@ export function createGitHubWebhookRouter({ service }) {
       }
       if (!Buffer.isBuffer(request.body)) {
         return next(
-          new AppError(400, "INVALID_WEBHOOK_BODY", "GitHub webhook body is invalid"),
+          new AppError(
+            400,
+            "INVALID_WEBHOOK_BODY",
+            "GitHub webhook body is invalid",
+          ),
         );
       }
       return next();

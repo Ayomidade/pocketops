@@ -4,7 +4,12 @@ export default [
   { ignores: ["coverage/**"] },
   js.configs.recommended,
   {
-    files: ["src/**/*.js", "tests/**/*.js", "scripts/**/*.js", "vitest.config.js"],
+    files: [
+      "src/**/*.js",
+      "tests/**/*.js",
+      "scripts/**/*.js",
+      "vitest.config.js",
+    ],
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
@@ -21,6 +26,7 @@ export default [
         setInterval: "readonly",
         setImmediate: "readonly",
         setTimeout: "readonly",
+        structuredClone: "readonly",
         URL: "readonly",
       },
     },

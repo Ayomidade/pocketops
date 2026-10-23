@@ -1,7 +1,4 @@
-import {
-  createHash,
-  randomBytes,
-} from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { AppError } from "../../errors/app-error.js";
 
 const oauthStateTtlMs = 10 * 60 * 1000;
@@ -68,7 +65,11 @@ export function createAuthService({
     async createMobileStart({ redirectUri, completionSecret }) {
       requireOAuthConfiguration();
       if (redirectUri !== config.mobileAuthRedirectUri) {
-        throw authError(400, "INVALID_REDIRECT_URI", "Invalid sign-in redirect");
+        throw authError(
+          400,
+          "INVALID_REDIRECT_URI",
+          "Invalid sign-in redirect",
+        );
       }
 
       const state = credentialGenerator();
@@ -106,7 +107,11 @@ export function createAuthService({
     async handleCallback({ state, code, providerError, requestId }) {
       requireOAuthConfiguration();
       if (!state || typeof state !== "string" || state.length > 128) {
-        throw authError(400, "INVALID_OAUTH_STATE", "Sign-in request is invalid");
+        throw authError(
+          400,
+          "INVALID_OAUTH_STATE",
+          "Sign-in request is invalid",
+        );
       }
       const now = clock();
       const transaction = await repository.consumeOAuthState(
@@ -200,7 +205,11 @@ export function createAuthService({
         now,
       });
       if (!result) {
-        throw authError(401, "INVALID_HANDOFF", "Sign-in could not be completed");
+        throw authError(
+          401,
+          "INVALID_HANDOFF",
+          "Sign-in could not be completed",
+        );
       }
       return {
         token,
@@ -223,11 +232,7 @@ export function createAuthService({
       };
     },
 
-    async rotateSession({
-      sessionId,
-      replacementToken,
-      requestId,
-    }) {
+    async rotateSession({ sessionId, replacementToken, requestId }) {
       const now = clock();
       const result = await repository.rotateSession({
         currentSessionId: sessionId,

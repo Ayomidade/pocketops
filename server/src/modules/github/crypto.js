@@ -16,7 +16,8 @@ export function encryptToken(token, key) {
 }
 
 export function decryptToken(value, key) {
-  const [version, ivValue, tagValue, ciphertextValue, extra] = String(value).split(".");
+  const [version, ivValue, tagValue, ciphertextValue, extra] =
+    String(value).split(".");
   if (
     version !== "v1" ||
     !ivValue ||

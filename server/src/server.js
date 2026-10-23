@@ -27,26 +27,36 @@ export function startServer() {
         config,
       })
     : null;
-  const githubService = models && config.githubAppEnabled
-    ? createGitHubService({
-        repository: createGitHubRepository({ sequelize, models }),
-        adapter: createGitHubAppAdapter({ config }),
-        config,
-      })
-    : null;
-  const app = createApp({ config, sequelize, authService, githubService, logger });
+  const githubService =
+    models && config.githubAppEnabled
+      ? createGitHubService({
+          repository: createGitHubRepository({ sequelize, models }),
+          adapter: createGitHubAppAdapter({ config }),
+          config,
+        })
+      : null;
+  const app = createApp({
+    config,
+    sequelize,
+    authService,
+    githubService,
+    logger,
+  });
   const server = app.listen(config.port, "0.0.0.0", () => {
     logger.info({ port: config.port }, "PocketOps API listening");
   });
   const cleanupTimer = authService
-    ? setInterval(() => {
-        authService.cleanup().catch((error) => {
-          logger.error(
-            { errorName: error.name },
-            "Authentication retention cleanup failed",
-          );
-        });
-      }, 6 * 60 * 60 * 1000).unref()
+    ? setInterval(
+        () => {
+          authService.cleanup().catch((error) => {
+            logger.error(
+              { errorName: error.name },
+              "Authentication retention cleanup failed",
+            );
+          });
+        },
+        6 * 60 * 60 * 1000,
+      ).unref()
     : null;
   let processingWebhooks = false;
   const webhookTimer = githubService
@@ -68,14 +78,17 @@ export function startServer() {
       }, 1500).unref()
     : null;
   const githubCleanupTimer = githubService
-    ? setInterval(() => {
-        githubService.cleanup().catch((error) => {
-          logger.error(
-            { errorName: error.name, errorCode: error.code },
-            "GitHub integration cleanup failed",
-          );
-        });
-      }, 6 * 60 * 60 * 1000).unref()
+    ? setInterval(
+        () => {
+          githubService.cleanup().catch((error) => {
+            logger.error(
+              { errorName: error.name, errorCode: error.code },
+              "GitHub integration cleanup failed",
+            );
+          });
+        },
+        6 * 60 * 60 * 1000,
+      ).unref()
     : null;
 
   let shuttingDown = false;
@@ -108,7 +121,10 @@ export function startServer() {
   return server;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   try {
     startServer();
   } catch (error) {

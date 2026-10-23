@@ -112,12 +112,16 @@ export default function ConnectionsPage() {
       }
       const status = parseGitHubAppCallback(result.url, redirectUri);
       if (status === "connected") {
-        setNotice("GitHub App connected. Select the repositories PocketOps may access.");
+        setNotice(
+          "GitHub App connected. Select the repositories PocketOps may access.",
+        );
         await loadInstallations();
       } else if (status === "cancelled") {
         setNotice("GitHub connection was cancelled. You can try again.");
       } else {
-        setError("GitHub connection did not complete. Retry or check the server setup.");
+        setError(
+          "GitHub connection did not complete. Retry or check the server setup.",
+        );
       }
     } catch (connectError) {
       setError(messageFor(connectError));
@@ -171,7 +175,9 @@ export default function ConnectionsPage() {
             title="Connection issue"
             message={error}
             onRetry={() =>
-              currentInstallation ? void loadRepositories() : void loadInstallations()
+              currentInstallation
+                ? void loadRepositories()
+                : void loadInstallations()
             }
           />
         </View>
@@ -195,7 +201,9 @@ export default function ConnectionsPage() {
         </Text>
       </Pressable>
       <Text className="mt-3 text-sm leading-5 text-slate-400">
-        GitHub will ask which account and repositories to grant. PocketOps checks both the app installation and your signed-in GitHub account before showing repository data.
+        GitHub will ask which account and repositories to grant. PocketOps
+        checks both the app installation and your signed-in GitHub account
+        before showing repository data.
       </Text>
 
       {loading ? (
@@ -223,7 +231,9 @@ export default function ConnectionsPage() {
               }`}
               accessibilityRole="button"
               accessibilityLabel={`Manage GitHub installation for ${installation.accountLogin}`}
-              accessibilityState={{ selected: installation.id === installationId }}
+              accessibilityState={{
+                selected: installation.id === installationId,
+              }}
               onPress={() => setInstallationId(installation.id)}
             >
               <Text className="font-semibold text-white">
@@ -242,7 +252,10 @@ export default function ConnectionsPage() {
                 Select repositories
               </Text>
               {loadingRepositories ? (
-                <RemoteState kind="loading" title="Verifying current access..." />
+                <RemoteState
+                  kind="loading"
+                  title="Verifying current access..."
+                />
               ) : repositories.length === 0 ? (
                 <RemoteState
                   kind="empty"
@@ -290,7 +303,9 @@ export default function ConnectionsPage() {
                 onPress={() => void saveSelection()}
               >
                 <Text className="font-semibold text-mint">
-                  {saving ? "Verifying and saving..." : "Save repository selection"}
+                  {saving
+                    ? "Verifying and saving..."
+                    : "Save repository selection"}
                 </Text>
               </Pressable>
             </>

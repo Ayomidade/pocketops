@@ -10,7 +10,8 @@ const config = {
   githubOAuthEnabled: true,
   githubOAuthClientId: "client-id",
   githubOAuthClientSecret: "server-secret",
-  githubOAuthCallbackUrl: "https://api.example.test/api/v1/auth/github/callback",
+  githubOAuthCallbackUrl:
+    "https://api.example.test/api/v1/auth/github/callback",
   mobileAuthRedirectUri: "pocketops://auth/callback",
   publicApiUrl: "https://api.example.test",
 };
@@ -60,11 +61,7 @@ function createService(overrides = {}) {
     cleanupExpired: vi.fn(async () => ({ oauthTransactions: 1, sessions: 2 })),
     ...overrides.repository,
   };
-  const credentials = [
-    "s".repeat(43),
-    "h".repeat(43),
-    "t".repeat(43),
-  ];
+  const credentials = ["s".repeat(43), "h".repeat(43), "t".repeat(43)];
   const service = createAuthService({
     repository,
     githubOAuthClient: {
@@ -215,9 +212,9 @@ describe("GitHub OAuth identity flow", () => {
   it("maps GitHub outages to a safe app callback", async () => {
     const { service } = createService({
       githubOAuthClient: {
-        getIdentity: vi.fn().mockRejectedValue(
-          new Error("provider response contains secrets"),
-        ),
+        getIdentity: vi
+          .fn()
+          .mockRejectedValue(new Error("provider response contains secrets")),
       },
     });
     await service.createMobileStart({
@@ -368,9 +365,9 @@ describe("GitHub OAuth adapter", () => {
       clientId: "client-id",
       clientSecret: "server-secret",
       callbackUrl: config.githubOAuthCallbackUrl,
-      fetchImplementation: vi.fn().mockRejectedValue(
-        new Error("provider leaked its private body"),
-      ),
+      fetchImplementation: vi
+        .fn()
+        .mockRejectedValue(new Error("provider leaked its private body")),
     });
     await expect(client.getIdentity("code")).rejects.toBeInstanceOf(AppError);
     await expect(client.getIdentity("code")).rejects.toMatchObject({

@@ -23,7 +23,9 @@ export default function AuthCallbackPage() {
     if (providerError) callbackUrl.searchParams.set("error", providerError);
     void completeCallbackUrl(callbackUrl.toString())
       .catch(() => {
-        setError("This sign-in attempt is no longer active. Please start again.");
+        setError(
+          "This sign-in attempt is no longer active. Please start again.",
+        );
       })
       .finally(() => setProcessing(false));
   }, [completeCallbackUrl, params.error, params.handoff]);

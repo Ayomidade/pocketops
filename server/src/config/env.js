@@ -8,7 +8,9 @@ const optionalEnvString = z.preprocess(
 
 const environmentSchema = z
   .object({
-    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
     PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     DATABASE_URL: z.string().trim().optional(),
     DATABASE_SSL: z.enum(["true", "false"]).default("false"),
@@ -181,11 +183,15 @@ const environmentSchema = z
       value.GITHUB_APP_MOBILE_REDIRECT_URI,
       value.GITHUB_TOKEN_ENCRYPTION_KEY,
     ];
-    if (githubAppValues.some(Boolean) && githubAppValues.some((item) => !item)) {
+    if (
+      githubAppValues.some(Boolean) &&
+      githubAppValues.some((item) => !item)
+    ) {
       context.addIssue({
         code: "custom",
         path: ["GITHUB_APP_ID"],
-        message: "all GitHub App credentials and callback settings must be configured together",
+        message:
+          "all GitHub App credentials and callback settings must be configured together",
       });
     }
     if (value.GITHUB_APP_ID && !/^\d+$/.test(value.GITHUB_APP_ID)) {
@@ -204,7 +210,10 @@ const environmentSchema = z
     }
     if (value.GITHUB_TOKEN_ENCRYPTION_KEY) {
       const key = Buffer.from(value.GITHUB_TOKEN_ENCRYPTION_KEY, "base64");
-      if (key.length !== 32 || key.toString("base64") !== value.GITHUB_TOKEN_ENCRYPTION_KEY) {
+      if (
+        key.length !== 32 ||
+        key.toString("base64") !== value.GITHUB_TOKEN_ENCRYPTION_KEY
+      ) {
         context.addIssue({
           code: "custom",
           path: ["GITHUB_TOKEN_ENCRYPTION_KEY"],
@@ -235,13 +244,19 @@ const environmentSchema = z
         }
       }
     }
-    for (const key of ["GITHUB_APP_OAUTH_CALLBACK_URL", "GITHUB_APP_SETUP_CALLBACK_URL"]) {
+    for (const key of [
+      "GITHUB_APP_OAUTH_CALLBACK_URL",
+      "GITHUB_APP_SETUP_CALLBACK_URL",
+    ]) {
       if (value[key] && value.API_PUBLIC_URL) {
         const expectedPath =
           key === "GITHUB_APP_OAUTH_CALLBACK_URL"
             ? "/api/v1/github/oauth/callback"
             : "/api/v1/github/installations/callback";
-        const expectedUrl = new URL(expectedPath, value.API_PUBLIC_URL).toString();
+        const expectedUrl = new URL(
+          expectedPath,
+          value.API_PUBLIC_URL,
+        ).toString();
         if (value[key] !== expectedUrl) {
           context.addIssue({
             code: "custom",
@@ -270,7 +285,9 @@ const environmentSchema = z
       }
     }
 
-    for (const origin of value.CORS_ORIGINS.split(",").map((item) => item.trim()).filter(Boolean)) {
+    for (const origin of value.CORS_ORIGINS.split(",")
+      .map((item) => item.trim())
+      .filter(Boolean)) {
       try {
         const parsedOrigin = new URL(origin);
         if (
@@ -285,7 +302,8 @@ const environmentSchema = z
         context.addIssue({
           code: "custom",
           path: ["CORS_ORIGINS"],
-          message: `contains an invalid origin: ${origin}`,
+          message:
+            "must contain only HTTP(S) origins without paths or credentials",
         });
       }
     }
@@ -318,7 +336,9 @@ export function loadConfig(source = process.env) {
     port: config.PORT,
     databaseUrl: config.DATABASE_URL || null,
     databaseSsl: config.DATABASE_SSL === "true",
-    corsOrigins: config.CORS_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean),
+    corsOrigins: config.CORS_ORIGINS.split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean),
     githubOAuthClientId: config.GITHUB_OAUTH_CLIENT_ID || null,
     githubOAuthClientSecret: config.GITHUB_OAUTH_CLIENT_SECRET || null,
     githubOAuthCallbackUrl: config.GITHUB_OAUTH_CALLBACK_URL || null,
@@ -327,7 +347,8 @@ export function loadConfig(source = process.env) {
     githubAppId: config.GITHUB_APP_ID || null,
     githubAppClientId: config.GITHUB_APP_CLIENT_ID || null,
     githubAppClientSecret: config.GITHUB_APP_CLIENT_SECRET || null,
-    githubAppPrivateKey: config.GITHUB_APP_PRIVATE_KEY?.replaceAll("\\n", "\n") || null,
+    githubAppPrivateKey:
+      config.GITHUB_APP_PRIVATE_KEY?.replaceAll("\\n", "\n") || null,
     githubAppSlug: config.GITHUB_APP_SLUG || null,
     githubAppWebhookSecret: config.GITHUB_APP_WEBHOOK_SECRET || null,
     githubAppOAuthCallbackUrl: config.GITHUB_APP_OAUTH_CALLBACK_URL || null,
@@ -344,6 +365,8 @@ export function loadConfig(source = process.env) {
       config.MOBILE_AUTH_REDIRECT_URI,
       config.API_PUBLIC_URL,
     ].every(Boolean),
-    logLevel: config.LOG_LEVEL || (config.NODE_ENV === "development" ? "debug" : "info"),
+    logLevel:
+      config.LOG_LEVEL ||
+      (config.NODE_ENV === "development" ? "debug" : "info"),
   };
 }

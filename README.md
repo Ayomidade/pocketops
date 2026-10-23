@@ -37,11 +37,18 @@ The migrations create users and sessions, then add hashed identity OAuth transac
 ```bash
 npm test
 npm run lint
+npm run api:contract:check
 npm exec --workspace=mobile -- expo install --check
 npm exec --workspace=mobile -- expo export --platform android --output-dir /tmp/pocketops-android
 ```
 
 The migration integration test runs when `DATABASE_URL_TEST` points to a dedicated database whose name ends in `_test`; otherwise Vitest skips that database-dependent case. CI provisions an isolated PostgreSQL service and runs it.
+
+Lint covers both server and mobile JavaScript/JSX. The generated implemented API
+contract is [docs/openapi.json](docs/openapi.json); update it with
+`npm run api:contract`. The manually triggered `Native build validation` workflow
+compiles Android debug and iOS simulator builds. See
+[docs/OPERATIONS.md](docs/OPERATIONS.md) for device, provider and operational gates.
 
 ## Structure and scope
 
@@ -52,6 +59,6 @@ The migration integration test runs when `DATABASE_URL_TEST` points to a dedicat
 - `docs/`: product, architecture, API, database, security, setup and roadmap
 - `prompts/`: milestone-specific implementation briefs
 
-Native screens remain native; a WebView is reserved for the future source editor. Implemented: GitHub identity sign-in, PocketOps session hydration/rotation/logout, GitHub App connection/repository selection UX, authenticated read-only repository/tree/file/branch endpoints, signed webhook verification and durable PostgreSQL webhook processing. The mobile repository browsing screen remains a placeholder. Not implemented: repository writes, Render connections, source editing, deployments, incidents, notifications, Redis/BullMQ, or remote execution. Redis is not required by the current API or readiness check.
+Native screens remain native; a WebView is reserved for the future source editor. Implemented: GitHub identity sign-in, PocketOps session hydration/rotation/logout, GitHub App connection/repository selection UX, authenticated read-only repository/tree/file/branch endpoints, signed webhook verification and durable PostgreSQL webhook processing. The native repository explorer includes selected-repository search, branch selection, directory breadcrumbs and read-only text preview. See [docs/REPOSITORY_EXPLORER.md](docs/REPOSITORY_EXPLORER.md) for cache policy, API limits and acceptance evidence. Not implemented: repository writes, Render connections, source editing, deployments, incidents, notifications, Redis/BullMQ, or remote execution. Redis is not required by the current API or readiness check.
 
 To enable identity sign-in, configure its five server-only OAuth variables. To enable GitHub App connections, register an App with read-only Contents and Metadata permissions and configure all `GITHUB_APP_*` variables plus a fresh token-encryption key. Apply migrations and use an Android/iOS development build with the `pocketops` app scheme. See [docs/SETUP.md](docs/SETUP.md). Never place provider credentials, private keys or tokens in an `EXPO_PUBLIC_*` variable.

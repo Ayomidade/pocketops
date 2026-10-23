@@ -5,7 +5,9 @@ export function createCompletionSecret(randomBytes) {
   if (!(randomBytes instanceof Uint8Array) || randomBytes.length !== 32) {
     throw new Error("Secure random source must return 32 bytes");
   }
-  return Array.from(randomBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return Array.from(randomBytes, (byte) =>
+    byte.toString(16).padStart(2, "0"),
+  ).join("");
 }
 
 export function parseAuthCallback(callbackUrl, redirectUri) {
@@ -33,7 +35,10 @@ export function parseAuthCallback(callbackUrl, redirectUri) {
   if (handoffCode && /^[A-Za-z0-9_-]{43}$/.test(handoffCode) && !error) {
     return { handoffCode, error: null };
   }
-  if (!handoffCode && ["access_denied", "oauth_failed", "github_unavailable"].includes(error)) {
+  if (
+    !handoffCode &&
+    ["access_denied", "oauth_failed", "github_unavailable"].includes(error)
+  ) {
     return { handoffCode: null, error };
   }
   throw new Error("The sign-in callback is invalid.");

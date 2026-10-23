@@ -2,6 +2,7 @@ import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
 import { AppError } from "../src/errors/app-error.js";
 import { createApp } from "../src/app.js";
+import { createGitHubController } from "../src/modules/github/controller.js";
 
 const config = {
   nodeEnv: "test",
@@ -29,8 +30,12 @@ function makeServices(overrides = {}) {
     startInstallation: vi.fn(async () => ({
       authorizationUrl: "https://github.com/login/oauth/authorize?state=state",
     })),
-    handleOAuthCallback: vi.fn(async () => "https://github.com/apps/pocketops/installations/new"),
-    handleInstallationCallback: vi.fn(async () => "pocketops://github/callback?status=connected"),
+    handleOAuthCallback: vi.fn(
+      async () => "https://github.com/apps/pocketops/installations/new",
+    ),
+    handleInstallationCallback: vi.fn(
+      async () => "pocketops://github/callback?status=connected",
+    ),
     listInstallations: vi.fn(async () => []),
     listInstallationRepositories: vi.fn(async () => []),
     syncInstallationRepositories: vi.fn(async () => []),
@@ -50,6 +55,26 @@ function makeServices(overrides = {}) {
 }
 
 describe("GitHub integration API", () => {
+  it.each([
+    ["oauthCallback", "handleOAuthCallback"],
+    ["installationCallback", "handleInstallationCallback"],
+  ])(
+    "propagates unexpected %s failures to the async error handler",
+    async (method, serviceMethod) => {
+      const failure = new Error("private provider failure");
+      const service = {
+        [serviceMethod]: vi.fn().mockRejectedValue(failure),
+      };
+      const controller = createGitHubController(service);
+      await expect(
+        controller[method](
+          { validated: { query: {} }, id: "callback-test" },
+          {},
+        ),
+      ).rejects.toBe(failure);
+    },
+  );
+
   it("requires PocketOps authentication before exposing connected accounts", async () => {
     const githubService = { listInstallations: vi.fn() };
     const app = createApp({
@@ -57,7 +82,11 @@ describe("GitHub integration API", () => {
       githubService,
       authService: {
         authenticateToken: vi.fn(async () => {
-          throw new AppError(401, "UNAUTHENTICATED", "A valid session is required");
+          throw new AppError(
+            401,
+            "UNAUTHENTICATED",
+            "A valid session is required",
+          );
         }),
       },
     });
@@ -72,7 +101,9 @@ describe("GitHub integration API", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({})
       .expect(201);
-    expect(response.body.data.authorizationUrl).toContain("github.com/login/oauth/authorize");
+    expect(response.body.data.authorizationUrl).toContain(
+      "github.com/login/oauth/authorize",
+    );
     expect(githubService.startInstallation).toHaveBeenCalledWith({
       user,
       requestId: response.body.meta.requestId,
@@ -88,10 +119,14 @@ describe("GitHub integration API", () => {
           "GitHub authorization could not be completed",
         );
       }),
-      callbackFailureRedirect: vi.fn(async () => "pocketops://github/callback?status=failed"),
+      callbackFailureRedirect: vi.fn(
+        async () => "pocketops://github/callback?status=failed",
+      ),
     });
     const response = await request(app)
-      .get(`/api/v1/github/oauth/callback?state=${"s".repeat(43)}&code=one-time-code`)
+      .get(
+        `/api/v1/github/oauth/callback?state=${"s".repeat(43)}&code=one-time-code`,
+      )
       .expect(302);
     expect(response.headers.location).toBe(
       "pocketops://github/callback?status=failed",
@@ -102,10 +137,18 @@ describe("GitHub integration API", () => {
   it("validates selected repo IDs and hides inaccessible repository resources", async () => {
     const { app, githubService } = makeServices({
       syncInstallationRepositories: vi.fn(async () => {
-        throw new AppError(404, "RESOURCE_NOT_FOUND", "Repository was not found");
+        throw new AppError(
+          404,
+          "RESOURCE_NOT_FOUND",
+          "Repository was not found",
+        );
       }),
       getRepository: vi.fn(async () => {
-        throw new AppError(404, "RESOURCE_NOT_FOUND", "Repository was not found");
+        throw new AppError(
+          404,
+          "RESOURCE_NOT_FOUND",
+          "Repository was not found",
+        );
       }),
     });
     const invalid = await request(app)
@@ -140,10 +183,12 @@ describe("GitHub integration API", () => {
       .set("X-Hub-Signature-256", `sha256=${"a".repeat(64)}`)
       .send('{"action":"created","installation":{"id":7}}')
       .expect(202);
-    expect(Buffer.isBuffer(githubService.acceptWebhook.mock.calls[0][0].rawBody)).toBe(true);
-    expect(githubService.acceptWebhook.mock.calls[0][0].rawBody.toString()).toBe(
-      '{"action":"created","installation":{"id":7}}',
-    );
+    expect(
+      Buffer.isBuffer(githubService.acceptWebhook.mock.calls[0][0].rawBody),
+    ).toBe(true);
+    expect(
+      githubService.acceptWebhook.mock.calls[0][0].rawBody.toString(),
+    ).toBe('{"action":"created","installation":{"id":7}}');
     expect(response.body.data.accepted).toBe(true);
   });
 

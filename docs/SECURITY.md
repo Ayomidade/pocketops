@@ -12,22 +12,22 @@ PocketOps may access private repositories, production logs and deployment action
 
 ## 3. Threat matrix
 
-| Threat                     | Attack scenario                   | Mitigation                                                                         | Test                                          |
-| -------------------------- | --------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------- |
-| Account takeover           | Stolen mobile token               | Opaque revocable session, SecureStore, expiry, device logout                       | Revoked token returns 401                     |
+| Threat                     | Attack scenario                   | Mitigation                                                                                 | Test                                              |
+| -------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------- |
+| Account takeover           | Stolen mobile token               | Opaque revocable session, SecureStore, expiry, device logout                               | Revoked token returns 401                         |
 | OAuth login CSRF           | Forged callback or deep link      | Hashed one-use state, exact redirect allowlist, completion-secret binding, one-use handoff | Invalid/replayed state and spoofed handoff denied |
-| IDOR/BOLA                  | Guess another user's project UUID | Service-level object authorization and installation checks                         | Cross-user GET/POST denied                    |
-| Overbroad GitHub access    | App installed on all repos        | Repository selection and minimal App permissions                                   | Removed repo immediately denied               |
-| Provider key disclosure    | API returns connection record     | Encrypt, redact, DTO allowlist                                                     | Response contains no secret                   |
-| Forged webhook             | Spoofed deployment event          | Raw-body signature/auth verification, dedup, rate limits                           | Bad signature denied                          |
-| Replay/duplicate deploy    | Mobile retries request            | DB idempotency and reconciliation                                                  | One upstream action                           |
-| Concurrent edits           | Stale file overwritten            | Expected SHA and branch protection                                                 | 409 conflict                                  |
-| WebView injection          | Repo file injects scripts         | Packaged editor HTML, strict bridge, no arbitrary navigation                       | Script payload cannot call privileged actions |
-| SSRF                       | User supplies internal health URL | Approved production domain, DNS/IP restrictions, redirects disabled or revalidated | Private IP blocked                            |
-| Log-based XSS/data leakage | Malicious logs or secrets         | Render as text, redact and bound                                                   | HTML treated as text                          |
-| Worker compromise          | Untrusted code executed           | No code execution in MVP; separate runtime later                                   | No shell endpoint                             |
-| Push token abuse           | Unauthorized device registration  | Bind to user/session, revoke tokens                                                | Cross-user token denial                       |
-| Supply chain               | Compromised dependency            | Lockfiles, CI audit, minimal dependencies, review updates                          | CI policy checks                              |
+| IDOR/BOLA                  | Guess another user's project UUID | Service-level object authorization and installation checks                                 | Cross-user GET/POST denied                        |
+| Overbroad GitHub access    | App installed on all repos        | Repository selection and minimal App permissions                                           | Removed repo immediately denied                   |
+| Provider key disclosure    | API returns connection record     | Encrypt, redact, DTO allowlist                                                             | Response contains no secret                       |
+| Forged webhook             | Spoofed deployment event          | Raw-body signature/auth verification, dedup, rate limits                                   | Bad signature denied                              |
+| Replay/duplicate deploy    | Mobile retries request            | DB idempotency and reconciliation                                                          | One upstream action                               |
+| Concurrent edits           | Stale file overwritten            | Expected SHA and branch protection                                                         | 409 conflict                                      |
+| WebView injection          | Repo file injects scripts         | Packaged editor HTML, strict bridge, no arbitrary navigation                               | Script payload cannot call privileged actions     |
+| SSRF                       | User supplies internal health URL | Approved production domain, DNS/IP restrictions, redirects disabled or revalidated         | Private IP blocked                                |
+| Log-based XSS/data leakage | Malicious logs or secrets         | Render as text, redact and bound                                                           | HTML treated as text                              |
+| Worker compromise          | Untrusted code executed           | No code execution in MVP; separate runtime later                                           | No shell endpoint                                 |
+| Push token abuse           | Unauthorized device registration  | Bind to user/session, revoke tokens                                                        | Cross-user token denial                           |
+| Supply chain               | Compromised dependency            | Lockfiles, CI audit, minimal dependencies, review updates                                  | CI policy checks                                  |
 
 ## 4. Authentication specification
 
@@ -60,6 +60,13 @@ Only allow enumerated provider operations. Require project authorization, exact 
 Verify signature against **raw** request bytes before JSON parsing. Validate supported events, record unique delivery ID, acknowledge promptly, process asynchronously and reconcile with provider API for critical state. Guard against duplicates and stale deliveries. Do not treat webhook body as authorization to mutate production.
 
 ## 9. Mobile and editor security
+
+The native repository explorer keeps all query data in memory, scopes the cache
+to a PocketOps session, and cancels/clears it on logout/session change. Source
+has zero inactive retention and is removed on preview blur/background; metadata
+is explicitly stale during offline/revalidation states. Known 401/403/404 failures
+purge related repository caches. See [Repository explorer](REPOSITORY_EXPLORER.md)
+for the tested policy and its live-device/revocation limitations.
 
 - Native navigation/deployment controls; editor-only WebView with bundled static HTML/assets.
 - Allowlist bridge messages; validate JSON schema, session nonce, origin/navigation and maximum payload sizes.

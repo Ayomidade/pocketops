@@ -34,7 +34,10 @@ test("API client surfaces safe API error codes and request IDs", async () => {
     new Response(
       JSON.stringify({
         success: false,
-        error: { code: "NOT_READY", message: "Required dependencies are unavailable" },
+        error: {
+          code: "NOT_READY",
+          message: "Required dependencies are unavailable",
+        },
         meta: { requestId: "ready-test" },
       }),
       { status: 503 },

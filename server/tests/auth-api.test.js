@@ -22,9 +22,12 @@ const session = { id: "session-id", expiresAt: "2026-11-21T00:00:00.000Z" };
 function makeAuthService() {
   return {
     createMobileStart: vi.fn(async () => ({
-      authorizationUrl: "https://api.example.test/api/v1/auth/github?state=state",
+      authorizationUrl:
+        "https://api.example.test/api/v1/auth/github?state=state",
     })),
-    getAuthorizationUrl: vi.fn(async () => "https://github.com/login/oauth/authorize"),
+    getAuthorizationUrl: vi.fn(
+      async () => "https://github.com/login/oauth/authorize",
+    ),
     handleCallback: vi.fn(async () => ({
       redirectUrl: "pocketops://auth/callback?handoff=handoff",
     })),

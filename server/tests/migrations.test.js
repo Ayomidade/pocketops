@@ -3,7 +3,10 @@ import { Sequelize } from "sequelize";
 import { runMigrations } from "../src/db/migrate.js";
 import { defineModels } from "../src/db/models/index.js";
 import { createAuthRepository } from "../src/modules/auth/repository.js";
-import { createAuthService, hashCredential } from "../src/modules/auth/service.js";
+import {
+  createAuthService,
+  hashCredential,
+} from "../src/modules/auth/service.js";
 import { createGitHubRepository } from "../src/modules/github/repository.js";
 
 const testDatabaseUrl = process.env.DATABASE_URL_TEST;
@@ -43,7 +46,9 @@ describe("users and sessions migrations", () => {
         expect(userIndexes.some((index) => index.unique)).toBe(true);
         expect(sessionIndexes.some((index) => index.unique)).toBe(true);
         expect(
-          sessionIndexes.some((index) => index.name === "sessions_user_expiry_index"),
+          sessionIndexes.some(
+            (index) => index.name === "sessions_user_expiry_index",
+          ),
         ).toBe(true);
         const oauthIndexes = await sequelize
           .getQueryInterface()
@@ -79,7 +84,9 @@ describe("users and sessions migrations", () => {
         expect(repositoryIndexes.some((index) => index.unique)).toBe(true);
         expect(deliveryIndexes.some((index) => index.unique)).toBe(true);
         expect(
-          deliveryIndexes.some((index) => index.name === "webhook_deliveries_queue_index"),
+          deliveryIndexes.some(
+            (index) => index.name === "webhook_deliveries_queue_index",
+          ),
         ).toBe(true);
 
         const models = defineModels(sequelize);
@@ -117,9 +124,7 @@ describe("users and sessions migrations", () => {
           redirectUri: mobileRedirectUri,
           completionSecret: "c".repeat(64),
         });
-        const authorization = new URL(
-          await service.getAuthorizationUrl(state),
-        );
+        const authorization = new URL(await service.getAuthorizationUrl(state));
         expect(authorization.searchParams.get("state")).toBe(state);
         const callback = await service.handleCallback({
           state,
@@ -147,9 +152,9 @@ describe("users and sessions migrations", () => {
         expect(await service.authenticateToken(sessionToken)).toMatchObject({
           user: { username: "auth-test-user" },
         });
-        expect(
-          (await models.Session.findOne()).tokenHash,
-        ).toBe(hashCredential(sessionToken));
+        expect((await models.Session.findOne()).tokenHash).toBe(
+          hashCredential(sessionToken),
+        );
         await expect(
           service.exchangeHandoff({
             handoffCode: handoff,
@@ -168,9 +173,11 @@ describe("users and sessions migrations", () => {
         await expect(
           service.authenticateToken(sessionToken),
         ).rejects.toMatchObject({ code: "UNAUTHENTICATED", status: 401 });
-        expect(await service.authenticateToken(replacementToken)).toMatchObject({
-          user: { id: exchanged.user.id },
-        });
+        expect(await service.authenticateToken(replacementToken)).toMatchObject(
+          {
+            user: { id: exchanged.user.id },
+          },
+        );
         now = new Date("2026-12-02T08:00:00Z");
         await expect(
           service.authenticateToken(replacementToken),
@@ -255,7 +262,10 @@ describe("users and sessions migrations", () => {
           }),
         ).toBe(1);
 
-        const githubRepositoryStore = createGitHubRepository({ sequelize, models });
+        const githubRepositoryStore = createGitHubRepository({
+          sequelize,
+          models,
+        });
         const githubStateHash = "a".repeat(64);
         const installStateHash = "b".repeat(64);
         const installationLink = await githubRepositoryStore.createLink({
@@ -276,10 +286,16 @@ describe("users and sessions migrations", () => {
           }),
         ).toBe(true);
         expect(
-          await githubRepositoryStore.claimInstallationCallback(installStateHash, now),
+          await githubRepositoryStore.claimInstallationCallback(
+            installStateHash,
+            now,
+          ),
         ).toMatchObject({ id: installationLink.id });
         expect(
-          await githubRepositoryStore.claimInstallationCallback(installStateHash, now),
+          await githubRepositoryStore.claimInstallationCallback(
+            installStateHash,
+            now,
+          ),
         ).toBeNull();
 
         const delivery = {
@@ -292,8 +308,12 @@ describe("users and sessions migrations", () => {
           },
           now,
         };
-        expect(await githubRepositoryStore.upsertWebhookDelivery(delivery)).toBe(true);
-        expect(await githubRepositoryStore.upsertWebhookDelivery(delivery)).toBe(false);
+        expect(
+          await githubRepositoryStore.upsertWebhookDelivery(delivery),
+        ).toBe(true);
+        expect(
+          await githubRepositoryStore.upsertWebhookDelivery(delivery),
+        ).toBe(false);
         await githubRepositoryStore.processWebhookEvent({
           eventType: delivery.eventType,
           payload: delivery.payload,

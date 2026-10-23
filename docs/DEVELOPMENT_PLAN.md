@@ -30,11 +30,13 @@ Build a runnable, testable native mobile app and backend first. Add GitHub ident
 
 **Backend:** App installation/user authorization handoff, webhook verification, Octokit adapter, installation/repository reconciliation, selected-repository/tree/file/branch read APIs; pagination, rate limits and live permission checks. **Mobile:** connection status and explicit repository selection; reusable read-only API service. Native repository browsing is Milestone 3.
 
-**Implementation status (2026-10; prompt `03-github-integration.md`):** server-side GitHub App authorization and encrypted expiring user tokens, per-user installation membership and repository selection, raw-body signed webhook handling with durable PostgreSQL delivery processing, read-only repository APIs and native connection/selection UX are implemented with mocked-provider tests. The GitHub App is not configured in this environment; live GitHub/App setup and physical-device verification are NOT RUN. Repository browsing, branch selection and file preview remain deferred.
+**Implementation status (2026-10; prompt `03-github-integration.md`):** server-side GitHub App authorization and encrypted expiring user tokens, per-user installation membership and repository selection, raw-body signed webhook handling with durable PostgreSQL delivery processing, read-only repository APIs and native connection/selection UX are implemented with mocked-provider tests. The GitHub App is not configured in this environment; live GitHub/App setup and physical-device verification are NOT RUN. Repository browsing, branch selection and file preview were delivered in the subsequent explorer task; live provider/device gates remain pending.
 
 ### Milestone 3 — Native repository explorer (weeks 4–5)
 
 **Mobile:** selected repository list, native tree navigation, branch selection and text preview; loading/empty/offline/error/retry states and accessibility. Consume the existing read-only API and do not add repository writes. **Exit:** selected test repository browsable on Android and access revocation promptly reflected.
+
+**Implementation status (2026-10-23; prompt `04-repository-explorer.md`):** native repository list/search, connected-account summary, branch picker, directory navigation/breadcrumbs and bounded monospace text preview are implemented with TanStack Query and native component/API tests. No writes or WebView exist. Automated verification and physical-device gaps are recorded in [Repository explorer](REPOSITORY_EXPLORER.md). The Android live browsing/revocation exit gate is NOT RUN without a connected device and configured GitHub test apps.
 
 ### Milestone 4 — Code editor and Git workflow (weeks 5–6)
 

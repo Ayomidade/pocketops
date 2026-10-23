@@ -64,16 +64,26 @@ function safeProviderAccount(installation) {
     !installation ||
     !/^\d+$/.test(String(installation.id)) ||
     !/^\d+$/.test(String(installation.accountId)) ||
-    !["User", "Organization", "Enterprise"].includes(installation.accountType) ||
+    !["User", "Organization", "Enterprise"].includes(
+      installation.accountType,
+    ) ||
     typeof installation.accountLogin !== "string"
   ) {
-    throw new AppError(502, "GITHUB_INVALID_RESPONSE", "GitHub returned invalid installation details");
+    throw new AppError(
+      502,
+      "GITHUB_INVALID_RESPONSE",
+      "GitHub returned invalid installation details",
+    );
   }
 }
 
 function decodePath(path, allowRoot = false) {
   if (typeof path !== "string" || path.length > 1024) {
-    throw new AppError(422, "INVALID_REPOSITORY_PATH", "Repository path is invalid");
+    throw new AppError(
+      422,
+      "INVALID_REPOSITORY_PATH",
+      "Repository path is invalid",
+    );
   }
   if (allowRoot && path === "") return "";
   const segments = path.split("/");
@@ -88,7 +98,11 @@ function decodePath(path, allowRoot = false) {
     }) ||
     segments.some((segment) => !segment || segment === "." || segment === "..")
   ) {
-    throw new AppError(422, "INVALID_REPOSITORY_PATH", "Repository path is invalid");
+    throw new AppError(
+      422,
+      "INVALID_REPOSITORY_PATH",
+      "Repository path is invalid",
+    );
   }
   return path;
 }
@@ -97,13 +111,19 @@ function decodeCursor(cursor, kind, resourceId, key) {
   if (!cursor) return 1;
   try {
     const [payload, signature, extra] = cursor.split(".");
-    if (!payload || !signature || extra !== undefined) throw new Error("invalid cursor");
+    if (!payload || !signature || extra !== undefined)
+      throw new Error("invalid cursor");
     const expected = createHmac("sha256", key).update(payload).digest();
     const actual = Buffer.from(signature, "base64url");
-    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+    if (
+      actual.length !== expected.length ||
+      !timingSafeEqual(actual, expected)
+    ) {
       throw new Error("invalid cursor");
     }
-    const value = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    const value = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    );
     if (
       value.kind !== kind ||
       value.resourceId !== resourceId ||
@@ -121,14 +141,22 @@ function decodeCursor(cursor, kind, resourceId, key) {
 
 function encodeCursor(kind, resourceId, page, key) {
   if (!page) return null;
-  const payload = Buffer.from(JSON.stringify({ kind, resourceId, page })).toString("base64url");
-  const signature = createHmac("sha256", key).update(payload).digest("base64url");
+  const payload = Buffer.from(
+    JSON.stringify({ kind, resourceId, page }),
+  ).toString("base64url");
+  const signature = createHmac("sha256", key)
+    .update(payload)
+    .digest("base64url");
   return `${payload}.${signature}`;
 }
 
 function normalizeWebhookPayload(eventType, body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    throw new AppError(400, "INVALID_WEBHOOK_PAYLOAD", "GitHub webhook payload is invalid");
+    throw new AppError(
+      400,
+      "INVALID_WEBHOOK_PAYLOAD",
+      "GitHub webhook payload is invalid",
+    );
   }
   const installationId = body.installation?.id;
   const changedRepositories =
@@ -137,7 +165,11 @@ function normalizeWebhookPayload(eventType, body) {
     body.repositories_removed ||
     [];
   if (!Array.isArray(changedRepositories) || changedRepositories.length > 100) {
-    throw new AppError(400, "INVALID_WEBHOOK_PAYLOAD", "GitHub webhook payload is invalid");
+    throw new AppError(
+      400,
+      "INVALID_WEBHOOK_PAYLOAD",
+      "GitHub webhook payload is invalid",
+    );
   }
   const normalizedChangedRepositories = changedRepositories.map((repo) => {
     if (
@@ -148,7 +180,11 @@ function normalizeWebhookPayload(eventType, body) {
       typeof repo.name !== "string" ||
       typeof repo.full_name !== "string"
     ) {
-      throw new AppError(400, "INVALID_WEBHOOK_PAYLOAD", "GitHub webhook payload is invalid");
+      throw new AppError(
+        400,
+        "INVALID_WEBHOOK_PAYLOAD",
+        "GitHub webhook payload is invalid",
+      );
     }
     return {
       id: String(repo.id),
@@ -156,15 +192,20 @@ function normalizeWebhookPayload(eventType, body) {
       owner: repo.owner.login,
       name: repo.name,
       fullName: repo.full_name,
-      defaultBranch: typeof repo.default_branch === "string" ? repo.default_branch : null,
+      defaultBranch:
+        typeof repo.default_branch === "string" ? repo.default_branch : null,
       isPrivate: Boolean(repo.private),
       isArchived: Boolean(repo.archived),
     };
   });
   const payload = {
     action: typeof body.action === "string" ? body.action.slice(0, 80) : null,
-    installationId: /^\d+$/.test(String(installationId)) ? String(installationId) : null,
-    senderId: /^\d+$/.test(String(body.sender?.id)) ? String(body.sender.id) : null,
+    installationId: /^\d+$/.test(String(installationId))
+      ? String(installationId)
+      : null,
+    senderId: /^\d+$/.test(String(body.sender?.id))
+      ? String(body.sender.id)
+      : null,
     repositories: normalizedChangedRepositories,
     repositoryIds: normalizedChangedRepositories.map((repo) => repo.id),
     account: body.installation?.account
@@ -179,18 +220,27 @@ function normalizeWebhookPayload(eventType, body) {
     suspendedAt: body.installation?.suspended_at || null,
   };
   if (eventType !== "github_app_authorization" && !payload.installationId) {
-    throw new AppError(400, "INVALID_WEBHOOK_PAYLOAD", "GitHub webhook payload is invalid");
+    throw new AppError(
+      400,
+      "INVALID_WEBHOOK_PAYLOAD",
+      "GitHub webhook payload is invalid",
+    );
   }
   return payload;
 }
 
 export function verifyGitHubWebhookSignature(rawBody, signature, secret) {
-  if (!Buffer.isBuffer(rawBody) || !/^sha256=[a-f0-9]{64}$/i.test(signature || "")) {
+  if (
+    !Buffer.isBuffer(rawBody) ||
+    !/^sha256=[a-f0-9]{64}$/i.test(signature || "")
+  ) {
     return false;
   }
   const expected = createHmac("sha256", secret).update(rawBody).digest();
   const provided = Buffer.from(signature.slice(7), "hex");
-  return provided.length === expected.length && timingSafeEqual(provided, expected);
+  return (
+    provided.length === expected.length && timingSafeEqual(provided, expected)
+  );
 }
 
 export function createGitHubService({
@@ -202,7 +252,11 @@ export function createGitHubService({
 }) {
   function requireConfiguration() {
     if (!config.githubAppEnabled) {
-      throw new AppError(503, "GITHUB_APP_NOT_CONFIGURED", "GitHub App integration is not configured");
+      throw new AppError(
+        503,
+        "GITHUB_APP_NOT_CONFIGURED",
+        "GitHub App integration is not configured",
+      );
     }
   }
 
@@ -215,33 +269,54 @@ export function createGitHubService({
   }
 
   async function getMembershipAccessToken(membership, requestId) {
-    if (membership.installation.removedAt || membership.installation.suspendedAt) {
-      throw new AppError(404, "RESOURCE_NOT_FOUND", "GitHub installation was not found");
+    if (
+      membership.installation.removedAt ||
+      membership.installation.suspendedAt
+    ) {
+      throw new AppError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "GitHub installation was not found",
+      );
     }
     try {
-      return await repository.withMembershipLock(membership.id, async (locked, saveTokens) => {
-        if (locked.status !== "active") {
-          throw new AppError(404, "RESOURCE_NOT_FOUND", "GitHub installation was not found");
-        }
-        let accessToken = open(locked.githubUserTokenEncrypted);
-        if (locked.accessTokenExpiresAt.getTime() <= clock().getTime() + tokenRefreshMarginMs) {
-          if (locked.refreshTokenExpiresAt.getTime() <= clock().getTime()) {
-            throw new AppError(401, "GITHUB_AUTH_REVOKED", "Reconnect this GitHub account");
+      return await repository.withMembershipLock(
+        membership.id,
+        async (locked, saveTokens) => {
+          if (locked.status !== "active") {
+            throw new AppError(
+              404,
+              "RESOURCE_NOT_FOUND",
+              "GitHub installation was not found",
+            );
           }
-          const refreshed = await adapter.refreshUserToken(
-            open(locked.githubRefreshTokenEncrypted),
-          );
-          await saveTokens({
-            githubUserTokenEncrypted: seal(refreshed.accessToken),
-            githubRefreshTokenEncrypted: seal(refreshed.refreshToken),
-            accessTokenExpiresAt: refreshed.accessExpiresAt,
-            refreshTokenExpiresAt: refreshed.refreshExpiresAt,
-            lastVerifiedAt: clock(),
-          });
-          accessToken = refreshed.accessToken;
-        }
-        return accessToken;
-      });
+          let accessToken = open(locked.githubUserTokenEncrypted);
+          if (
+            locked.accessTokenExpiresAt.getTime() <=
+            clock().getTime() + tokenRefreshMarginMs
+          ) {
+            if (locked.refreshTokenExpiresAt.getTime() <= clock().getTime()) {
+              throw new AppError(
+                401,
+                "GITHUB_AUTH_REVOKED",
+                "Reconnect this GitHub account",
+              );
+            }
+            const refreshed = await adapter.refreshUserToken(
+              open(locked.githubRefreshTokenEncrypted),
+            );
+            await saveTokens({
+              githubUserTokenEncrypted: seal(refreshed.accessToken),
+              githubRefreshTokenEncrypted: seal(refreshed.refreshToken),
+              accessTokenExpiresAt: refreshed.accessExpiresAt,
+              refreshTokenExpiresAt: refreshed.refreshExpiresAt,
+              lastVerifiedAt: clock(),
+            });
+            accessToken = refreshed.accessToken;
+          }
+          return accessToken;
+        },
+      );
     } catch (error) {
       if (error.status === 401) {
         await repository.revokeMembership(
@@ -285,7 +360,11 @@ export function createGitHubService({
         clock(),
         "user_no_longer_authorized",
       );
-      throw new AppError(404, "RESOURCE_NOT_FOUND", "GitHub installation was not found");
+      throw new AppError(
+        404,
+        "RESOURCE_NOT_FOUND",
+        "GitHub installation was not found",
+      );
     }
     let userRepositories;
     let appRepositories;
@@ -310,7 +389,11 @@ export function createGitHubService({
             "provider_authorization_revoked",
           );
         }
-        throw new AppError(404, "RESOURCE_NOT_FOUND", "GitHub installation was not found");
+        throw new AppError(
+          404,
+          "RESOURCE_NOT_FOUND",
+          "GitHub installation was not found",
+        );
       }
       throw error;
     }
@@ -333,7 +416,10 @@ export function createGitHubService({
   }
 
   async function authorizedRepository(userId, repositoryId, requestId) {
-    const selection = await repository.getSelectedRepository(userId, repositoryId);
+    const selection = await repository.getSelectedRepository(
+      userId,
+      repositoryId,
+    );
     if (!selection) {
       throw new AppError(404, "RESOURCE_NOT_FOUND", "Repository was not found");
     }
@@ -368,26 +454,46 @@ export function createGitHubService({
   async function handleOAuthCallback({ state, code, providerError }) {
     requireConfiguration();
     if (!state || state.length > 128) {
-      throw new AppError(400, "INVALID_GITHUB_STATE", "GitHub connection request is invalid");
+      throw new AppError(
+        400,
+        "INVALID_GITHUB_STATE",
+        "GitHub connection request is invalid",
+      );
     }
     const now = clock();
     const link = await repository.findLinkByState(hash(state), now);
     if (!link) {
-      throw new AppError(400, "INVALID_GITHUB_STATE", "GitHub connection request expired");
+      throw new AppError(
+        400,
+        "INVALID_GITHUB_STATE",
+        "GitHub connection request expired",
+      );
     }
     if (providerError) {
       await repository.consumeDeniedLink(link.id, now);
-      throw new AppError(400, "GITHUB_AUTH_CANCELLED", "GitHub connection was cancelled");
+      throw new AppError(
+        400,
+        "GITHUB_AUTH_CANCELLED",
+        "GitHub connection was cancelled",
+      );
     }
     if (!code || code.length > 2048) {
       await repository.consumeDeniedLink(link.id, now);
-      throw new AppError(400, "INVALID_GITHUB_CODE", "GitHub authorization could not be completed");
+      throw new AppError(
+        400,
+        "INVALID_GITHUB_CODE",
+        "GitHub authorization could not be completed",
+      );
     }
     const tokens = await adapter.exchangeUserCode(code);
     const identity = await adapter.getAuthenticatedUser(tokens.accessToken);
     if (String(identity.id) !== String(link.githubUserId)) {
       await repository.consumeDeniedLink(link.id, now);
-      throw new AppError(403, "GITHUB_ACCOUNT_MISMATCH", "Authorize with the GitHub account signed into PocketOps");
+      throw new AppError(
+        403,
+        "GITHUB_ACCOUNT_MISMATCH",
+        "Authorize with the GitHub account signed into PocketOps",
+      );
     }
     const installState = credentialGenerator();
     const saved = await repository.authorizeLink({
@@ -400,7 +506,11 @@ export function createGitHubService({
       now,
     });
     if (!saved) {
-      throw new AppError(400, "INVALID_GITHUB_STATE", "GitHub connection request was already used");
+      throw new AppError(
+        400,
+        "INVALID_GITHUB_STATE",
+        "GitHub connection request was already used",
+      );
     }
     const installationUrl = new URL(
       `/apps/${config.githubAppSlug}/installations/new`,
@@ -423,18 +533,33 @@ export function createGitHubService({
       !/^\d+$/.test(String(installationId)) ||
       !["install", "update"].includes(setupAction)
     ) {
-      throw new AppError(400, "INVALID_INSTALLATION_CALLBACK", "GitHub installation callback is invalid");
+      throw new AppError(
+        400,
+        "INVALID_INSTALLATION_CALLBACK",
+        "GitHub installation callback is invalid",
+      );
     }
     const now = clock();
     const link = await repository.claimInstallationCallback(hash(state), now);
     if (!link) {
-      throw new AppError(400, "INVALID_INSTALLATION_STATE", "GitHub installation request expired");
+      throw new AppError(
+        400,
+        "INVALID_INSTALLATION_STATE",
+        "GitHub installation request expired",
+      );
     }
     if (link.refreshTokenExpiresAt <= now) {
-      throw new AppError(401, "GITHUB_AUTH_REVOKED", "Restart GitHub connection");
+      throw new AppError(
+        401,
+        "GITHUB_AUTH_REVOKED",
+        "Restart GitHub connection",
+      );
     }
     let accessToken = open(link.accessTokenEncrypted);
-    if (link.accessTokenExpiresAt <= new Date(now.getTime() + tokenRefreshMarginMs)) {
+    if (
+      link.accessTokenExpiresAt <=
+      new Date(now.getTime() + tokenRefreshMarginMs)
+    ) {
       const refreshed = await adapter.refreshUserToken(
         open(link.refreshTokenEncrypted),
       );
@@ -450,17 +575,21 @@ export function createGitHubService({
       link.accessTokenExpiresAt = refreshed.accessExpiresAt;
       link.refreshTokenExpiresAt = refreshed.refreshExpiresAt;
     }
-    const providerInstallations = await adapter.getUserInstallations(accessToken);
+    const providerInstallations =
+      await adapter.getUserInstallations(accessToken);
     const providerInstallation = providerInstallations.find(
       (item) => item.id === String(installationId),
     );
     if (!providerInstallation || providerInstallation.suspendedAt) {
-      throw new AppError(403, "GITHUB_INSTALLATION_NOT_AUTHORIZED", "GitHub did not authorize this installation for the signed-in account");
+      throw new AppError(
+        403,
+        "GITHUB_INSTALLATION_NOT_AUTHORIZED",
+        "GitHub did not authorize this installation for the signed-in account",
+      );
     }
     safeProviderAccount(providerInstallation);
-    const appRepositories = await adapter.getAppInstallationRepositories(
-      installationId,
-    );
+    const appRepositories =
+      await adapter.getAppInstallationRepositories(installationId);
     const completed = await repository.completeInstallation({
       linkId: link.id,
       githubInstallationId: String(installationId),
@@ -470,7 +599,11 @@ export function createGitHubService({
       requestId,
     });
     if (!completed) {
-      throw new AppError(400, "INVALID_INSTALLATION_STATE", "GitHub installation request was already used");
+      throw new AppError(
+        400,
+        "INVALID_INSTALLATION_STATE",
+        "GitHub installation request was already used",
+      );
     }
     return mobileRedirect("connected");
   }
@@ -513,7 +646,10 @@ export function createGitHubService({
             ...safeInstallation(membership.installation),
             repositoryCount: access.repositories.length,
             selectedRepositoryCount: (
-              await repository.listRepositories(userId, membership.installationId)
+              await repository.listRepositories(
+                userId,
+                membership.installationId,
+              )
             ).length,
           });
         } catch (error) {
@@ -528,11 +664,20 @@ export function createGitHubService({
       requireConfiguration();
       const membership = await repository.getMembership(userId, installationId);
       if (!membership) {
-        throw new AppError(404, "RESOURCE_NOT_FOUND", "GitHub installation was not found");
+        throw new AppError(
+          404,
+          "RESOURCE_NOT_FOUND",
+          "GitHub installation was not found",
+        );
       }
       const access = await currentInstallationAccess(membership, requestId);
-      const selections = await repository.listRepositories(userId, installationId);
-      const selectedIds = new Set(selections.map((item) => item.repository.githubRepositoryId));
+      const selections = await repository.listRepositories(
+        userId,
+        installationId,
+      );
+      const selectedIds = new Set(
+        selections.map((item) => item.repository.githubRepositoryId),
+      );
       return access.repositories.map((repo) => {
         const local = selections.find(
           (item) => item.repository.githubRepositoryId === repo.id,
@@ -562,12 +707,20 @@ export function createGitHubService({
       requireConfiguration();
       const membership = await repository.getMembership(userId, installationId);
       if (!membership) {
-        throw new AppError(404, "RESOURCE_NOT_FOUND", "GitHub installation was not found");
+        throw new AppError(
+          404,
+          "RESOURCE_NOT_FOUND",
+          "GitHub installation was not found",
+        );
       }
       const access = await currentInstallationAccess(membership, requestId);
       const authorizedIds = new Set(access.repositories.map((repo) => repo.id));
       if (githubRepositoryIds.some((id) => !authorizedIds.has(id))) {
-        throw new AppError(404, "RESOURCE_NOT_FOUND", "One or more repositories are not currently authorized");
+        throw new AppError(
+          404,
+          "RESOURCE_NOT_FOUND",
+          "One or more repositories are not currently authorized",
+        );
       }
       const selected = await repository.replaceSelections(
         userId,
@@ -577,23 +730,36 @@ export function createGitHubService({
         clock(),
       );
       if (!selected) {
-        throw new AppError(404, "RESOURCE_NOT_FOUND", "One or more repositories are not currently authorized");
+        throw new AppError(
+          404,
+          "RESOURCE_NOT_FOUND",
+          "One or more repositories are not currently authorized",
+        );
       }
       return selected;
     },
 
     async listRepositories({ userId, cursor, limit, search, requestId }) {
       requireConfiguration();
-      const page = decodeCursor(cursor, "repositories", userId, config.githubTokenEncryptionKey);
+      const page = decodeCursor(
+        cursor,
+        "repositories",
+        userId,
+        config.githubTokenEncryptionKey,
+      );
       const selected = await repository.listRepositories(userId);
       const byInstallation = new Map();
       for (const item of selected) {
         const id = item.repository.installationId;
-        if (!byInstallation.has(id)) byInstallation.set(id, item.repository.installation);
+        if (!byInstallation.has(id))
+          byInstallation.set(id, item.repository.installation);
       }
       const currentIds = new Set();
       for (const [installationId] of byInstallation) {
-        const membership = await repository.getMembership(userId, installationId);
+        const membership = await repository.getMembership(
+          userId,
+          installationId,
+        );
         if (!membership) continue;
         try {
           const access = await currentInstallationAccess(membership, requestId);
@@ -603,22 +769,37 @@ export function createGitHubService({
         }
       }
       const records = selected
-        .filter((item) => currentIds.has(String(item.repository.githubRepositoryId)))
+        .filter((item) =>
+          currentIds.has(String(item.repository.githubRepositoryId)),
+        )
         .map((item) => safeRepository(item.repository, true))
-        .filter((repo) => !search || repo.fullName.toLowerCase().includes(search.toLowerCase()));
+        .filter(
+          (repo) =>
+            !search ||
+            repo.fullName.toLowerCase().includes(search.toLowerCase()),
+        );
       const start = (page - 1) * limit;
       return {
         data: records.slice(start, start + limit),
         nextCursor:
           start + limit < records.length
-            ? encodeCursor("repositories", userId, page + 1, config.githubTokenEncryptionKey)
+            ? encodeCursor(
+                "repositories",
+                userId,
+                page + 1,
+                config.githubTokenEncryptionKey,
+              )
             : null,
       };
     },
 
     async getRepository({ userId, repositoryId, requestId }) {
       requireConfiguration();
-      const { repo, membership } = await authorizedRepository(userId, repositoryId, requestId);
+      const { repo, membership } = await authorizedRepository(
+        userId,
+        repositoryId,
+        requestId,
+      );
       const providerRepo = await adapter.getRepository(
         membership.installation.githubInstallationId,
         repo.owner,
@@ -648,28 +829,29 @@ export function createGitHubService({
     }) {
       requireConfiguration();
       const safePath = decodePath(path, true);
+      if (cursor) {
+        throw new AppError(
+          422,
+          "DIRECTORY_CURSOR_UNSUPPORTED",
+          "Directory listings are limited to 1000 entries and do not support pagination",
+        );
+      }
       const { linked, repo, membership } = await authorizedRepository(
         userId,
         repositoryId,
         requestId,
       );
-      const page = decodeCursor(cursor, "tree", repositoryId, config.githubTokenEncryptionKey);
       const result = await adapter.listDirectory(
         membership.installation.githubInstallationId,
         repo.owner,
         repo.name,
         safePath,
         ref || linked.defaultBranch,
-        page,
       );
       return {
         data: result.entries,
-        nextCursor: encodeCursor(
-          "tree",
-          repositoryId,
-          result.nextPage,
-          config.githubTokenEncryptionKey,
-        ),
+        nextCursor: null,
+        directoryLimitReached: Boolean(result.directoryLimitReached),
       };
     },
 
@@ -689,13 +871,33 @@ export function createGitHubService({
         ref || linked.defaultBranch,
       );
       if (!Number.isSafeInteger(file.size) || file.size < 0) {
-        throw new AppError(502, "GITHUB_INVALID_RESPONSE", "GitHub returned invalid file metadata");
+        throw new AppError(
+          502,
+          "GITHUB_INVALID_RESPONSE",
+          "GitHub returned invalid file metadata",
+        );
       }
       if (file.size > maximumFileBytes) {
-        throw new AppError(413, "FILE_TOO_LARGE", "Files larger than 512 KiB cannot be previewed");
+        throw new AppError(
+          413,
+          "FILE_TOO_LARGE",
+          "Files larger than 512 KiB cannot be previewed",
+        );
       }
       const encoded = String(file.content || "").replace(/\s/g, "");
-      if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded)) {
+      if (encoded.length > Math.ceil(maximumFileBytes / 3) * 4) {
+        throw new AppError(
+          413,
+          "FILE_TOO_LARGE",
+          "Files larger than 512 KiB cannot be previewed",
+        );
+      }
+      if (
+        file.encoding !== "base64" ||
+        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
+          encoded,
+        )
+      ) {
         return {
           path: file.path,
           ref: ref || linked.defaultBranch,
@@ -707,8 +909,16 @@ export function createGitHubService({
         };
       }
       const bytes = Buffer.from(encoded, "base64");
+      if (bytes.length !== file.size || bytes.length > maximumFileBytes) {
+        throw new AppError(
+          502,
+          "GITHUB_INVALID_RESPONSE",
+          "GitHub returned inconsistent file content",
+        );
+      }
       const decodedContent = bytes.toString("utf8");
-      const isUtf8 = !bytes.includes(0) && Buffer.from(decodedContent, "utf8").equals(bytes);
+      const isUtf8 =
+        !bytes.includes(0) && Buffer.from(decodedContent, "utf8").equals(bytes);
       const encoding = isUtf8 ? "utf-8" : "binary";
       return {
         path: file.path,
@@ -728,7 +938,12 @@ export function createGitHubService({
         repositoryId,
         requestId,
       );
-      const page = decodeCursor(cursor, "branches", repositoryId, config.githubTokenEncryptionKey);
+      const page = decodeCursor(
+        cursor,
+        "branches",
+        repositoryId,
+        config.githubTokenEncryptionKey,
+      );
       const result = await adapter.listBranches(
         membership.installation.githubInstallationId,
         repo.owner,
@@ -748,24 +963,48 @@ export function createGitHubService({
 
     async acceptWebhook({ rawBody, signature, deliveryId, eventType }) {
       requireConfiguration();
-      if (!verifyGitHubWebhookSignature(rawBody, signature, config.githubAppWebhookSecret)) {
-        throw new AppError(401, "INVALID_WEBHOOK_SIGNATURE", "GitHub webhook signature is invalid");
+      if (
+        !verifyGitHubWebhookSignature(
+          rawBody,
+          signature,
+          config.githubAppWebhookSecret,
+        )
+      ) {
+        throw new AppError(
+          401,
+          "INVALID_WEBHOOK_SIGNATURE",
+          "GitHub webhook signature is invalid",
+        );
       }
       if (typeof eventType !== "string" || !/^[a-z_]{1,80}$/.test(eventType)) {
-        throw new AppError(400, "INVALID_WEBHOOK_EVENT", "GitHub webhook event is invalid");
+        throw new AppError(
+          400,
+          "INVALID_WEBHOOK_EVENT",
+          "GitHub webhook event is invalid",
+        );
       }
       if (
         typeof deliveryId !== "string" ||
         deliveryId.length > 100 ||
         !/^[A-Za-z0-9-]+$/.test(deliveryId)
       ) {
-        throw new AppError(400, "INVALID_WEBHOOK_DELIVERY", "GitHub webhook delivery is invalid");
+        throw new AppError(
+          400,
+          "INVALID_WEBHOOK_DELIVERY",
+          "GitHub webhook delivery is invalid",
+        );
       }
       if (!supportedWebhookEvents.has(eventType)) {
         const created = await repository.upsertWebhookDelivery({
           deliveryId,
           eventType,
-          payload: { action: null, installationId: null, senderId: null, repositories: [], repositoryIds: [] },
+          payload: {
+            action: null,
+            installationId: null,
+            senderId: null,
+            repositories: [],
+            repositoryIds: [],
+          },
           now: clock(),
           ignored: true,
         });
@@ -775,7 +1014,11 @@ export function createGitHubService({
       try {
         body = JSON.parse(rawBody.toString("utf8"));
       } catch {
-        throw new AppError(400, "INVALID_WEBHOOK_PAYLOAD", "GitHub webhook payload is invalid");
+        throw new AppError(
+          400,
+          "INVALID_WEBHOOK_PAYLOAD",
+          "GitHub webhook payload is invalid",
+        );
       }
       const payload = normalizeWebhookPayload(eventType, body);
       const created = await repository.upsertWebhookDelivery({
@@ -800,7 +1043,10 @@ export function createGitHubService({
           requestId: `github-webhook-${delivery.deliveryId}`,
           now,
         });
-        await repository.finishWebhook(delivery.id, { success: true, now: clock() });
+        await repository.finishWebhook(delivery.id, {
+          success: true,
+          now: clock(),
+        });
       } catch (error) {
         await repository.finishWebhook(delivery.id, {
           success: false,
