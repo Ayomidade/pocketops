@@ -123,6 +123,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  jest.useRealTimers();
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
   });
@@ -135,11 +136,20 @@ afterEach(async () => {
 describe("repository screen integration with mocked API", () => {
   it("debounces a bounded search and explains an empty directory", async () => {
     const list = setup(<RepositoriesScreen />);
+    jest.useFakeTimers();
     fireEvent.changeText(list.getByLabelText("Search repositories"), "worker");
+    expect(
+      mockRequest.mock.calls.some(([path]) => path.includes("search=worker")),
+    ).toBe(false);
+    act(() => {
+      jest.advanceTimersByTime(350);
+    });
+    jest.useRealTimers();
     await waitFor(() =>
       expect(
         mockRequest.mock.calls.some(([path]) => path.includes("search=worker")),
       ).toBe(true),
+      { timeout: 3000 },
     );
     list.unmount();
     mockRequest.mockImplementation(async (path) =>
