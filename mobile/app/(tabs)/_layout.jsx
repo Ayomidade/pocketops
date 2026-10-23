@@ -7,7 +7,12 @@ const tabs = [
   { name: "index", title: "Home", icon: "⌂", label: "Home tab" },
   { name: "repositories", title: "Code", icon: "⌘", label: "Repositories tab" },
   { name: "incidents", title: "Incidents", icon: "!", label: "Incidents tab" },
-  { name: "deployments", title: "Deploys", icon: "↑", label: "Deployments tab" },
+  {
+    name: "deployments",
+    title: "Deploys",
+    icon: "↑",
+    label: "Deployments tab",
+  },
   { name: "settings", title: "Settings", icon: "⚙", label: "Settings tab" },
 ];
 export default function TabLayout() {

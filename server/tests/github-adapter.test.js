@@ -8,7 +8,8 @@ const config = {
   githubAppPrivateKey: "private-key",
   githubAppClientId: "client-id",
   githubAppClientSecret: "server-secret",
-  githubAppOAuthCallbackUrl: "https://api.example.test/api/v1/github/oauth/callback",
+  githubAppOAuthCallbackUrl:
+    "https://api.example.test/api/v1/github/oauth/callback",
 };
 
 function repository(id) {
@@ -47,7 +48,15 @@ function makeOctokit({ requestImplementation, restOverrides = {} } = {}) {
       repos: {
         get: vi.fn(async () => ({ data: repository(1) })),
         getContent: vi.fn(async () => ({
-          data: [{ name: "README.md", path: "README.md", type: "file", sha: "blob", size: 5 }],
+          data: [
+            {
+              name: "README.md",
+              path: "README.md",
+              type: "file",
+              sha: "blob",
+              size: 5,
+            },
+          ],
           headers: {},
         })),
         listBranches: vi.fn(async () => ({
@@ -93,7 +102,9 @@ describe("GitHub App adapter", () => {
       OctokitClass: class {},
     });
 
-    await expect(adapter.exchangeUserCode("one-time-code")).resolves.toMatchObject({
+    await expect(
+      adapter.exchangeUserCode("one-time-code"),
+    ).resolves.toMatchObject({
       accessToken: "access-1",
       refreshToken: "refresh-1",
     });
@@ -101,7 +112,9 @@ describe("GitHub App adapter", () => {
       accessToken: "access-2",
       refreshToken: "refresh-2",
     });
-    const authorizationRequest = JSON.parse(fetchImplementation.mock.calls[0][1].body);
+    const authorizationRequest = JSON.parse(
+      fetchImplementation.mock.calls[0][1].body,
+    );
     expect(authorizationRequest).toMatchObject({
       client_id: "client-id",
       client_secret: "server-secret",
@@ -135,7 +148,9 @@ describe("GitHub App adapter", () => {
             parameters.page,
           );
         }
-        if (route === "GET /user/installations/{installation_id}/repositories") {
+        if (
+          route === "GET /user/installations/{installation_id}/repositories"
+        ) {
           return pagedResponse(
             { repositories: [repository(parameters.page)] },
             parameters.page,
@@ -170,34 +185,38 @@ describe("GitHub App adapter", () => {
       id: "12345",
       login: "developer",
     });
-    await expect(adapter.getUserInstallations("user-token")).resolves.toHaveLength(2);
+    await expect(
+      adapter.getUserInstallations("user-token"),
+    ).resolves.toHaveLength(2);
     await expect(
       adapter.getInstallationRepositories("user-token", "987"),
     ).resolves.toMatchObject([
       { id: "1", fullName: "PocketOrg/repo-1" },
       { id: "2", fullName: "PocketOrg/repo-2" },
     ]);
-    await expect(adapter.getAppInstallationRepositories("987")).resolves.toMatchObject([
+    await expect(
+      adapter.getAppInstallationRepositories("987"),
+    ).resolves.toMatchObject([
       { id: "11", fullName: "PocketOrg/repo-11" },
       { id: "12", fullName: "PocketOrg/repo-12" },
     ]);
   });
 
-  it("normalizes paginated directory entries and branch metadata", async () => {
+  it("limits non-paginated directory entries and preserves real branch pagination", async () => {
     const octokit = makeOctokit({
       restOverrides: {
-        getContent: vi.fn(async ({ page }) =>
+        getContent: vi.fn(async () =>
           pagedResponse(
             [
               {
-                name: `file-${page}.js`,
-                path: `src/file-${page}.js`,
+                name: "file-1.js",
+                path: "src/file-1.js",
                 type: "file",
-                sha: `sha-${page}`,
+                sha: "sha-1",
                 size: 12,
               },
             ],
-            page,
+            1,
           ),
         ),
         listBranches: vi.fn(async ({ page }) =>
@@ -229,14 +248,54 @@ describe("GitHub App adapter", () => {
       adapter.listDirectory("987", "PocketOrg", "repo", "src", "main", 1),
     ).resolves.toMatchObject({
       entries: [{ name: "file-1.js", path: "src/file-1.js", type: "file" }],
-      nextPage: 2,
+      nextPage: null,
+      directoryLimitReached: false,
     });
+    expect(octokit.rest.repos.getContent).toHaveBeenCalledWith(
+      expect.not.objectContaining({ page: expect.anything() }),
+    );
     await expect(
       adapter.listBranches("987", "PocketOrg", "repo", 1),
     ).resolves.toMatchObject({
       branches: [{ name: "branch-1", commitSha: "commit-1", protected: true }],
       nextPage: 2,
     });
+  });
+
+  it("caps large directories and identifies submodules without fetching their contents", async () => {
+    const entries = Array.from({ length: 1001 }, (_, index) => ({
+      name: `file-${index}`,
+      path: `file-${index}`,
+      type: "file",
+      size: 1,
+      sha: `sha-${index}`,
+    }));
+    entries[0].submodule_git_url = "https://github.com/example/child";
+    const octokit = makeOctokit({
+      restOverrides: {
+        getContent: vi.fn(async () => ({ data: entries, headers: {} })),
+      },
+    });
+    const adapter = createGitHubAppAdapter({
+      config,
+      AppClass: class {
+        async getInstallationOctokit() {
+          return octokit;
+        }
+      },
+      OctokitClass: class {},
+    });
+    const result = await adapter.listDirectory(
+      "987",
+      "PocketOrg",
+      "repo",
+      "",
+      "main",
+    );
+    expect(result.entries).toHaveLength(1000);
+    expect(result.directoryLimitReached).toBe(true);
+    expect(result.entries[0].type).toBe("submodule");
+    expect(result.nextPage).toBeNull();
   });
 
   it("normalizes permission and rate-limit errors without leaking provider details", async () => {
@@ -250,7 +309,10 @@ describe("GitHub App adapter", () => {
     });
     const octokit = makeOctokit({
       restOverrides: {
-        get: vi.fn().mockRejectedValueOnce(forbidden).mockRejectedValueOnce(rateLimited),
+        get: vi
+          .fn()
+          .mockRejectedValueOnce(forbidden)
+          .mockRejectedValueOnce(rateLimited),
       },
     });
     class MockApp {
@@ -264,12 +326,16 @@ describe("GitHub App adapter", () => {
       OctokitClass: class {},
     });
 
-    await expect(adapter.getRepository("987", "PocketOrg", "repo")).rejects.toMatchObject({
+    await expect(
+      adapter.getRepository("987", "PocketOrg", "repo"),
+    ).rejects.toMatchObject({
       status: 403,
       code: "GITHUB_PERMISSION_DENIED",
       message: expect.not.stringContaining("private response detail"),
     });
-    await expect(adapter.getRepository("987", "PocketOrg", "repo")).rejects.toMatchObject({
+    await expect(
+      adapter.getRepository("987", "PocketOrg", "repo"),
+    ).rejects.toMatchObject({
       status: 429,
       code: "GITHUB_RATE_LIMITED",
     });
@@ -278,23 +344,26 @@ describe("GitHub App adapter", () => {
   it("rejects expired-token responses without returning provider error bodies", async () => {
     const adapter = createGitHubAppAdapter({
       config,
-      fetchImplementation: vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            error: "invalid_grant",
-            error_description: "sensitive provider text",
-          }),
-          { status: 400 },
-        ),
+      fetchImplementation: vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: "invalid_grant",
+              error_description: "sensitive provider text",
+            }),
+            { status: 400 },
+          ),
       ),
       AppClass: class {},
       OctokitClass: class {},
     });
 
-    await expect(adapter.refreshUserToken("old-refresh-token")).rejects.toBeInstanceOf(
-      AppError,
-    );
-    await expect(adapter.refreshUserToken("old-refresh-token")).rejects.toMatchObject({
+    await expect(
+      adapter.refreshUserToken("old-refresh-token"),
+    ).rejects.toBeInstanceOf(AppError);
+    await expect(
+      adapter.refreshUserToken("old-refresh-token"),
+    ).rejects.toMatchObject({
       status: 502,
       code: "GITHUB_UNAVAILABLE",
     });

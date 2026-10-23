@@ -39,7 +39,10 @@ export function createGitHubRepository({ sequelize, models }) {
     WebhookDelivery,
   } = models;
 
-  async function recordAudit({ userId = null, action, requestId, metadata = {} }, transaction) {
+  async function recordAudit(
+    { userId = null, action, requestId, metadata = {} },
+    transaction,
+  ) {
     await AuthAuditEvent.create(
       {
         actorUserId: userId,
@@ -98,8 +101,16 @@ export function createGitHubRepository({ sequelize, models }) {
     return saved;
   }
 
-  async function reconcileRepositories(installationId, repositories, transaction) {
-    const saved = await upsertRepositories(installationId, repositories, transaction);
+  async function reconcileRepositories(
+    installationId,
+    repositories,
+    transaction,
+  ) {
+    const saved = await upsertRepositories(
+      installationId,
+      repositories,
+      transaction,
+    );
     const currentIds = saved.map((repo) => repo.id);
     const staleWhere = {
       installationId,
@@ -201,11 +212,7 @@ export function createGitHubRepository({ sequelize, models }) {
           lock: transaction.LOCK.UPDATE,
           transaction,
         });
-        if (
-          !link ||
-          link.authorizationConsumedAt ||
-          link.expiresAt <= now
-        ) {
+        if (!link || link.authorizationConsumedAt || link.expiresAt <= now) {
           return false;
         }
         link.installStateHash = installStateHash;
@@ -316,7 +323,11 @@ export function createGitHubRepository({ sequelize, models }) {
           updatedAt: now,
         });
         await membership.save({ transaction });
-        await reconcileRepositories(savedInstallation.id, repositories, transaction);
+        await reconcileRepositories(
+          savedInstallation.id,
+          repositories,
+          transaction,
+        );
         await recordAudit(
           {
             userId: user.id,
@@ -337,7 +348,13 @@ export function createGitHubRepository({ sequelize, models }) {
       return InstallationMembership.findAll({
         where: { userId, status: "active" },
         include: [{ model: GitHubInstallation, as: "installation" }],
-        order: [[{ model: GitHubInstallation, as: "installation" }, "accountLogin", "ASC"]],
+        order: [
+          [
+            { model: GitHubInstallation, as: "installation" },
+            "accountLogin",
+            "ASC",
+          ],
+        ],
       });
     },
 
@@ -390,7 +407,10 @@ export function createGitHubRepository({ sequelize, models }) {
       });
     },
 
-    async markInstallationStatus(installationId, { suspendedAt, removedAt, now }) {
+    async markInstallationStatus(
+      installationId,
+      { suspendedAt, removedAt, now },
+    ) {
       await GitHubInstallation.update(
         { suspendedAt, removedAt, updatedAt: now },
         { where: { id: installationId } },
@@ -423,7 +443,8 @@ export function createGitHubRepository({ sequelize, models }) {
 
     async listRepositories(userId, installationId = null) {
       const where = { userId };
-      if (installationId) where["$repository.installation_id$"] = installationId;
+      if (installationId)
+        where["$repository.installation_id$"] = installationId;
       return RepositorySelection.findAll({
         where,
         include: [
@@ -434,7 +455,9 @@ export function createGitHubRepository({ sequelize, models }) {
             include: [{ model: GitHubInstallation, as: "installation" }],
           },
         ],
-        order: [[{ model: GitHubRepository, as: "repository" }, "fullName", "ASC"]],
+        order: [
+          [{ model: GitHubRepository, as: "repository" }, "fullName", "ASC"],
+        ],
       });
     },
 
@@ -454,7 +477,11 @@ export function createGitHubRepository({ sequelize, models }) {
 
     async syncRepositoryCatalog(installationId, repositories, now) {
       return sequelize.transaction(async (transaction) => {
-        const saved = await reconcileRepositories(installationId, repositories, transaction);
+        const saved = await reconcileRepositories(
+          installationId,
+          repositories,
+          transaction,
+        );
         await GitHubInstallation.update(
           { lastSyncedAt: now, updatedAt: now },
           { where: { id: installationId }, transaction },
@@ -463,7 +490,13 @@ export function createGitHubRepository({ sequelize, models }) {
       });
     },
 
-    async replaceSelections(userId, installationId, githubRepositoryIds, requestId, now) {
+    async replaceSelections(
+      userId,
+      installationId,
+      githubRepositoryIds,
+      requestId,
+      now,
+    ) {
       return sequelize.transaction(async (transaction) => {
         const membership = await InstallationMembership.findOne({
           where: { userId, installationId, status: "active" },
@@ -479,7 +512,8 @@ export function createGitHubRepository({ sequelize, models }) {
           },
           transaction,
         });
-        if (repositories.length !== new Set(githubRepositoryIds).size) return null;
+        if (repositories.length !== new Set(githubRepositoryIds).size)
+          return null;
         const allRepositories = await GitHubRepository.findAll({
           where: { installationId },
           attributes: ["id"],
@@ -511,7 +545,9 @@ export function createGitHubRepository({ sequelize, models }) {
           },
           transaction,
         );
-        return repositories.map((repository) => safeRepository(repository, true));
+        return repositories.map((repository) =>
+          safeRepository(repository, true),
+        );
       });
     },
 
@@ -522,7 +558,13 @@ export function createGitHubRepository({ sequelize, models }) {
       });
     },
 
-    async upsertWebhookDelivery({ deliveryId, eventType, payload, now, ignored = false }) {
+    async upsertWebhookDelivery({
+      deliveryId,
+      eventType,
+      payload,
+      now,
+      ignored = false,
+    }) {
       try {
         const [, created] = await WebhookDelivery.findOrCreate({
           where: { deliveryId },
@@ -566,7 +608,10 @@ export function createGitHubRepository({ sequelize, models }) {
       });
     },
 
-    async finishWebhook(deliveryId, { success, errorCode = null, now, maxAttempts = 8 }) {
+    async finishWebhook(
+      deliveryId,
+      { success, errorCode = null, now, maxAttempts = 8 },
+    ) {
       const delivery = await WebhookDelivery.findByPk(deliveryId);
       if (!delivery) return;
       delivery.claimExpiresAt = null;
@@ -579,7 +624,8 @@ export function createGitHubRepository({ sequelize, models }) {
       } else {
         delivery.status = "pending";
         delivery.nextAttemptAt = new Date(
-          now.getTime() + Math.min(15 * 60_000, 1000 * 2 ** delivery.attemptCount),
+          now.getTime() +
+            Math.min(15 * 60_000, 1000 * 2 ** delivery.attemptCount),
         );
       }
       await delivery.save();
@@ -683,7 +729,10 @@ export function createGitHubRepository({ sequelize, models }) {
           }
           await GitHubRepository.update(
             { removedAt: now, updatedAt: now },
-            { where: { installationId: installation.id, removedAt: null }, transaction },
+            {
+              where: { installationId: installation.id, removedAt: null },
+              transaction,
+            },
           );
           await RepositorySelection.destroy({
             where: {
@@ -713,7 +762,10 @@ export function createGitHubRepository({ sequelize, models }) {
             transaction,
           );
         }
-        if (eventType === "installation" && payload.action === "new_permissions_accepted") {
+        if (
+          eventType === "installation" &&
+          payload.action === "new_permissions_accepted"
+        ) {
           installation.permissions = payload.permissions;
           installation.repositorySelection = payload.repositorySelection;
           installation.updatedAt = now;
@@ -747,7 +799,11 @@ export function createGitHubRepository({ sequelize, models }) {
             });
           }
           if (payload.action === "added" && payload.repositories?.length) {
-            await upsertRepositories(installation.id, payload.repositories, transaction);
+            await upsertRepositories(
+              installation.id,
+              payload.repositories,
+              transaction,
+            );
           }
           await recordAudit(
             {
@@ -767,12 +823,16 @@ export function createGitHubRepository({ sequelize, models }) {
 
     async cleanup(now) {
       await GitHubInstallationLink.destroy({
-        where: { expiresAt: { [Op.lt]: new Date(now.getTime() - 24 * 60 * 60 * 1000) } },
+        where: {
+          expiresAt: { [Op.lt]: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+        },
       });
       await WebhookDelivery.destroy({
         where: {
           status: { [Op.in]: ["processed", "failed", "ignored"] },
-          receivedAt: { [Op.lt]: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) },
+          receivedAt: {
+            [Op.lt]: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
+          },
         },
       });
     },

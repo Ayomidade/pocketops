@@ -12,6 +12,7 @@ import * as Linking from "expo-linking";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import { ApiError, apiRequest } from "../../services/api.js";
+import { createAuthenticatedRequest } from "./request.js";
 import {
   createCompletionSecret,
   parseAuthCallback,
@@ -53,13 +54,16 @@ export function AuthProvider({ children }) {
     let token;
     let pendingToken;
     try {
-      pendingToken = await SecureStore.getItemAsync(
-        pendingSessionStorageKey,
-      );
+      pendingToken = await SecureStore.getItemAsync(pendingSessionStorageKey);
       token =
         pendingToken || (await SecureStore.getItemAsync(sessionStorageKey));
       if (!token) {
-        setAuth({ status: "signed_out", user: null, session: null, message: null });
+        setAuth({
+          status: "signed_out",
+          user: null,
+          session: null,
+          message: null,
+        });
         return;
       }
 
@@ -67,7 +71,11 @@ export function AuthProvider({ children }) {
       try {
         response = await apiRequest("/auth/me", { token });
       } catch (error) {
-        if (!(pendingToken && error instanceof ApiError && error.status === 401)) {
+        if (!(
+          pendingToken &&
+          error instanceof ApiError &&
+          error.status === 401
+        )) {
           throw error;
         }
         await SecureStore.deleteItemAsync(pendingSessionStorageKey);
@@ -115,7 +123,8 @@ export function AuthProvider({ children }) {
         status: "failed",
         user: null,
         session: null,
-        message: "Unable to restore your session. Check your connection and retry.",
+        message:
+          "Unable to restore your session. Check your connection and retry.",
       });
     }
   }, []);
@@ -132,9 +141,7 @@ export function AuthProvider({ children }) {
     const callbackKey = callback.handoffCode
       ? `handoff:${callback.handoffCode}`
       : `error:${callback.error}`;
-    if (
-      callbackCodes.current.has(callbackKey)
-    ) {
+    if (callbackCodes.current.has(callbackKey)) {
       return;
     }
     const completionSecret = pendingCompletionSecret.current;
@@ -194,7 +201,11 @@ export function AuthProvider({ children }) {
   }, [completeCallbackUrl]);
 
   const beginGithubLogin = useCallback(async () => {
-    if (auth.status === "starting" || auth.status === "awaiting_callback" || auth.status === "exchanging") {
+    if (
+      auth.status === "starting" ||
+      auth.status === "awaiting_callback" ||
+      auth.status === "exchanging"
+    ) {
       return;
     }
     setAuth({ status: "starting", user: null, session: null, message: null });
@@ -251,28 +262,46 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
-  const authenticatedRequest = useCallback(async (path, options = {}) => {
-    const token = await SecureStore.getItemAsync(sessionStorageKey);
-    if (!token) {
-      throw new ApiError("Sign in to continue.", {
-        code: "UNAUTHENTICATED",
-        status: 401,
-      });
-    }
-    return apiRequest(path, { ...options, token });
-  }, []);
+  const authenticatedRequest = useMemo(
+    () =>
+      createAuthenticatedRequest({
+        getToken: () => SecureStore.getItemAsync(sessionStorageKey),
+        request: apiRequest,
+        async onExpired() {
+          setAuth({
+            status: "expired",
+            user: null,
+            session: null,
+            message: "Your session expired. Sign in again.",
+          });
+          await SecureStore.deleteItemAsync(sessionStorageKey);
+          await SecureStore.deleteItemAsync(pendingSessionStorageKey);
+        },
+      }),
+    [],
+  );
 
   const logout = useCallback(async () => {
     const token = await SecureStore.getItemAsync(sessionStorageKey);
     if (!token) {
-      setAuth({ status: "signed_out", user: null, session: null, message: null });
+      setAuth({
+        status: "signed_out",
+        user: null,
+        session: null,
+        message: null,
+      });
       return;
     }
     try {
       await apiRequest("/auth/logout", { method: "POST", token });
       await SecureStore.deleteItemAsync(sessionStorageKey);
       await SecureStore.deleteItemAsync(pendingSessionStorageKey);
-      setAuth({ status: "signed_out", user: null, session: null, message: null });
+      setAuth({
+        status: "signed_out",
+        user: null,
+        session: null,
+        message: null,
+      });
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         await SecureStore.deleteItemAsync(sessionStorageKey);
@@ -287,7 +316,8 @@ export function AuthProvider({ children }) {
       }
       setAuth((current) => ({
         ...current,
-        message: "Could not securely sign out. Check your connection and retry.",
+        message:
+          "Could not securely sign out. Check your connection and retry.",
       }));
       throw error;
     }

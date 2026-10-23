@@ -60,10 +60,7 @@ function makeRepository(overrides = {}) {
     listRepositories: vi.fn(async () => []),
     getMembershipByProviderId: vi.fn(),
     withMembershipLock: vi.fn(async (_id, callback) =>
-      callback(
-        membership,
-        async () => {},
-      ),
+      callback(membership, async () => {}),
     ),
     updateMembershipTokens: vi.fn(),
     revokeMembership: vi.fn(),
@@ -82,7 +79,10 @@ function makeAdapter(overrides = {}) {
       accessExpiresAt: new Date(now.getTime() + 8 * 60 * 60_000),
       refreshExpiresAt: new Date(now.getTime() + 30 * 24 * 60 * 60_000),
     })),
-    getAuthenticatedUser: vi.fn(async () => ({ id: "12345", login: "developer" })),
+    getAuthenticatedUser: vi.fn(async () => ({
+      id: "12345",
+      login: "developer",
+    })),
     refreshUserToken: vi.fn(async () => ({
       accessToken: "refreshed-user-token",
       refreshToken: "refreshed-user-refresh-token",
@@ -173,7 +173,11 @@ const membership = {
   },
 };
 
-function makeService({ repository = makeRepository(), adapter = makeAdapter(), ...options } = {}) {
+function makeService({
+  repository = makeRepository(),
+  adapter = makeAdapter(),
+  ...options
+} = {}) {
   return {
     service: createGitHubService({
       repository,
@@ -222,7 +226,10 @@ describe("GitHub App identity and installation authorization", () => {
 
   it("requires the GitHub App authorization identity to match PocketOps identity", async () => {
     const adapter = makeAdapter({
-      getAuthenticatedUser: vi.fn(async () => ({ id: "99999", login: "other-user" })),
+      getAuthenticatedUser: vi.fn(async () => ({
+        id: "99999",
+        login: "other-user",
+      })),
     });
     const { service, repository } = makeService({ adapter });
     await expect(
@@ -232,10 +239,7 @@ describe("GitHub App identity and installation authorization", () => {
       }),
     ).rejects.toMatchObject({ status: 403, code: "GITHUB_ACCOUNT_MISMATCH" });
     expect(repository.authorizeLink).not.toHaveBeenCalled();
-    expect(repository.consumeDeniedLink).toHaveBeenCalledWith(
-      "link-id",
-      now,
-    );
+    expect(repository.consumeDeniedLink).toHaveBeenCalledWith("link-id", now);
   });
 
   it("binds the installation callback to the verified user and authorizes only the access intersection", async () => {
@@ -251,7 +255,9 @@ describe("GitHub App identity and installation authorization", () => {
     expect(repository.authorizeLink).toHaveBeenCalledWith(
       expect.objectContaining({
         installStateHash: hash("i".repeat(43)),
-        accessTokenEncrypted: expect.not.stringContaining("github-user-access-token"),
+        accessTokenEncrypted: expect.not.stringContaining(
+          "github-user-access-token",
+        ),
       }),
     );
 
@@ -274,7 +280,9 @@ describe("GitHub App identity and installation authorization", () => {
   });
 
   it("does not link an installation absent from the signed-in user's live GitHub installations", async () => {
-    const adapter = makeAdapter({ getUserInstallations: vi.fn(async () => []) });
+    const adapter = makeAdapter({
+      getUserInstallations: vi.fn(async () => []),
+    });
     const { service, repository } = makeService({ adapter });
     await expect(
       service.handleInstallationCallback({
@@ -283,7 +291,10 @@ describe("GitHub App identity and installation authorization", () => {
         setupAction: "install",
         requestId: "installation-not-owned",
       }),
-    ).rejects.toMatchObject({ status: 403, code: "GITHUB_INSTALLATION_NOT_AUTHORIZED" });
+    ).rejects.toMatchObject({
+      status: 403,
+      code: "GITHUB_INSTALLATION_NOT_AUTHORIZED",
+    });
     expect(repository.completeInstallation).not.toHaveBeenCalled();
   });
 });
@@ -417,7 +428,18 @@ describe("GitHub repository access and webhook safety", () => {
     expect(tree.data).toEqual([
       { name: "index.js", path: "src/index.js", type: "file" },
     ]);
-    expect(tree.nextCursor).toEqual(expect.any(String));
+    expect(tree.nextCursor).toBeNull();
+    await expect(
+      service.listTree({
+        userId: "pocket-user",
+        repositoryId: "repository-uuid",
+        path: "src",
+        cursor: "unsupported",
+      }),
+    ).rejects.toMatchObject({
+      status: 422,
+      code: "DIRECTORY_CURSOR_UNSUPPORTED",
+    });
     await expect(
       service.listBranches({
         userId: "pocket-user",
@@ -465,6 +487,7 @@ describe("GitHub repository access and webhook safety", () => {
         path: "README.md",
         sha: "file-sha",
         size: 5,
+        encoding: "base64",
         content: Buffer.from("hello").toString("base64"),
       })),
     });
@@ -496,6 +519,7 @@ describe("GitHub repository access and webhook safety", () => {
       path: "image.bin",
       sha: "binary-sha",
       size: 1,
+      encoding: "base64",
       content: "/w==",
     });
     await expect(
@@ -525,6 +549,53 @@ describe("GitHub repository access and webhook safety", () => {
         requestId: "large-file",
       }),
     ).rejects.toMatchObject({ status: 413, code: "FILE_TOO_LARGE" });
+
+    adapter.getFile.mockResolvedValue({
+      path: "unavailable.txt",
+      sha: "sha",
+      size: 5,
+      encoding: "none",
+      content: "",
+    });
+    await expect(
+      service.getFile({
+        userId: "pocket-user",
+        repositoryId: "repository-uuid",
+        path: "unavailable.txt",
+      }),
+    ).resolves.toMatchObject({
+      encoding: "binary",
+      content: null,
+      editable: false,
+    });
+    adapter.getFile.mockResolvedValue({
+      path: "bad.txt",
+      sha: "sha",
+      size: 1,
+      encoding: "base64",
+      content: Buffer.from("more than one byte").toString("base64"),
+    });
+    await expect(
+      service.getFile({
+        userId: "pocket-user",
+        repositoryId: "repository-uuid",
+        path: "bad.txt",
+      }),
+    ).rejects.toMatchObject({ status: 502, code: "GITHUB_INVALID_RESPONSE" });
+    adapter.getFile.mockResolvedValue({
+      path: "large.txt",
+      sha: "sha",
+      size: 1,
+      encoding: "base64",
+      content: "A".repeat(700000),
+    });
+    await expect(
+      service.getFile({
+        userId: "pocket-user",
+        repositoryId: "repository-uuid",
+        path: "large.txt",
+      }),
+    ).rejects.toMatchObject({ status: 413 });
   });
 
   it("verifies webhook signatures, stores only normalized metadata, and deduplicates deliveries", async () => {
@@ -533,7 +604,10 @@ describe("GitHub repository access and webhook safety", () => {
     const rawBody = Buffer.from(
       JSON.stringify({
         action: "removed",
-        installation: { id: 987, account: { id: 555, login: "PocketOrg", type: "Organization" } },
+        installation: {
+          id: 987,
+          account: { id: 555, login: "PocketOrg", type: "Organization" },
+        },
         repositories_removed: [
           {
             id: 1,
@@ -549,12 +623,25 @@ describe("GitHub repository access and webhook safety", () => {
         secret: "never-store-this",
       }),
     );
-    const signature = `sha256=${createHmac("sha256", config.githubAppWebhookSecret)
+    const signature = `sha256=${createHmac(
+      "sha256",
+      config.githubAppWebhookSecret,
+    )
       .update(rawBody)
       .digest("hex")}`;
-    expect(verifyGitHubWebhookSignature(rawBody, signature, config.githubAppWebhookSecret)).toBe(true);
     expect(
-      verifyGitHubWebhookSignature(rawBody, `${signature.slice(0, -1)}0`, config.githubAppWebhookSecret),
+      verifyGitHubWebhookSignature(
+        rawBody,
+        signature,
+        config.githubAppWebhookSecret,
+      ),
+    ).toBe(true);
+    expect(
+      verifyGitHubWebhookSignature(
+        rawBody,
+        `${signature.slice(0, -1)}0`,
+        config.githubAppWebhookSecret,
+      ),
     ).toBe(false);
     await expect(
       service.acceptWebhook({
@@ -582,9 +669,9 @@ describe("GitHub repository access and webhook safety", () => {
         }),
       }),
     );
-    expect(JSON.stringify(repository.upsertWebhookDelivery.mock.calls)).not.toContain(
-      "never-store-this",
-    );
+    expect(
+      JSON.stringify(repository.upsertWebhookDelivery.mock.calls),
+    ).not.toContain("never-store-this");
     repository.upsertWebhookDelivery.mockResolvedValue(false);
     await expect(
       service.acceptWebhook({

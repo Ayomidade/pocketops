@@ -81,7 +81,8 @@ export default function LoginPage() {
         </Text>
       </Pressable>
       <Text className="mt-4 text-slate-400 text-sm leading-5">
-        PocketOps requests GitHub identity only. This sign-in does not grant repository access.
+        PocketOps requests GitHub identity only. This sign-in does not grant
+        repository access.
       </Text>
     </Screen>
   );

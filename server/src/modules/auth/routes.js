@@ -92,9 +92,7 @@ export function createAuthRouter({ service }) {
     requireService,
     oauthCallbackLimit,
     validate(callbackSchema, "query"),
-    asyncHandler((request, response) =>
-      controller.callback(request, response),
-    ),
+    asyncHandler((request, response) => controller.callback(request, response)),
   );
   router.post(
     "/mobile/exchange",

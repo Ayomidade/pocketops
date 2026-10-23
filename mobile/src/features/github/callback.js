@@ -15,9 +15,7 @@ export function parseGitHubAppCallback(url, allowedRedirect) {
     actual.username ||
     actual.password ||
     actual.hash ||
-    [...actual.searchParams.keys()].some(
-      (key) => !["status"].includes(key),
-    )
+    [...actual.searchParams.keys()].some((key) => !["status"].includes(key))
   ) {
     throw new Error("GitHub callback did not match this app.");
   }

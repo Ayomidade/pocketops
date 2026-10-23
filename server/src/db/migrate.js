@@ -27,7 +27,11 @@ async function ensureMigrationTable(sequelize) {
   );
 }
 
-export async function runMigrations({ sequelize, direction = "up", all = false }) {
+export async function runMigrations({
+  sequelize,
+  direction = "up",
+  all = false,
+}) {
   if (!["up", "down"].includes(direction)) {
     throw new Error("Migration direction must be 'up' or 'down'");
   }
@@ -99,7 +103,10 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
   main().catch((error) => {
     console.error(`Migration failed (${error.name}): ${error.message}`);
     process.exitCode = 1;

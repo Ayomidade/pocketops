@@ -57,10 +57,7 @@ export function createApp({
 
   const healthHandler = (request, response) =>
     response.json(
-      successResponse(
-        { status: "ok", service: "pocketops-api" },
-        request.id,
-      ),
+      successResponse({ status: "ok", service: "pocketops-api" }, request.id),
     );
   app.get(["/health", "/api/v1/health"], healthHandler);
 
@@ -120,7 +117,10 @@ export function createApp({
   const authRouter = createAuthRouter({ service: authService });
   app.use("/api/v1/auth", authRouter);
   app.use("/auth", authRouter);
-  app.use("/api/v1/github", createGitHubRouter({ service: githubService, authService }));
+  app.use(
+    "/api/v1/github",
+    createGitHubRouter({ service: githubService, authService }),
+  );
   app.use(
     "/api/v1/webhooks/github",
     createGitHubWebhookRouter({ service: githubService }),

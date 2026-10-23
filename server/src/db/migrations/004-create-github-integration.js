@@ -112,10 +112,17 @@ export async function up(queryInterface, _Sequelize, transaction) {
       },
       github_user_id: { type: DataTypes.BIGINT, allowNull: false },
       github_user_token_encrypted: { type: DataTypes.TEXT, allowNull: false },
-      github_refresh_token_encrypted: { type: DataTypes.TEXT, allowNull: false },
+      github_refresh_token_encrypted: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+      },
       access_token_expires_at: { type: DataTypes.DATE, allowNull: false },
       refresh_token_expires_at: { type: DataTypes.DATE, allowNull: false },
-      status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: "active" },
+      status: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: "active",
+      },
       last_verified_at: { type: DataTypes.DATE, allowNull: true },
       created_at: {
         type: DataTypes.DATE,
@@ -169,7 +176,11 @@ export async function up(queryInterface, _Sequelize, transaction) {
       full_name: { type: DataTypes.STRING(511), allowNull: false },
       default_branch: { type: DataTypes.STRING(255), allowNull: true },
       is_private: { type: DataTypes.BOOLEAN, allowNull: false },
-      is_archived: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      is_archived: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
       removed_at: { type: DataTypes.DATE, allowNull: true },
       last_synced_at: { type: DataTypes.DATE, allowNull: true },
       created_at: {
@@ -243,11 +254,23 @@ export async function up(queryInterface, _Sequelize, transaction) {
         primaryKey: true,
         defaultValue: DataTypes.UUIDV4,
       },
-      delivery_id: { type: DataTypes.STRING(100), allowNull: false, unique: true },
+      delivery_id: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+        unique: true,
+      },
       event_type: { type: DataTypes.STRING(80), allowNull: false },
       payload: { type: DataTypes.JSONB, allowNull: false },
-      status: { type: DataTypes.STRING(20), allowNull: false, defaultValue: "pending" },
-      attempt_count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      status: {
+        type: DataTypes.STRING(20),
+        allowNull: false,
+        defaultValue: "pending",
+      },
+      attempt_count: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
       received_at: {
         type: DataTypes.DATE,
         allowNull: false,
@@ -264,16 +287,19 @@ export async function up(queryInterface, _Sequelize, transaction) {
     },
     { transaction },
   );
-  await queryInterface.addIndex("webhook_deliveries", ["status", "next_attempt_at"], {
-    name: "webhook_deliveries_queue_index",
-    transaction,
-  });
-
   await queryInterface.addIndex(
     "webhook_deliveries",
-    ["received_at"],
-    { name: "webhook_deliveries_received_index", transaction },
+    ["status", "next_attempt_at"],
+    {
+      name: "webhook_deliveries_queue_index",
+      transaction,
+    },
   );
+
+  await queryInterface.addIndex("webhook_deliveries", ["received_at"], {
+    name: "webhook_deliveries_received_index",
+    transaction,
+  });
 }
 
 export async function down(queryInterface, _Sequelize, transaction) {

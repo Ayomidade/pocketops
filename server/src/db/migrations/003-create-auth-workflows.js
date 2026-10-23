@@ -37,11 +37,10 @@ export async function up(queryInterface, _Sequelize, transaction) {
     name: "oauth_transactions_expiry_index",
     transaction,
   });
-  await queryInterface.addIndex(
-    "oauth_transactions",
-    ["handoff_expires_at"],
-    { name: "oauth_transactions_handoff_expiry_index", transaction },
-  );
+  await queryInterface.addIndex("oauth_transactions", ["handoff_expires_at"], {
+    name: "oauth_transactions_handoff_expiry_index",
+    transaction,
+  });
 
   await queryInterface.createTable(
     "auth_audit_events",
@@ -79,11 +78,10 @@ export async function up(queryInterface, _Sequelize, transaction) {
     ["actor_user_id", "created_at"],
     { name: "auth_audit_actor_time_index", transaction },
   );
-  await queryInterface.addIndex(
-    "auth_audit_events",
-    ["action", "created_at"],
-    { name: "auth_audit_action_time_index", transaction },
-  );
+  await queryInterface.addIndex("auth_audit_events", ["action", "created_at"], {
+    name: "auth_audit_action_time_index",
+    transaction,
+  });
 }
 
 export async function down(queryInterface, _Sequelize, transaction) {

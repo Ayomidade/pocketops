@@ -24,7 +24,9 @@ function makeApp(options = {}) {
 
 describe("health and readiness", () => {
   it("keeps liveness independent of PostgreSQL state", async () => {
-    const authenticate = vi.fn().mockRejectedValue(new Error("database unavailable"));
+    const authenticate = vi
+      .fn()
+      .mockRejectedValue(new Error("database unavailable"));
     const response = await request(makeApp({ sequelize: { authenticate } }))
       .get("/api/v1/health")
       .expect(200);
@@ -35,7 +37,11 @@ describe("health and readiness", () => {
 
   it("reports readiness only when PostgreSQL is available", async () => {
     const response = await request(
-      makeApp({ sequelize: { authenticate: vi.fn().mockRejectedValue(new Error("private detail")) } }),
+      makeApp({
+        sequelize: {
+          authenticate: vi.fn().mockRejectedValue(new Error("private detail")),
+        },
+      }),
     )
       .get("/ready")
       .expect(503);
@@ -106,7 +112,9 @@ describe("API response and request handling", () => {
       meta: { requestId: expect.any(String) },
     });
     expect(malformed.body.error.code).toBe("INVALID_JSON");
-    expect(malformed.body.meta.requestId).toBe(malformed.headers["x-request-id"]);
+    expect(malformed.body.meta.requestId).toBe(
+      malformed.headers["x-request-id"],
+    );
   });
 
   it("does not return internal error details or stack traces", async () => {
@@ -118,7 +126,9 @@ describe("API response and request handling", () => {
     const response = await request(app).get("/failure").expect(500);
 
     expect(response.body.error.code).toBe("INTERNAL_ERROR");
-    expect(JSON.stringify(response.body)).not.toContain("secret database connection detail");
+    expect(JSON.stringify(response.body)).not.toContain(
+      "secret database connection detail",
+    );
     expect(JSON.stringify(response.body)).not.toContain("stack");
   });
 
@@ -157,6 +167,21 @@ describe("API response and request handling", () => {
 });
 
 describe("environment configuration", () => {
+  it("rejects invalid CORS origins without echoing supplied credentials", () => {
+    let failure;
+    try {
+      loadConfig({
+        CORS_ORIGINS: "https://user:private-password@example.test",
+      });
+    } catch (error) {
+      failure = error;
+    }
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure.message).toContain("CORS_ORIGINS");
+    expect(failure.message).not.toContain("private-password");
+    expect(failure.message).not.toContain("example.test");
+  });
+
   it("validates settings without echoing database credentials", () => {
     expect(() =>
       loadConfig({
@@ -214,7 +239,8 @@ describe("environment configuration", () => {
       GITHUB_APP_ID: "123",
       GITHUB_APP_CLIENT_ID: "app-client",
       GITHUB_APP_CLIENT_SECRET: "app-secret",
-      GITHUB_APP_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----\\nkey\\n-----END RSA PRIVATE KEY-----",
+      GITHUB_APP_PRIVATE_KEY:
+        "-----BEGIN RSA PRIVATE KEY-----\\nkey\\n-----END RSA PRIVATE KEY-----",
       GITHUB_APP_SLUG: "pocketops",
       GITHUB_APP_WEBHOOK_SECRET: "webhook-secret",
       GITHUB_APP_OAUTH_CALLBACK_URL:
@@ -235,7 +261,9 @@ describe("environment configuration", () => {
         ...githubAppConfig,
         GITHUB_TOKEN_ENCRYPTION_KEY: "not-a-32-byte-key",
       }),
-    ).toThrow(/GITHUB_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key/);
+    ).toThrow(
+      /GITHUB_TOKEN_ENCRYPTION_KEY must be a base64-encoded 32-byte key/,
+    );
   });
 
   it("accepts valid isolated environment configuration", () => {

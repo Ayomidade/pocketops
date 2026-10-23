@@ -3,12 +3,8 @@ import { successResponse } from "../../lib/responses.js";
 export function createAuthController(service) {
   return {
     async mobileStart(request, response) {
-      const result = await service.createMobileStart(
-        request.validated.body,
-      );
-      return response
-        .status(201)
-        .json(successResponse(result, request.id));
+      const result = await service.createMobileStart(request.validated.body);
+      return response.status(201).json(successResponse(result, request.id));
     },
 
     async authorizationStart(request, response) {

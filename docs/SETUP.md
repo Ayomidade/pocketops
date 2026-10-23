@@ -33,6 +33,10 @@ Inspect both `.env.example` files and **do not commit `.env` files**. Start Post
 docker compose up -d postgres
 ```
 
+Compose exposes PostgreSQL on `127.0.0.1:54432`; the server environment example
+uses this port. PostgreSQL still listens on port `5432` inside the container.
+If you use a different local database, adjust `DATABASE_URL` accordingly.
+
 Run the API and mobile in separate terminals. PostgreSQL may be unavailable while checking liveness; readiness requires it:
 
 ```bash
@@ -78,6 +82,7 @@ Identity OAuth signs the person in to PocketOps. GitHub App authorization is a s
    ```
 
    `API_PUBLIC_URL` is the origin only, with no path. `GITHUB_OAUTH_CALLBACK_URL` must exactly match the GitHub OAuth App setting. The mobile redirect is a single exact allowlisted value. Never copy the OAuth client secret to `mobile/.env` or any `EXPO_PUBLIC_*` variable. Leaving the example values empty disables OAuth without preventing API startup.
+
 3. Apply migrations with `npm run db:migrate`; the OAuth transaction and authentication audit tables are added by `003-create-auth-workflows.js`.
 4. Use an Android/iOS development build that registers the `pocketops` scheme from `mobile/app.json` (for example, build with the Expo development client or `npx expo run:android`). Expo Go may run screens but does not register this app-specific callback scheme; do not count an Expo Go run as OAuth verification.
 5. Test sign-in with a non-production GitHub account. OAuth requests only the `read:user` identity scope. The returned profile email is optional and not considered verified.
@@ -109,6 +114,7 @@ This integration is read-only. It requests only GitHub App **Contents: Read-only
    ```
 
    Generate a fresh encryption key with `openssl rand -base64 32`. Store it in a secret manager in deployed environments and back it up securely; losing it makes persisted GitHub user/refresh tokens unusable. Never place App credentials, private keys, webhook secrets or the encryption key in the mobile environment or `EXPO_PUBLIC_*`.
+
 5. Apply migrations with `npm run db:migrate`; `004-create-github-integration.js` creates expiring OAuth/install state, encrypted-token references, per-user installation memberships, repository catalog/selections and webhook delivery queue.
 6. Use an Android/iOS development build registering the `pocketops` scheme. Expo Go is not sufficient for verifying this app-specific callback. On device, use a public HTTPS API callback reachable by GitHub, then test with a non-production GitHub account and disposable test repositories.
 
@@ -129,6 +135,13 @@ npm run db:migrate:undo:all
 Rollback commands drop schema objects. Run rollback only against a disposable database. The migration integration test uses `DATABASE_URL_TEST` only when it points to a dedicated database name ending in `_test`; CI provisions a fresh PostgreSQL 16 test database. Without `DATABASE_URL_TEST`, that integration case is skipped, while API and mobile client tests still run.
 
 ## 9. Recommended daily commands
+
+Root lint now checks both the backend and mobile JavaScript/JSX. To regenerate the
+implemented API contract, run `npm run api:contract`; CI checks that the generated
+`docs/openapi.json` is current with `npm run api:contract:check`.
+
+See [Operations and release validation](OPERATIONS.md) for physical-device setup,
+native CI builds, provider acceptance checks, monitoring and backup/rotation procedures.
 
 ```bash
 npm ci
@@ -157,7 +170,7 @@ Scripts may differ from future milestones: inspect root and workspace `package.j
 | Expo SDK mismatch                  | Native dependency versions               | `npx expo install --check` then `--fix`; clear cache            |
 | NativeWind classes ignored         | Metro/Babel/content config               | Verify config and global CSS import; restart Metro              |
 | Database connection refused        | Container down, wrong credentials        | `docker compose ps`, inspect DB URL and logs                    |
-| API health works but DB calls fail | Health is liveness, not readiness         | Check `/ready`, `DATABASE_URL` and PostgreSQL availability        |
+| API health works but DB calls fail | Health is liveness, not readiness        | Check `/ready`, `DATABASE_URL` and PostgreSQL availability      |
 | OAuth returns to browser           | Deep link mismatch                       | Validate Expo scheme, redirect URI and handoff flow             |
 | GitHub repository missing          | Installation selection or revoked access | Recheck GitHub App installation permissions                     |
 | 409 file conflict                  | SHA changed                              | Reload, compare diff and reapply change                         |
@@ -182,4 +195,4 @@ CI uses `npm ci`, server/mobile tests, ESLint, Expo compatibility diagnostics an
 
 ## 14. Next steps
 
-Continue with Codex prompt `04-repository-explorer.md` only after this integration milestone is accepted. Implement one milestone at a time, update docs alongside code and retain an independent recovery path. See [Development plan](DEVELOPMENT_PLAN.md).
+The native explorer from prompt `04-repository-explorer.md` is now implemented. Follow its [acceptance checklist](REPOSITORY_EXPLORER.md) before proceeding to prompt `05-code-editor.md`. Implement one milestone at a time, update docs alongside code and retain an independent recovery path. See [Development plan](DEVELOPMENT_PLAN.md).

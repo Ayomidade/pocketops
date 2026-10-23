@@ -27,7 +27,8 @@ export default function RemoteState({
       accessibilityLiveRegion="polite"
     >
       <Text className="text-white text-lg font-semibold text-center">
-        {title || (kind === "error" ? "Something went wrong" : "Nothing here yet")}
+        {title ||
+          (kind === "error" ? "Something went wrong" : "Nothing here yet")}
       </Text>
       {message ? (
         <Text className="text-slate-300 mt-2 text-center">{message}</Text>

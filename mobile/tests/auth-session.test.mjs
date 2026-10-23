@@ -65,14 +65,8 @@ test("maps only known provider failures and rejects untrusted callback errors", 
 test("uses separate SecureStore keys for active and recoverable rotation tokens", () => {
   assert.notEqual(sessionStorageKey, pendingSessionStorageKey);
   const now = Date.parse("2026-10-22T00:00:00.000Z");
-  assert.equal(
-    shouldRotateSession("2026-10-28T00:00:00.000Z", now),
-    true,
-  );
-  assert.equal(
-    shouldRotateSession("2026-11-20T00:00:00.000Z", now),
-    false,
-  );
+  assert.equal(shouldRotateSession("2026-10-28T00:00:00.000Z", now), true);
+  assert.equal(shouldRotateSession("2026-11-20T00:00:00.000Z", now), false);
   assert.equal(shouldRotateSession("invalid", now), false);
 });
 

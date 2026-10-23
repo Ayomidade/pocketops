@@ -82,7 +82,11 @@ export function createAuthRepository({ sequelize, models }) {
           transactionId,
           { lock: transaction.LOCK.UPDATE, transaction },
         );
-        if (!oauthTransaction || !oauthTransaction.consumedAt || oauthTransaction.handoffHash) {
+        if (
+          !oauthTransaction ||
+          !oauthTransaction.consumedAt ||
+          oauthTransaction.handoffHash
+        ) {
           return null;
         }
 

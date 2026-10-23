@@ -6,7 +6,13 @@ export function createGitHubController(service) {
     return response.json({
       success: true,
       data: result.data,
-      meta: { requestId: request.id, nextCursor: result.nextCursor },
+      meta: {
+        requestId: request.id,
+        nextCursor: result.nextCursor,
+        ...(result.directoryLimitReached !== undefined
+          ? { directoryLimitReached: result.directoryLimitReached }
+          : {}),
+      },
     });
   }
 
@@ -19,19 +25,22 @@ export function createGitHubController(service) {
       return response.status(201).json(successResponse(result, request.id));
     },
 
-    async oauthCallback(request, response, next) {
+    async oauthCallback(request, response) {
       try {
         const url = await service.handleOAuthCallback(request.validated.query);
         return response.redirect(302, url);
       } catch (error) {
         if (error instanceof AppError) {
-          return response.redirect(302, await service.callbackFailureRedirect(error));
+          return response.redirect(
+            302,
+            await service.callbackFailureRedirect(error),
+          );
         }
-        return next(error);
+        throw error;
       }
     },
 
-    async installationCallback(request, response, next) {
+    async installationCallback(request, response) {
       try {
         const url = await service.handleInstallationCallback({
           ...request.validated.query,
@@ -40,9 +49,12 @@ export function createGitHubController(service) {
         return response.redirect(302, url);
       } catch (error) {
         if (error instanceof AppError) {
-          return response.redirect(302, await service.callbackFailureRedirect(error));
+          return response.redirect(
+            302,
+            await service.callbackFailureRedirect(error),
+          );
         }
-        return next(error);
+        throw error;
       }
     },
 

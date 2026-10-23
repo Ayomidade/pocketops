@@ -2,6 +2,12 @@
 
 **Version:** 1.2 | **Base path:** `/api/v1` | **Transport:** HTTPS JSON
 
+The machine-readable contract for implemented endpoints is [openapi.json](openapi.json).
+Its JavaScript source is `server/src/contracts/openapi.js`; regenerate with
+`npm run api:contract` and verify with `npm run api:contract:check`. Tests check
+route coverage and real response envelopes. Later endpoints described below remain
+planned and are intentionally absent from the generated contract.
+
 > Implemented: liveness/readiness, GitHub identity/session endpoints, and the GitHub App installation plus read-only repository APIs in sections 2–4. The GitHub App routes require server-side App configuration. Provider connections, repository writes, deployments, incidents and notifications remain planned.
 
 ## 1. Conventions
@@ -35,17 +41,17 @@ For the implemented protected auth routes, send the opaque PocketOps session cre
 
 ## 2. Health and session
 
-| Method | Path                    | Auth            | Response                                                                               |
-| ------ | ----------------------- | --------------- | -------------------------------------------------------------------------------------- |
-| GET    | `/health`               | No              | Liveness; independent of PostgreSQL                                                     |
-| GET    | `/ready`                | No/internal     | PostgreSQL readiness; 503 if absent/unavailable; Redis is not required yet              |
-| POST   | `/auth/mobile/start`    | No              | Create state-bound transaction; return backend browser URL (201)                        |
-| GET    | `/auth/github`          | No, prepared state | Redirect to GitHub authorization (302); `/auth/github/start` is an alias              |
-| GET    | `/auth/github/callback` | OAuth state     | Exchange code server-side; redirect with one-use handoff or safe error                  |
-| POST   | `/auth/mobile/exchange` | One-use handoff + completion secret | Issue opaque PocketOps session (200)                              |
-| GET    | `/auth/me`              | Yes             | Current user and session summary (200)                                                 |
-| POST   | `/auth/session/rotate`  | Yes             | Atomically replace current session using client-persisted replacement token (200)       |
-| POST   | `/auth/logout`          | Yes             | Immediately revoke current session (200)                                               |
+| Method | Path                    | Auth                                | Response                                                                          |
+| ------ | ----------------------- | ----------------------------------- | --------------------------------------------------------------------------------- |
+| GET    | `/health`               | No                                  | Liveness; independent of PostgreSQL                                               |
+| GET    | `/ready`                | No/internal                         | PostgreSQL readiness; 503 if absent/unavailable; Redis is not required yet        |
+| POST   | `/auth/mobile/start`    | No                                  | Create state-bound transaction; return backend browser URL (201)                  |
+| GET    | `/auth/github`          | No, prepared state                  | Redirect to GitHub authorization (302); `/auth/github/start` is an alias          |
+| GET    | `/auth/github/callback` | OAuth state                         | Exchange code server-side; redirect with one-use handoff or safe error            |
+| POST   | `/auth/mobile/exchange` | One-use handoff + completion secret | Issue opaque PocketOps session (200)                                              |
+| GET    | `/auth/me`              | Yes                                 | Current user and session summary (200)                                            |
+| POST   | `/auth/session/rotate`  | Yes                                 | Atomically replace current session using client-persisted replacement token (200) |
+| POST   | `/auth/logout`          | Yes                                 | Immediately revoke current session (200)                                          |
 
 These paths are available under `/api/v1` and as unversioned `/auth` aliases; the GitHub callback configured in GitHub must be the exact canonical URL `https://<API_HOST>/api/v1/auth/github/callback`.
 
@@ -61,15 +67,15 @@ OAuth App email is optional and is not treated as verified. GitHub App installat
 
 All routes are under `/api/v1`. Except the provider callbacks and webhook, routes require a valid PocketOps bearer session. Connecting a GitHub App does not change identity sign-in. The server verifies the current PocketOps user's immutable GitHub ID and intersects repositories available to that user with those available to the installation.
 
-| Method | Path | Purpose and response |
-| --- | --- | --- |
-| POST | `/github/installations/start` | Authenticated initiation; returns an OAuth URL (201) |
-| GET | `/github/oauth/callback` | State-bound GitHub OAuth callback; redirects to GitHub App installation (302) |
-| GET | `/github/installations/callback` | Validates one-time setup state and account access; redirects to `pocketops://github/callback?status=...` (302) |
-| GET | `/github/installations` | Current installations authorized to this PocketOps user; checks upstream access |
-| GET | `/github/installations/:installationId/repositories` | Current live repository access and this user's selections |
-| POST | `/github/installations/sync` | Replaces the user's selection; body `{ "installationId": "<PocketOps UUID>", "githubRepositoryIds": ["123"] }` |
-| POST | `/webhooks/github` | Verifies the raw-body `X-Hub-Signature-256`; deduplicates `X-GitHub-Delivery`; queues supported events and returns 202 |
+| Method | Path                                                 | Purpose and response                                                                                                   |
+| ------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/github/installations/start`                        | Authenticated initiation; returns an OAuth URL (201)                                                                   |
+| GET    | `/github/oauth/callback`                             | State-bound GitHub OAuth callback; redirects to GitHub App installation (302)                                          |
+| GET    | `/github/installations/callback`                     | Validates one-time setup state and account access; redirects to `pocketops://github/callback?status=...` (302)         |
+| GET    | `/github/installations`                              | Current installations authorized to this PocketOps user; checks upstream access                                        |
+| GET    | `/github/installations/:installationId/repositories` | Current live repository access and this user's selections                                                              |
+| POST   | `/github/installations/sync`                         | Replaces the user's selection; body `{ "installationId": "<PocketOps UUID>", "githubRepositoryIds": ["123"] }`         |
+| POST   | `/webhooks/github`                                   | Verifies the raw-body `X-Hub-Signature-256`; deduplicates `X-GitHub-Delivery`; queues supported events and returns 202 |
 
 OAuth state and installation state are random, separate, hashed, single-use and expire after 15 minutes. OAuth and session-provider credentials remain encrypted on the server. Callback errors redirect only an allowlisted status, never tokens or authorization codes. Webhook payloads are normalized to allowlisted metadata before persistence; raw bodies are not queued or logged. PostgreSQL-backed webhook processing runs in the API process and retries failed deliveries with bounded exponential delay. Redis is not required for this milestone.
 
@@ -77,15 +83,19 @@ GitHub App webhooks handle installation creation/deletion/suspension/permission 
 
 ## 4. Read-only repository endpoints
 
-| Method | Path                              | Query/body                                | Response/notes                         |
-| ------ | --------------------------------- | ----------------------------------------- | -------------------------------------- |
-| GET    | `/github/repositories`                   | `cursor,limit,search`                     | Selected repositories with current access |
-| GET    | `/github/repositories/:repositoryId`               | —                                         | Selected repository details, current access required |
-| GET    | `/github/repositories/:repositoryId/tree`          | `path,ref,cursor`                         | Directory entries; signed cursor, bounded path/ref |
-| GET    | `/github/repositories/:repositoryId/file`          | `path,ref`                                | Text metadata/content; max 512 KiB |
-| GET    | `/github/repositories/:repositoryId/branches`      | `cursor`                                  | Branches, paginated in batches of 100 |
+| Method | Path                                          | Query/body            | Response/notes                                         |
+| ------ | --------------------------------------------- | --------------------- | ------------------------------------------------------ |
+| GET    | `/github/repositories`                        | `cursor,limit,search` | Selected repositories with current access              |
+| GET    | `/github/repositories/:repositoryId`          | —                     | Selected repository details, current access required   |
+| GET    | `/github/repositories/:repositoryId/tree`     | `path,ref`            | One directory; at most 1,000 entries, bounded path/ref |
+| GET    | `/github/repositories/:repositoryId/file`     | `path,ref`            | Text metadata/content; max 512 KiB                     |
+| GET    | `/github/repositories/:repositoryId/branches` | `cursor`              | Branches, paginated in batches of 100                  |
 
 The API repository IDs are PocketOps UUIDs. All routes require the authenticated user's explicit selection, an active installation membership and live GitHub authorization. Paths reject traversal and control characters. Files are returned as editable UTF-8 only when valid; binary content returns `content: null`, `encoding: "binary"` and `editable: false`. Branch, commit, pull-request and deployment write routes do not exist in this milestone.
+
+**Directory limit:** GitHub Contents does not paginate directories. `meta.nextCursor` is always null for tree responses; `meta.directoryLimitReached` is true at 1,000 entries and the UI warns that the listing may be incomplete. Supplying a tree cursor returns 422 `DIRECTORY_CURSOR_UNSUPPORTED`. Repository and branch list pagination is unchanged. Submodules are identified as `type: "submodule"`; the explorer does not follow them.
+
+**Preview contract:** file `sha` is the blob revision, not a last-commit timestamp. Only valid, size-consistent base64 UTF-8 content is returned as text; unsupported encoding is binary/non-editable. Declared or encoded files over 512 KiB are rejected with 413. Mismatched decoded size returns a safe 502.
 
 **GET file response example:**
 

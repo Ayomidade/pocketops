@@ -30,7 +30,8 @@ export async function apiRequest(path, options = {}) {
   const abortFromCaller = () => controller.abort(externalSignal.reason);
 
   if (externalSignal?.aborted) abortFromCaller();
-  else externalSignal?.addEventListener("abort", abortFromCaller, { once: true });
+  else
+    externalSignal?.addEventListener("abort", abortFromCaller, { once: true });
 
   const requestHeaders = { Accept: "application/json", ...headers };
   if (token) requestHeaders.Authorization = `Bearer ${token}`;
@@ -58,14 +59,11 @@ export async function apiRequest(path, options = {}) {
     }
 
     if (!response.ok || payload?.success !== true) {
-      throw new ApiError(
-        payload?.error?.message || "The API request failed",
-        {
-          code: payload?.error?.code || "API_ERROR",
-          status: response.status,
-          requestId: payload?.meta?.requestId,
-        },
-      );
+      throw new ApiError(payload?.error?.message || "The API request failed", {
+        code: payload?.error?.code || "API_ERROR",
+        status: response.status,
+        requestId: payload?.meta?.requestId,
+      });
     }
     return payload;
   } catch (error) {
