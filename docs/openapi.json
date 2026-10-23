@@ -26,7 +26,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "$ref": "#/components/schemas/Health"
@@ -38,11 +40,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -76,7 +84,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "$ref": "#/components/schemas/Ready"
@@ -88,11 +98,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -126,7 +142,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "$ref": "#/components/schemas/Authorization"
@@ -138,11 +156,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -175,7 +199,10 @@
                     "pattern": "^[a-fA-F0-9]{64}$"
                   }
                 },
-                "required": ["redirectUri", "completionSecret"],
+                "required": [
+                  "redirectUri",
+                  "completionSecret"
+                ],
                 "additionalProperties": false
               }
             }
@@ -336,7 +363,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "$ref": "#/components/schemas/SessionExchange"
@@ -348,11 +377,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -389,7 +424,10 @@
                     "maxLength": 100
                   }
                 },
-                "required": ["handoffCode", "completionSecret"],
+                "required": [
+                  "handoffCode",
+                  "completionSecret"
+                ],
                 "additionalProperties": false
               }
             }
@@ -416,7 +454,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "$ref": "#/components/schemas/Identity"
@@ -428,11 +468,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -470,7 +516,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "$ref": "#/components/schemas/Identity"
@@ -482,11 +530,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -515,7 +569,9 @@
                     "pattern": "^(?:[A-Za-z0-9_-]{43}|[a-fA-F0-9]{64})$"
                   }
                 },
-                "required": ["replacementToken"],
+                "required": [
+                  "replacementToken"
+                ],
                 "additionalProperties": false
               }
             }
@@ -542,7 +598,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "$ref": "#/components/schemas/LoggedOut"
@@ -554,11 +612,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -596,7 +660,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "$ref": "#/components/schemas/Authorization"
@@ -608,11 +674,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -730,7 +802,10 @@
             "required": true,
             "schema": {
               "type": "string",
-              "enum": ["install", "update"]
+              "enum": [
+                "install",
+                "update"
+              ]
             }
           }
         ],
@@ -778,7 +853,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "type": "array",
@@ -793,11 +870,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -845,7 +928,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "type": "array",
@@ -860,11 +945,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -902,7 +993,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "type": "array",
@@ -917,11 +1010,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -959,7 +1058,10 @@
                     }
                   }
                 },
-                "required": ["installationId", "githubRepositoryIds"],
+                "required": [
+                  "installationId",
+                  "githubRepositoryIds"
+                ],
                 "additionalProperties": false
               }
             }
@@ -1016,7 +1118,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "type": "array",
@@ -1038,11 +1142,18 @@
                           "type": "boolean"
                         }
                       },
-                      "required": ["requestId", "nextCursor"],
+                      "required": [
+                        "requestId",
+                        "nextCursor"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1090,7 +1201,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "$ref": "#/components/schemas/RepositoryDetail"
@@ -1102,11 +1215,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1183,7 +1302,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "type": "array",
@@ -1205,11 +1326,18 @@
                           "type": "boolean"
                         }
                       },
-                      "required": ["requestId", "nextCursor"],
+                      "required": [
+                        "requestId",
+                        "nextCursor"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1277,7 +1405,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "$ref": "#/components/schemas/File"
@@ -1289,11 +1419,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1350,7 +1486,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "type": "array",
@@ -1372,11 +1510,18 @@
                           "type": "boolean"
                         }
                       },
-                      "required": ["requestId", "nextCursor"],
+                      "required": [
+                        "requestId",
+                        "nextCursor"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1435,7 +1580,9 @@
                   "properties": {
                     "success": {
                       "type": "boolean",
-                      "enum": [true]
+                      "enum": [
+                        true
+                      ]
                     },
                     "data": {
                       "$ref": "#/components/schemas/WebhookAccepted"
@@ -1447,11 +1594,17 @@
                           "type": "string"
                         }
                       },
-                      "required": ["requestId"],
+                      "required": [
+                        "requestId"
+                      ],
                       "additionalProperties": false
                     }
                   },
-                  "required": ["success", "data", "meta"],
+                  "required": [
+                    "success",
+                    "data",
+                    "meta"
+                  ],
                   "additionalProperties": false
                 }
               }
@@ -1512,7 +1665,13 @@
             "nullable": true
           }
         },
-        "required": ["id", "githubUserId", "username", "email", "avatarUrl"],
+        "required": [
+          "id",
+          "githubUserId",
+          "username",
+          "email",
+          "avatarUrl"
+        ],
         "additionalProperties": false
       },
       "Session": {
@@ -1525,7 +1684,10 @@
             "type": "string"
           }
         },
-        "required": ["id", "expiresAt"],
+        "required": [
+          "id",
+          "expiresAt"
+        ],
         "additionalProperties": false
       },
       "Authorization": {
@@ -1535,7 +1697,9 @@
             "type": "string"
           }
         },
-        "required": ["authorizationUrl"],
+        "required": [
+          "authorizationUrl"
+        ],
         "additionalProperties": false
       },
       "Identity": {
@@ -1548,7 +1712,10 @@
             "$ref": "#/components/schemas/Session"
           }
         },
-        "required": ["user", "session"],
+        "required": [
+          "user",
+          "session"
+        ],
         "additionalProperties": false
       },
       "SessionExchange": {
@@ -1564,7 +1731,11 @@
             "$ref": "#/components/schemas/Session"
           }
         },
-        "required": ["token", "user", "session"],
+        "required": [
+          "token",
+          "user",
+          "session"
+        ],
         "additionalProperties": false
       },
       "LoggedOut": {
@@ -1572,10 +1743,14 @@
         "properties": {
           "loggedOut": {
             "type": "boolean",
-            "enum": [true]
+            "enum": [
+              true
+            ]
           }
         },
-        "required": ["loggedOut"],
+        "required": [
+          "loggedOut"
+        ],
         "additionalProperties": false
       },
       "Health": {
@@ -1583,14 +1758,21 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["ok"]
+            "enum": [
+              "ok"
+            ]
           },
           "service": {
             "type": "string",
-            "enum": ["pocketops-api"]
+            "enum": [
+              "pocketops-api"
+            ]
           }
         },
-        "required": ["status", "service"],
+        "required": [
+          "status",
+          "service"
+        ],
         "additionalProperties": false
       },
       "Ready": {
@@ -1598,25 +1780,37 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": ["ready"]
+            "enum": [
+              "ready"
+            ]
           },
           "dependencies": {
             "type": "object",
             "properties": {
               "postgres": {
                 "type": "string",
-                "enum": ["ready"]
+                "enum": [
+                  "ready"
+                ]
               },
               "redis": {
                 "type": "string",
-                "enum": ["not_required"]
+                "enum": [
+                  "not_required"
+                ]
               }
             },
-            "required": ["postgres", "redis"],
+            "required": [
+              "postgres",
+              "redis"
+            ],
             "additionalProperties": false
           }
         },
-        "required": ["status", "dependencies"],
+        "required": [
+          "status",
+          "dependencies"
+        ],
         "additionalProperties": false
       },
       "Installation": {
@@ -1786,7 +1980,13 @@
             "minimum": 0
           }
         },
-        "required": ["name", "path", "type", "sha", "size"],
+        "required": [
+          "name",
+          "path",
+          "type",
+          "sha",
+          "size"
+        ],
         "additionalProperties": false
       },
       "File": {
@@ -1809,7 +2009,10 @@
           },
           "encoding": {
             "type": "string",
-            "enum": ["utf-8", "binary"]
+            "enum": [
+              "utf-8",
+              "binary"
+            ]
           },
           "content": {
             "type": "string",
@@ -1843,7 +2046,11 @@
             "type": "boolean"
           }
         },
-        "required": ["name", "commitSha", "protected"],
+        "required": [
+          "name",
+          "commitSha",
+          "protected"
+        ],
         "additionalProperties": false
       },
       "WebhookAccepted": {
@@ -1851,7 +2058,9 @@
         "properties": {
           "accepted": {
             "type": "boolean",
-            "enum": [true]
+            "enum": [
+              true
+            ]
           },
           "duplicate": {
             "type": "boolean"
@@ -1860,7 +2069,11 @@
             "type": "boolean"
           }
         },
-        "required": ["accepted", "duplicate", "ignored"],
+        "required": [
+          "accepted",
+          "duplicate",
+          "ignored"
+        ],
         "additionalProperties": false
       },
       "Error": {
@@ -1868,7 +2081,9 @@
         "properties": {
           "success": {
             "type": "boolean",
-            "enum": [false]
+            "enum": [
+              false
+            ]
           },
           "error": {
             "type": "object",
@@ -1880,7 +2095,10 @@
                 "type": "string"
               }
             },
-            "required": ["code", "message"],
+            "required": [
+              "code",
+              "message"
+            ],
             "additionalProperties": false
           },
           "meta": {
@@ -1890,11 +2108,17 @@
                 "type": "string"
               }
             },
-            "required": ["requestId"],
+            "required": [
+              "requestId"
+            ],
             "additionalProperties": false
           }
         },
-        "required": ["success", "error", "meta"],
+        "required": [
+          "success",
+          "error",
+          "meta"
+        ],
         "additionalProperties": false
       }
     }
