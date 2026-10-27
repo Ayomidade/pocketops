@@ -51,6 +51,9 @@ const environmentSchema = z
       z.string().url().optional(),
     ),
     GITHUB_TOKEN_ENCRYPTION_KEY: optionalEnvString,
+    PROVIDER_ENCRYPTION_KEYS: optionalEnvString,
+    PROVIDER_ACTIVE_KEY_VERSION: optionalEnvString,
+    DEPLOYMENTS_ENABLED: z.enum(["true", "false"]).default("false"),
     LOG_LEVEL: z
       .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
       .optional(),
@@ -82,6 +85,16 @@ const environmentSchema = z
       }
     }
 
+    if (!!value.PROVIDER_ENCRYPTION_KEYS !== !!value.PROVIDER_ACTIVE_KEY_VERSION) {
+      context.addIssue({ code: "custom", path: ["PROVIDER_ENCRYPTION_KEYS"], message: "key ring and active version must be configured together" });
+    }
+    if (value.DEPLOYMENTS_ENABLED === "true" && !value.PROVIDER_ENCRYPTION_KEYS) context.addIssue({ code: "custom", path: ["DEPLOYMENTS_ENABLED"], message: "requires a provider key ring" });
+    if (value.PROVIDER_ENCRYPTION_KEYS) {
+      try {
+        const keys = JSON.parse(value.PROVIDER_ENCRYPTION_KEYS);
+        if (!keys || Array.isArray(keys) || typeof keys !== "object" || !keys[value.PROVIDER_ACTIVE_KEY_VERSION] || Object.keys(keys).length > 5 || Object.entries(keys).some(([version, key]) => !/^[a-zA-Z0-9_-]{1,32}$/.test(version) || typeof key !== "string" || Buffer.from(key, "base64").length !== 32 || Buffer.from(key, "base64").toString("base64") !== key)) throw new Error();
+      } catch { context.addIssue({ code: "custom", path: ["PROVIDER_ENCRYPTION_KEYS"], message: "must be a JSON key ring of up to five versioned base64 32-byte keys including the active key" }); }
+    }
     const oauthValues = [
       value.GITHUB_OAUTH_CLIENT_ID,
       value.GITHUB_OAUTH_CLIENT_SECRET,
@@ -333,6 +346,9 @@ export function loadConfig(source = process.env) {
   ];
   return {
     nodeEnv: config.NODE_ENV,
+    providerEncryptionKeys: config.PROVIDER_ENCRYPTION_KEYS ? Object.fromEntries(Object.entries(JSON.parse(config.PROVIDER_ENCRYPTION_KEYS)).map(([version, key]) => [version, Buffer.from(key, "base64")])) : {},
+    providerActiveKeyVersion: config.PROVIDER_ACTIVE_KEY_VERSION || null,
+    deploymentsEnabled: config.DEPLOYMENTS_ENABLED === "true",
     port: config.PORT,
     databaseUrl: config.DATABASE_URL || null,
     databaseSsl: config.DATABASE_SSL === "true",

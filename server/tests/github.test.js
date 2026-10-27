@@ -20,6 +20,7 @@ const config = {
   githubTokenEncryptionKey: key,
 };
 const now = new Date("2026-10-22T10:00:00.000Z");
+const sha = "a".repeat(40);
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 
 function makeRepository(overrides = {}) {
@@ -201,6 +202,168 @@ describe("GitHub App identity and installation authorization", () => {
     parts[2] = `${parts[2][0] === "a" ? "b" : "a"}${parts[2].slice(1)}`;
     const tampered = parts.join(".");
     expect(() => decryptToken(tampered, key)).toThrow();
+  });
+
+  it("requires the signed-in user's selected repository and current write permission for branch creation", async () => {
+    const linked = {
+      id: "selected-repository",
+      githubRepositoryId: "1",
+      ownerLogin: "PocketOrg",
+      name: "api",
+      defaultBranch: "main",
+      isArchived: false,
+      installation: membership.installation,
+    };
+    const repository = makeRepository({
+      getSelectedRepository: vi.fn(async () => ({ repository: linked })),
+      getMembership: vi.fn(async () => membership),
+      syncRepositoryCatalog: vi.fn(async () => []),
+    });
+    const adapter = makeAdapter({
+      getUserInstallations: vi.fn(async () => [
+        {
+          id: "987",
+          accountId: "555",
+          accountLogin: "PocketOrg",
+          accountType: "Organization",
+          permissions: { contents: "read", metadata: "read" },
+          repositorySelection: "selected",
+          suspendedAt: null,
+        },
+      ]),
+      getBranch: vi.fn(async () => ({
+        name: "main",
+        commitSha: sha,
+        protected: true,
+      })),
+      createBranch: vi.fn(async () => ({ ref: "refs/heads/fix/task", sha })),
+    });
+    const { service } = makeService({ repository, adapter });
+    await expect(
+      service.createFixBranch({
+        userId: membership.userId,
+        repositoryId: linked.id,
+        branch: "fix/task",
+        baseBranch: "main",
+        baseSha: sha,
+        requestId: "write-permission-check",
+      }),
+    ).rejects.toMatchObject({ status: 403, code: "GITHUB_PERMISSION_DENIED" });
+    expect(adapter.createBranch).not.toHaveBeenCalled();
+
+    repository.getSelectedRepository.mockResolvedValue(null);
+    await expect(
+      service.getEditorBranch({
+        userId: "another-user",
+        repositoryId: linked.id,
+        branch: "main",
+        requestId: "cross-user-repository-check",
+      }),
+    ).rejects.toMatchObject({ status: 404, code: "RESOURCE_NOT_FOUND" });
+    expect(adapter.getBranch).not.toHaveBeenCalled();
+  });
+
+  it("rejects stale base refs and protected fix branches before any file write", async () => {
+    const linked = {
+      id: "selected-repository",
+      githubRepositoryId: "1",
+      ownerLogin: "PocketOrg",
+      name: "api",
+      defaultBranch: "main",
+      isArchived: false,
+      installation: membership.installation,
+    };
+    const repository = makeRepository({
+      getSelectedRepository: vi.fn(async () => ({ repository: linked })),
+      getMembership: vi.fn(async () => membership),
+      syncRepositoryCatalog: vi.fn(async () => []),
+    });
+    const adapter = makeAdapter({
+      getUserInstallations: vi.fn(async () => [
+        {
+          id: "987",
+          accountId: "555",
+          accountLogin: "PocketOrg",
+          accountType: "Organization",
+          permissions: { contents: "write", pull_requests: "write" },
+          repositorySelection: "selected",
+          suspendedAt: null,
+        },
+      ]),
+      getBranch: vi.fn(async (_installationId, _owner, _name, branch) => ({
+        name: branch,
+        commitSha: branch === "main" ? "b".repeat(40) : "c".repeat(40),
+        protected: branch === "fix/task",
+      })),
+      createBranch: vi.fn(async () => ({ ref: "refs/heads/fix/task", sha })),
+      getFile: vi.fn(async () => ({
+        sha,
+        size: 4,
+        encoding: "base64",
+        content: "dGVzdA==",
+      })),
+      updateFile: vi.fn(),
+    });
+    const { service } = makeService({ repository, adapter });
+    await expect(
+      service.createFixBranch({
+        userId: membership.userId,
+        repositoryId: linked.id,
+        branch: "fix/task",
+        baseBranch: "main",
+        baseSha: sha,
+        requestId: "stale-base-check",
+      }),
+    ).rejects.toMatchObject({ status: 409, code: "BASE_VERSION_CONFLICT" });
+    await expect(
+      service.commitFixFile({
+        userId: membership.userId,
+        repositoryId: linked.id,
+        branch: "fix/task",
+        path: "src/index.js",
+        content: "new source",
+        expectedSha: sha,
+        commitMessage: "Fix issue",
+        requestId: "protected-branch-check",
+      }),
+    ).rejects.toMatchObject({ status: 403, code: "PROTECTED_BRANCH_WRITE_BLOCKED" });
+    expect(adapter.getFile).not.toHaveBeenCalled();
+    expect(adapter.updateFile).not.toHaveBeenCalled();
+  });
+
+  it("hides revoked installations before requesting a write", async () => {
+    const repository = makeRepository({
+      getSelectedRepository: vi.fn(async () => ({
+        repository: {
+          id: "selected-repository",
+          githubRepositoryId: "1",
+          ownerLogin: "PocketOrg",
+          name: "api",
+          defaultBranch: "main",
+          isArchived: false,
+          installation: membership.installation,
+        },
+      })),
+      getMembership: vi.fn(async () => membership),
+      syncRepositoryCatalog: vi.fn(async () => []),
+    });
+    const adapter = makeAdapter({
+      getUserInstallations: vi.fn(async () => []),
+      createBranch: vi.fn(),
+    });
+    const { service } = makeService({ repository, adapter });
+    await expect(
+      service.createFixBranch({
+        userId: membership.userId,
+        repositoryId: "selected-repository",
+        branch: "fix/task",
+        baseBranch: "main",
+        baseSha: sha,
+        requestId: "revoked-installation-check",
+      }),
+    ).rejects.toMatchObject({ status: 404, code: "RESOURCE_NOT_FOUND" });
+    expect(repository.revokeMembership).toHaveBeenCalled();
+    expect(adapter.createBranch).not.toHaveBeenCalled();
   });
 
   it("creates a state-bound GitHub App authorization URL without returning credentials", async () => {

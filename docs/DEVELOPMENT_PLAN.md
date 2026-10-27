@@ -34,17 +34,19 @@ Build a runnable, testable native mobile app and backend first. Add GitHub ident
 
 ### Milestone 3 — Native repository explorer (weeks 4–5)
 
-**Mobile:** selected repository list, native tree navigation, branch selection and text preview; loading/empty/offline/error/retry states and accessibility. Consume the existing read-only API and do not add repository writes. **Exit:** selected test repository browsable on Android and access revocation promptly reflected.
+**Mobile:** selected repository list, native tree navigation, branch selection and text preview; loading/empty/offline/error/retry states and accessibility. **Status:** delivered as the repository explorer; Android device verification remains pending. See [REPOSITORY_EXPLORER.md](REPOSITORY_EXPLORER.md).
 
 **Implementation status (2026-10-23; prompt `04-repository-explorer.md`):** native repository list/search, connected-account summary, branch picker, directory navigation/breadcrumbs and bounded monospace text preview are implemented with TanStack Query and native component/API tests. No writes or WebView exist. Automated verification and physical-device gaps are recorded in [Repository explorer](REPOSITORY_EXPLORER.md). The Android live browsing/revocation exit gate is NOT RUN without a connected device and configured GitHub test apps.
 
-### Milestone 4 — Code editor and Git workflow (weeks 5–6)
+### Milestone 4 — Safe source editor and pull requests (weeks 5–6)
 
-**Backend:** branch creation, SHA-checked single-file commits, PR creation, audit events, conflict response. **Mobile:** packaged CodeMirror WebView, safe bridge, unsaved draft, diff screen, commit confirmation, PR details. **Exit:** phone-only fix branch → edit → commit → PR on test repo; stale SHA yields 409; no direct production-branch write by default.
+**Status (2026-10):** implemented as a bundled CodeMirror WebView with a versioned native bridge, per-user encrypted short-lived drafts, native branch/diff/confirmation/commit/PR flow, write permission and repository authorization checks, expected-SHA conflicts, durable idempotency and audit linkage. Live GitHub write credentials and Android/iOS runtime checks are not configured or claimed. See [CODE_EDITOR.md](CODE_EDITOR.md).
 
 ### Milestone 5 — Render connections and deployments (weeks 6–7)
 
 **Backend:** encrypted credential store, provider adapter, service mapping, deployment/log APIs, idempotent operation table, worker queue and reconciliation. **Mobile:** connection setup, project mapping, deployment list, log viewer, confirmation UI and operation progress. **Exit:** authorized developer can inspect logs and request exactly one test redeploy; duplicate request does not duplicate upstream action.
+
+**Status (2026-10):** implemented as encrypted Render API-key connections (AES-256-GCM key ring with lazy version rotation), a Render adapter covering the six verified service/deploy/log endpoints with honest capability flags (no rollback, promotion or health verification), project mapping bound to authorized GitHub repositories, bounded redacted logs with signed cursors, and confirmed idempotent redeploy requests processed by a separate PostgreSQL-leased worker (`npm run worker:deployments`) that never re-triggers ambiguous writes. Native mobile screens cover connections, mapping, timeline, logs, two-stage redeploy confirmation and operation polling that never treats 202 as success. Live Render account verification and physical-device checks are NOT RUN; incident automation and health verification remain Milestone 6.
 
 ### Milestone 6 — Incident workflow and alerts (weeks 8–9)
 

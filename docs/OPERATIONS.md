@@ -1,8 +1,9 @@
 # Operations and release validation
 
-These procedures support the current identity/read-only GitHub milestone.
-Deployment actions, Redis workers and remote execution are not available.
-Production release still requires an owner to execute and record the gates below.
+These procedures support the current identity/GitHub/editor/Render-deployment
+milestones. Incident automation, notifications and remote execution are not
+available. Production release still requires an owner to execute and record the
+gates below.
 
 ## Monitoring
 
@@ -26,6 +27,26 @@ Investigate failed deliveries and prolonged pending work. The API process drains
 this queue, so a live HTTP server alone does not prove processing is healthy.
 Do not reset deliveries blindly: inspect upstream access and use the supported
 GitHub reconnect/reconciliation flow.
+
+### Deployment worker
+
+Deployment operations are dispatched only by the separate worker process
+(`npm run worker:deployments`). A live API server does **not** process them: if
+the worker is down, accepted requests remain `queued` and `next_attempt_at`
+never advances. Monitor:
+
+```sql
+SELECT status, count(*), min(next_attempt_at) AS oldest_due
+FROM operation_requests GROUP BY status;
+SELECT count(*) AS stale_claims FROM operation_requests
+WHERE status = 'requesting' AND claim_expires_at < now();
+```
+
+Investigate operations stuck in `queued` beyond their backoff window, any growth
+in `unknown` operations (they require manual reconciliation in Render — the worker
+never re-triggers ambiguous writes), and worker process restarts. GitHub App and
+provider encryption settings must match the API's; the worker exits at startup
+when they are missing.
 
 ## Retention
 
@@ -88,6 +109,19 @@ Step 4 is an operator-approved maintenance mutation, not an automated command in
 this repository. Seamless key rotation with concurrent old/new keys remains a
 separate hardening implementation; do not replace the key and expect existing
 ciphertext to decrypt. In a compromise, revoke affected credentials immediately.
+
+### Render provider key ring
+
+`PROVIDER_ENCRYPTION_KEYS` is a versioned key ring; connections re-encrypt
+lazily against `PROVIDER_ACTIVE_KEY_VERSION` on next use. To rotate without a
+maintenance window: add the new key version to the ring in the secret manager,
+switch `PROVIDER_ACTIVE_KEY_VERSION`, redeploy API and worker together, then
+verify a connection still resolves. Retain old versions until every active
+`provider_connections` row has migrated (query `key_version` with a read-only
+role) and for the backup recovery period. Never shrink the ring below the
+versions still referenced by rows or backups. Revoking a Render API key in
+Render Account Settings remains the emergency global kill; PocketOps
+disconnect only deletes local ciphertext.
 
 ## Native and provider acceptance
 

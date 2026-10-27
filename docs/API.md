@@ -1,14 +1,16 @@
 # PocketOps — REST API Contract
 
-**Version:** 1.2 | **Base path:** `/api/v1` | **Transport:** HTTPS JSON
+**Version:** 1.3 | **Base path:** `/api/v1` | **Transport:** HTTPS JSON
 
 The machine-readable contract for implemented endpoints is [openapi.json](openapi.json).
-Its JavaScript source is `server/src/contracts/openapi.js`; regenerate with
+Its JavaScript source is `server/src/contracts/openapi.js` (plus
+`server/src/contracts/deployments.js`); regenerate with
 `npm run api:contract` and verify with `npm run api:contract:check`. Tests check
-route coverage and real response envelopes. Later endpoints described below remain
-planned and are intentionally absent from the generated contract.
+route coverage and real response envelopes. Endpoints described below that are
+not yet implemented (section 7) remain planned and are intentionally absent from
+the generated contract.
 
-> Implemented: liveness/readiness, GitHub identity/session endpoints, and the GitHub App installation plus read-only repository APIs in sections 2–4. The GitHub App routes require server-side App configuration. Provider connections, repository writes, deployments, incidents and notifications remain planned.
+> Implemented: liveness/readiness, identity/session endpoints, GitHub App repository reads, the guarded editor APIs in section 5, and the Render provider-connection, project, deployment, log and operation endpoints in sections 5–6. Editor writes require server configuration and explicit GitHub App write permissions; deployment endpoints require `DEPLOYMENTS_ENABLED=true`, a provider encryption key ring and GitHub App configuration, and redeploy processing requires the separate `npm run worker:deployments` process. Incidents, notifications, health verification and Render webhooks remain planned and are intentionally absent from the generated contract.
 
 ## 1. Conventions
 
@@ -80,6 +82,12 @@ All routes are under `/api/v1`. Except the provider callbacks and webhook, route
 OAuth state and installation state are random, separate, hashed, single-use and expire after 15 minutes. OAuth and session-provider credentials remain encrypted on the server. Callback errors redirect only an allowlisted status, never tokens or authorization codes. Webhook payloads are normalized to allowlisted metadata before persistence; raw bodies are not queued or logged. PostgreSQL-backed webhook processing runs in the API process and retries failed deliveries with bounded exponential delay. Redis is not required for this milestone.
 
 GitHub App webhooks handle installation creation/deletion/suspension/permission changes, repository additions/removals and user authorization revocation. Duplicate delivery IDs do not duplicate state changes. Current installation and user repository access is revalidated with GitHub before returning repository information; inaccessible resources return 404. An installation's repository catalog is shared, but repository selections and authorization are per PocketOps user.
+
+## 5. Source editor workflow
+
+Routes are under `/api/v1/github/repositories/{repositoryId}` and require a PocketOps session plus selected-repository authorization. `GET /branches/metadata?branch=...` returns the live branch commit SHA and protection flag. `POST /branches` creates a fix branch from an explicitly selected base branch and commit. `PUT /file` commits an existing UTF-8 file to a PocketOps-recorded fix branch after checking its expected blob SHA. `GET /pull-requests?head=...&base=...` lists pull requests for that tracked branch pair; `POST /pull-requests` creates one. Mutations require an `Idempotency-Key` and are rate limited. File content is capped at 512 KiB. The OpenAPI contract is in [openapi.json](openapi.json).
+
+The App needs Contents: write for branches/commits and Pull requests: write for PRs. Access is revalidated on each request. Commits to the default or a protected branch are rejected. Stale content returns `409 FILE_VERSION_CONFLICT`; a moved base returns `409 BASE_VERSION_CONFLICT`. A successful commit is not evidence that tests passed, a PR merged, or a deployment succeeded. See [CODE_EDITOR.md](CODE_EDITOR.md).
 
 ## 4. Read-only repository endpoints
 
@@ -157,7 +165,7 @@ The API repository IDs are PocketOps UUIDs. All routes require the authenticated
 | GET    | `/projects`                          | List linked projects                          |
 | POST   | `/projects`                          | Link repository and Render service            |
 | GET    | `/projects/:id`                      | Project summary                               |
-| PATCH  | `/projects/:id`                      | Update name/health-check configuration        |
+| PATCH  | `/projects/:id`                      | Update name (health-check config is planned)  |
 
 **Project creation example:**
 
@@ -166,11 +174,11 @@ The API repository IDs are PocketOps UUIDs. All routes require the authenticated
   "name": "payments-api",
   "repositoryId": "uuid",
   "connectionId": "uuid",
-  "providerServiceId": "srv_..."
+  "providerServiceId": "srv-abc123"
 }
 ```
 
-Validate provider service belongs to connection and repository is currently authorized. Credentials are submitted only over TLS and immediately encrypted; never echo them in response or logs.
+Validate provider service belongs to connection and repository is currently authorized. Credentials are submitted only over TLS and immediately encrypted; never echo them in response or logs. `PATCH /projects/:id` accepts only `name` in this milestone (health-check configuration is planned with incident work). The `providerServiceId` must match Render's `srv-…` identifier format.
 
 ## 6. Deployments and logs
 
@@ -180,7 +188,7 @@ Validate provider service belongs to connection and repository is currently auth
 | GET    | `/projects/:id/logs`        | `from,to,limit,cursor,level` bounded logs     |
 | POST   | `/projects/:id/deployments` | Request explicitly confirmed supported action |
 | GET    | `/deployments/:id`          | Deployment status and provider mapping        |
-| GET    | `/operations/:id`           | Async operation status and health result      |
+| GET    | `/operations/:id`           | Async operation status; health is always `not_checked` in this milestone |
 
 **Redeploy request:**
 
@@ -193,10 +201,16 @@ Content-Type: application/json
 ```json
 {
   "action": "redeploy",
-  "target": { "type": "current-service-version" },
-  "confirmation": "DEPLOY"
+  "confirmation": "DEPLOY",
+  "target": {
+    "serviceId": "srv-abc123",
+    "deploymentId": "dep-xyz789",
+    "commitSha": "abc123..."
+  }
 }
 ```
+
+The target must name the exact service, the current live deployment and its commit; the server revalidates each against the provider before enqueueing.
 
 **202 response:**
 
@@ -205,19 +219,43 @@ Content-Type: application/json
   "success": true,
   "data": {
     "operationId": "uuid",
+    "projectId": "uuid",
+    "action": "redeploy",
     "status": "queued",
-    "deploymentStatus": "unknown",
-    "healthStatus": "not_checked"
+    "deploymentId": null,
+    "providerReference": null,
+    "targetDeploymentId": "dep-xyz789",
+    "commitSha": "abc123...",
+    "errorCode": null,
+    "healthStatus": "not_checked",
+    "reconciliationRequired": false
   },
   "meta": { "requestId": "req_123" }
 }
 ```
 
-**Idempotency:** key unique per actor, persisted with request hash; replay with same body returns original operation; same key/different body returns 409. Provider support determines allowed actions; do not assume universal rollback.
+`202` means the request was accepted and queued — never that a deployment succeeded or that service health was verified. Poll `GET /operations/:id`; operation status and provider deployment status are tracked separately, and `healthStatus` remains `not_checked` until health verification ships in a later milestone.
 
-**Logs:** server caps time range, number of records and payload bytes; sanitize provider data; return cursors, not unlimited dumps. Example fields: `timestamp,level,message,serviceId,source` (when available). No secrets in logs or audit metadata.
+**Idempotency:** key unique per actor, persisted with request hash; replay with same body returns original operation; same key/different body returns 409. One active operation per project. Provider support determines allowed actions; rollback and promotion are not supported by the Render adapter and are exposed as `capabilities: false`, never simulated.
+
+**Logs:** server caps time range (≤1 hour window), number of records and payload bytes; sanitize provider data; return HMAC-signed expiring cursors, not unlimited dumps. Example fields: `timestamp,level,message`. No secrets in logs or audit metadata.
+
+**Verified Render API operations** (base `https://api.render.com/v1`, used only server-side by the Render adapter):
+
+| Render operation                                   | PocketOps use                          |
+| -------------------------------------------------- | -------------------------------------- |
+| `GET /services`                                    | List services for project mapping      |
+| `GET /services/{id}`                               | Validate service and capabilities      |
+| `GET /services/{id}/deploys`                       | Deployment history                     |
+| `GET /services/{id}/deploys/{id}`                  | Deployment status reconciliation       |
+| `POST /services/{id}/deploys` (`{commitId}`)       | Confirmed redeploy of a known commit   |
+| `GET /logs` (owner/resource/time bounded)          | Bounded runtime logs                   |
+
+Rollback, promotion and health verification are not offered. These endpoints were verified against mocked contract fixtures in automated tests; a live Render account has not been exercised in this environment.
 
 ## 7. Incidents, health and notifications
+
+> Planned for the incident milestone; none of these endpoints exist yet and none appear in the generated contract.
 
 | Method    | Path                         | Purpose                                   |
 | --------- | ---------------------------- | ----------------------------------------- |

@@ -16,6 +16,7 @@ jobs:
           java-version: "17"
       - uses: android-actions/setup-android@v3
       - run: npm ci
+      - run: npm run editor:bundle -w mobile
       - run: npm exec --workspace=mobile -- expo prebuild --platform android --no-install
         env:
           CI: "1"
@@ -34,6 +35,7 @@ jobs:
           node-version: "22.13.0"
           cache: npm
       - run: npm ci
+      - run: npm run editor:bundle -w mobile
       - run: npm exec --workspace=mobile -- expo prebuild --platform ios
         env:
           CI: "1"

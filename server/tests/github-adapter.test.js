@@ -36,7 +36,7 @@ function pagedResponse(data, page) {
   };
 }
 
-function makeOctokit({ requestImplementation, restOverrides = {} } = {}) {
+function makeOctokit({ requestImplementation, restOverrides = {}, restRootOverrides = {} } = {}) {
   return {
     request: requestImplementation || vi.fn(async () => ({ data: [] })),
     rest: {
@@ -65,6 +65,29 @@ function makeOctokit({ requestImplementation, restOverrides = {} } = {}) {
         })),
         ...restOverrides,
       },
+      git: {
+        createRef: vi.fn(async ({ ref, sha }) => ({ data: { ref, object: { sha } } })),
+        getRef: vi.fn(async () => ({ data: { object: { sha: "a".repeat(40) } } })),
+        ...restRootOverrides.git,
+      },
+      pulls: {
+        list: vi.fn(async () => ({ data: [] })),
+        create: vi.fn(async ({ head, base, title, draft }) => ({
+          data: {
+            number: 7,
+            title,
+            html_url: "https://github.com/org/repo/pull/7",
+            state: "open",
+            head: { ref: head },
+            base: { ref: base },
+            draft,
+          },
+        })),
+        ...restRootOverrides.pulls,
+      },
+      ...Object.fromEntries(
+        Object.entries(restRootOverrides).filter(([key]) => !["git", "pulls"].includes(key)),
+      ),
     },
   };
 }
@@ -339,6 +362,104 @@ describe("GitHub App adapter", () => {
       status: 429,
       code: "GITHUB_RATE_LIMITED",
     });
+  });
+
+  it("uses only allowlisted GitHub write operations and normalizes their results", async () => {
+    const octokit = makeOctokit({
+      restOverrides: {
+        getBranch: vi.fn(async ({ branch }) => ({
+          data: {
+            name: branch,
+            commit: { sha: "a".repeat(40) },
+            protected: true,
+          },
+        })),
+        createOrUpdateFileContents: vi.fn(async (input) => ({
+          data: {
+            content: { sha: "b".repeat(40) },
+            commit: { sha: "c".repeat(40) },
+            input,
+          },
+        })),
+      },
+    });
+    class MockApp {
+      async getInstallationOctokit() {
+        return octokit;
+      }
+    }
+    const adapter = createGitHubAppAdapter({
+      config,
+      AppClass: MockApp,
+      OctokitClass: class {},
+    });
+    expect(await adapter.getBranch("987", "PocketOrg", "repo", "fix/task")).toEqual({
+      name: "fix/task",
+      commitSha: "a".repeat(40),
+      protected: true,
+    });
+    expect(
+      await adapter.createBranch("987", "PocketOrg", "repo", "fix/task", "a".repeat(40)),
+    ).toEqual({ ref: "refs/heads/fix/task", sha: "a".repeat(40) });
+    expect(
+      await adapter.updateFile("987", "PocketOrg", "repo", {
+        branch: "fix/task",
+        path: "src/file.js",
+        commitMessage: "Fix file",
+        content: "const value = 1;",
+        expectedSha: "a".repeat(40),
+      }),
+    ).toEqual({ contentSha: "b".repeat(40), commitSha: "c".repeat(40) });
+    expect(octokit.rest.repos.createOrUpdateFileContents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: Buffer.from("const value = 1;").toString("base64"),
+        sha: "a".repeat(40),
+      }),
+    );
+    expect(
+      await adapter.createPullRequest("987", "PocketOrg", "repo", {
+        head: "fix/task",
+        base: "main",
+        title: "Fix file",
+        body: "Review the change",
+        draft: false,
+      }),
+    ).toMatchObject({ number: 7, state: "open", draft: false });
+  });
+
+  it("maps branch and file write conflicts to stable safe errors", async () => {
+    const octokit = makeOctokit({
+      restRootOverrides: {
+        git: {
+          createRef: vi.fn(async () => {
+            throw Object.assign(new Error("branch exists"), { status: 422 });
+          }),
+        },
+      },
+      restOverrides: {
+        createOrUpdateFileContents: vi.fn(async () => {
+          throw Object.assign(new Error("stale content"), { status: 409 });
+        }),
+      },
+    });
+    class MockApp {
+      async getInstallationOctokit() {
+        return octokit;
+      }
+    }
+    const adapter = createGitHubAppAdapter({ config, AppClass: MockApp });
+    await expect(
+      adapter.createBranch("987", "PocketOrg", "repo", "fix/task", "a".repeat(40)),
+    ).rejects.toMatchObject({ status: 409, code: "BRANCH_ALREADY_EXISTS" });
+    await expect(
+      adapter.updateFile("987", "PocketOrg", "repo", {
+        branch: "fix/task",
+        path: "src/file.js",
+        commitMessage: "Fix file",
+        content: "new",
+        expectedSha: "a".repeat(40),
+      }),
+    ).rejects.toMatchObject({ status: 409, code: "FILE_VERSION_CONFLICT" });
   });
 
   it("rejects expired-token responses without returning provider error bodies", async () => {

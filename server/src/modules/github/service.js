@@ -10,6 +10,7 @@ import { decryptToken, encryptToken } from "./crypto.js";
 const installationLinkTtlMs = 15 * 60_000;
 const tokenRefreshMarginMs = 60_000;
 const maximumFileBytes = 512 * 1024;
+const gitShaPattern = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i;
 const supportedWebhookEvents = new Set([
   "installation",
   "installation_repositories",
@@ -105,6 +106,25 @@ function decodePath(path, allowRoot = false) {
     );
   }
   return path;
+}
+
+function validGitRef(value) {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 255 &&
+    !value.startsWith("/") &&
+    !value.endsWith("/") &&
+    !value.endsWith(".") &&
+    !value.includes("..") &&
+    !value.includes("//") &&
+    !value.includes("@{") &&
+    ![...value].some((character) => character.codePointAt(0) <= 32 || character.codePointAt(0) === 127) &&
+    !/[~^:?*\x5b\\]/.test(value) &&
+    value
+      .split("/")
+      .every((part) => part && !part.startsWith(".") && !part.endsWith(".lock"))
+  );
 }
 
 function decodeCursor(cursor, kind, resourceId, key) {
@@ -437,6 +457,44 @@ export function createGitHubService({
       throw new AppError(404, "RESOURCE_NOT_FOUND", "Repository was not found");
     }
     return { linked, repo, membership, access };
+  }
+
+  async function editorRepositoryContext({
+    userId,
+    repositoryId,
+    requestId,
+    permission,
+    write = false,
+  }) {
+    const context = await authorizedRepository(userId, repositoryId, requestId);
+    if (context.linked.isArchived || context.repo.isArchived) {
+      throw new AppError(
+        409,
+        "REPOSITORY_ARCHIVED",
+        "Archived repositories cannot be changed.",
+      );
+    }
+    if (permission) {
+      const granted = context.access.installation.permissions?.[permission];
+      const level = typeof granted === "string" ? granted : granted?.access;
+      if (write ? level !== "write" : !["read", "write"].includes(level)) {
+        throw new AppError(
+          403,
+          "GITHUB_PERMISSION_DENIED",
+          "The GitHub App does not have the required repository permission.",
+        );
+      }
+    }
+    return context;
+  }
+
+  async function editorProviderBranch(context, branch) {
+    return adapter.getBranch(
+      context.membership.installation.githubInstallationId,
+      context.repo.owner,
+      context.repo.name,
+      branch,
+    );
   }
 
   async function mobileRedirect(status) {
@@ -959,6 +1017,208 @@ export function createGitHubService({
           config.githubTokenEncryptionKey,
         ),
       };
+    },
+
+    async getEditorBranch({ userId, repositoryId, branch, requestId }) {
+      if (!validGitRef(branch)) {
+        throw new AppError(422, "INVALID_GIT_REF", "Branch name is invalid.");
+      }
+      const context = await editorRepositoryContext({
+        userId,
+        repositoryId,
+        requestId,
+        permission: "contents",
+      });
+      return editorProviderBranch(context, branch);
+    },
+
+    async createFixBranch({
+      userId,
+      repositoryId,
+      branch,
+      baseBranch,
+      baseSha,
+      requestId,
+    }) {
+      if (
+        !validGitRef(branch) ||
+        !validGitRef(baseBranch) ||
+        !gitShaPattern.test(baseSha) ||
+        branch === baseBranch
+      ) {
+        throw new AppError(422, "INVALID_GIT_REF", "Branch details are invalid.");
+      }
+      const context = await editorRepositoryContext({
+        userId,
+        repositoryId,
+        requestId,
+        permission: "contents",
+        write: true,
+      });
+      if (branch === context.repo.defaultBranch) {
+        throw new AppError(
+          422,
+          "PRODUCTION_BRANCH_WRITE_BLOCKED",
+          "Create a new fix branch instead of using the repository default branch.",
+        );
+      }
+      const base = await editorProviderBranch(context, baseBranch);
+      if (base.commitSha !== baseSha) {
+        throw new AppError(
+          409,
+          "BASE_VERSION_CONFLICT",
+          "The base branch moved. Refresh branch details before creating a fix branch.",
+        );
+      }
+      const created = await adapter.createBranch(
+        context.membership.installation.githubInstallationId,
+        context.repo.owner,
+        context.repo.name,
+        branch,
+        baseSha,
+      );
+      return { branch, baseBranch, baseSha, commitSha: created.sha };
+    },
+
+    async commitFixFile({
+      userId,
+      repositoryId,
+      branch,
+      path,
+      content,
+      expectedSha,
+      commitMessage,
+      requestId,
+    }) {
+      if (
+        !validGitRef(branch) ||
+        !gitShaPattern.test(expectedSha) ||
+        Buffer.byteLength(content, "utf8") > maximumFileBytes
+      ) {
+        throw new AppError(422, "INVALID_FILE_CHANGE", "File change is invalid.");
+      }
+      const safePath = decodePath(path);
+      const context = await editorRepositoryContext({
+        userId,
+        repositoryId,
+        requestId,
+        permission: "contents",
+        write: true,
+      });
+      if (branch === context.repo.defaultBranch) {
+        throw new AppError(
+          403,
+          "PRODUCTION_BRANCH_WRITE_BLOCKED",
+          "PocketOps can only commit to a fix branch.",
+        );
+      }
+      const target = await editorProviderBranch(context, branch);
+      if (target.protected) {
+        throw new AppError(
+          403,
+          "PROTECTED_BRANCH_WRITE_BLOCKED",
+          "GitHub protects this branch. Choose an unprotected fix branch.",
+        );
+      }
+      const current = await adapter.getFile(
+        context.membership.installation.githubInstallationId,
+        context.repo.owner,
+        context.repo.name,
+        safePath,
+        branch,
+      );
+      if (
+        current.sha !== expectedSha ||
+        current.size > maximumFileBytes ||
+        current.encoding !== "base64"
+      ) {
+        throw new AppError(
+          current.sha !== expectedSha ? 409 : 422,
+          current.sha !== expectedSha
+            ? "FILE_VERSION_CONFLICT"
+            : "FILE_NOT_EDITABLE",
+          current.sha !== expectedSha
+            ? "The file changed after it was opened. Reload it before saving."
+            : "Only existing UTF-8 text files up to 512 KiB can be edited.",
+        );
+      }
+      const currentBytes = Buffer.from(
+        String(current.content || "").replace(/\s/g, ""),
+        "base64",
+      );
+      const currentText = currentBytes.toString("utf8");
+      if (
+        currentBytes.length !== current.size ||
+        currentBytes.includes(0) ||
+        !Buffer.from(currentText, "utf8").equals(currentBytes)
+      ) {
+        throw new AppError(
+          422,
+          "FILE_NOT_EDITABLE",
+          "Only existing UTF-8 text files up to 512 KiB can be edited.",
+        );
+      }
+      return adapter.updateFile(
+        context.membership.installation.githubInstallationId,
+        context.repo.owner,
+        context.repo.name,
+        { branch, path: safePath, content, expectedSha, commitMessage },
+      );
+    },
+
+    async listFixPullRequests({
+      userId,
+      repositoryId,
+      head,
+      base,
+      state,
+      requestId,
+    }) {
+      const context = await editorRepositoryContext({
+        userId,
+        repositoryId,
+        requestId,
+        permission: "pull_requests",
+      });
+      if (!validGitRef(head) || (base && !validGitRef(base))) {
+        throw new AppError(422, "INVALID_GIT_REF", "Branch name is invalid.");
+      }
+      return adapter.listPullRequests(
+        context.membership.installation.githubInstallationId,
+        context.repo.owner,
+        context.repo.name,
+        { head, base, state },
+      );
+    },
+
+    async createFixPullRequest({
+      userId,
+      repositoryId,
+      head,
+      base,
+      title,
+      body,
+      draft,
+      requestId,
+    }) {
+      if (!validGitRef(head) || !validGitRef(base) || head === base) {
+        throw new AppError(422, "INVALID_GIT_REF", "Pull request branches are invalid.");
+      }
+      const context = await editorRepositoryContext({
+        userId,
+        repositoryId,
+        requestId,
+        permission: "pull_requests",
+        write: true,
+      });
+      await editorProviderBranch(context, head);
+      await editorProviderBranch(context, base);
+      return adapter.createPullRequest(
+        context.membership.installation.githubInstallationId,
+        context.repo.owner,
+        context.repo.name,
+        { head, base, title, body, draft },
+      );
     },
 
     async acceptWebhook({ rawBody, signature, deliveryId, eventType }) {

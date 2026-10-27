@@ -1,3 +1,4 @@
+import { createDeploymentRouter } from "./modules/deployments/routes.js";
 import cors from "cors";
 import express from "express";
 import { rateLimit } from "express-rate-limit";
@@ -7,6 +8,7 @@ import { errorResponse, successResponse } from "./lib/responses.js";
 import { createLogger, createRequestLogger } from "./logging/logger.js";
 import { errorHandler, notFound } from "./middleware/errors.js";
 import { createAuthRouter } from "./modules/auth/routes.js";
+import { createEditorRouter } from "./modules/editor/routes.js";
 import {
   createGitHubRouter,
   createGitHubWebhookRouter,
@@ -17,6 +19,8 @@ export function createApp({
   sequelize = null,
   authService = null,
   githubService = null,
+  editorService = null,
+  deploymentService = null,
   logger = createLogger(config),
   readyTimeoutMs = 1500,
 }) {
@@ -39,7 +43,8 @@ export function createApp({
     "/api/v1/webhooks/github",
     express.raw({ type: "application/json", limit: "1mb" }),
   );
-  app.use(express.json({ limit: "64kb" }));
+  // Escaped JSON text can expand control-heavy source files by up to 6x.
+  app.use(express.json({ limit: "4mb" }));
   app.use(
     "/api",
     rateLimit({
@@ -119,12 +124,18 @@ export function createApp({
   app.use("/auth", authRouter);
   app.use(
     "/api/v1/github",
+    createEditorRouter({ service: editorService, authService }),
+  );
+  app.use(
+    "/api/v1/github",
     createGitHubRouter({ service: githubService, authService }),
   );
   app.use(
     "/api/v1/webhooks/github",
     createGitHubWebhookRouter({ service: githubService }),
   );
+
+  app.use("/api/v1", createDeploymentRouter({ service: deploymentService, authService }));
 
   app.use(notFound);
   app.use(errorHandler);

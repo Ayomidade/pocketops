@@ -92,6 +92,20 @@ test("search and pagination work with URLSearchParams implementations without si
   }
 });
 
+test("editor write calls stay on authenticated GitHub routes and include idempotency keys", async () => {
+  const calls = [];
+  const api = createGitHubApi(async (...args) => calls.push(args));
+  await api.getBranch("repo-id", "feature/fix");
+  await api.createFixBranch("repo-id", { branch: "fix/task" }, "idempotency-key-123");
+  await api.commitFixFile("repo-id", { branch: "fix/task", content: "safe" }, "idempotency-key-456");
+  await api.createPullRequest("repo-id", { head: "fix/task", base: "main" }, "idempotency-key-789");
+  assert.match(calls[0][0], /branches\/metadata\?branch=feature%2Ffix/);
+  for (const [index, key] of [[1, "idempotency-key-123"], [2, "idempotency-key-456"], [3, "idempotency-key-789"]]) {
+    assert.equal(calls[index][1].headers["Idempotency-Key"], key);
+    assert.equal(calls[index][1].method, index === 2 ? "PUT" : "POST");
+  }
+});
+
 test("central authentication expires only PocketOps 401, not GitHub provider authorization", async () => {
   let expired = 0;
   let failure = { status: 401, code: "GITHUB_AUTH_REVOKED" };

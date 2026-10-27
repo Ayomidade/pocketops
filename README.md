@@ -1,6 +1,6 @@
 # PocketOps
 
-PocketOps is a native mobile incident-response product. The repository contains the foundation, identity/session workflow and server-mediated GitHub App installation with read-only repository APIs. It is not production-ready and does not provide repository writes or deployment integrations.
+PocketOps is a native mobile incident-response product. The repository contains identity/session workflows, GitHub App repository browsing, a single-purpose source editor that creates fix branches, commits reviewed changes, and opens pull requests, plus Render connections, deployment history/logs and confirmed idempotent redeploy requests. It is not production-ready.
 
 ## Requirements and quick start
 
@@ -30,7 +30,7 @@ npm run db:migrate
 
 Rollback the most recent migration with `npm run db:migrate:undo`; `npm run db:migrate:undo:all` reverses every applied migration. Use only a disposable database for rollback testing. PostgreSQL credentials in Compose and `.env.example` are local development defaults, not production credentials. There is no `sequelize.sync()` or automatic schema mutation at startup.
 
-The migrations create users and sessions, then add hashed identity OAuth transactions/audit events and GitHub App installation state, memberships, repository selections and webhook deliveries. GitHub identity sign-in is distinct from GitHub App authorization. GitHub App user/refresh tokens are encrypted server-side; no GitHub token is returned to the app. The app stores only opaque PocketOps sessions in Expo SecureStore. See [docs/DATABASE.md](docs/DATABASE.md) for migration and retention details.
+The migrations create users and sessions, then add hashed identity OAuth transactions/audit events, GitHub App state, webhook deliveries, durable editor operation/idempotency records and Render provider connections, projects, deployments and operation requests. The app stores only opaque PocketOps sessions in Expo SecureStore and encrypts short-lived editor drafts with a device-only key. See [docs/DATABASE.md](docs/DATABASE.md) for migration and retention details.
 
 ## Checks
 
@@ -57,8 +57,7 @@ compiles Android debug and iOS simulator builds. See
 - `mobile/src/components/`, `hooks/`, `services/`, `theme/`: shared UI, hooks, API and style tokens
 - `server/src/`: Express app, environment/configuration, database models/migrations, authentication modules and middleware
 - `docs/`: product, architecture, API, database, security, setup and roadmap
-- `prompts/`: milestone-specific implementation briefs
 
-Native screens remain native; a WebView is reserved for the future source editor. Implemented: GitHub identity sign-in, PocketOps session hydration/rotation/logout, GitHub App connection/repository selection UX, authenticated read-only repository/tree/file/branch endpoints, signed webhook verification and durable PostgreSQL webhook processing. The native repository explorer includes selected-repository search, branch selection, directory breadcrumbs and read-only text preview. See [docs/REPOSITORY_EXPLORER.md](docs/REPOSITORY_EXPLORER.md) for cache policy, API limits and acceptance evidence. Not implemented: repository writes, Render connections, source editing, deployments, incidents, notifications, Redis/BullMQ, or remote execution. Redis is not required by the current API or readiness check.
+Native screens remain native; the source editor is the only WebView. Implemented: identity/session workflows, GitHub App connections, authorized repository browsing, bundled CodeMirror editing, safe fix-branch commits, pull-request creation, encrypted Render API-key connections, service-to-repository project mapping, bounded deployment history/logs and confirmed idempotent redeploy requests. Writes require separate GitHub App Contents: write and Pull requests: write permissions. Deployment operations additionally require `DEPLOYMENTS_ENABLED=true`, a provider encryption key ring and a separately running worker process (`npm run worker:deployments`); without the worker, accepted operations remain queued. See [docs/REPOSITORY_EXPLORER.md](docs/REPOSITORY_EXPLORER.md), [docs/CODE_EDITOR.md](docs/CODE_EDITOR.md) and [docs/SETUP.md](docs/SETUP.md). Incidents, notifications, health verification, Render webhooks and remote execution remain unimplemented.
 
-To enable identity sign-in, configure its five server-only OAuth variables. To enable GitHub App connections, register an App with read-only Contents and Metadata permissions and configure all `GITHUB_APP_*` variables plus a fresh token-encryption key. Apply migrations and use an Android/iOS development build with the `pocketops` app scheme. See [docs/SETUP.md](docs/SETUP.md). Never place provider credentials, private keys or tokens in an `EXPO_PUBLIC_*` variable.
+To enable identity sign-in, configure its server-only OAuth variables. Browsing requires Contents: read and Metadata: read; editor writes additionally require Contents: write and Pull requests: write on the GitHub App. Configure all `GITHUB_APP_*` variables server-side, apply migrations and use a native development build. See [docs/SETUP.md](docs/SETUP.md). Never place provider credentials, private keys or tokens in an `EXPO_PUBLIC_*` variable.

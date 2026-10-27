@@ -1,3 +1,4 @@
+import { registerDeploymentContract } from "./deployments.js";
 // The public contract covers implemented v1 endpoints only. Regenerate with npm run api:contract.
 const string = { type: "string" };
 const boolean = { type: "boolean" };
@@ -97,6 +98,38 @@ const schemas = {
     editable: boolean,
   }),
   Branch: object({ name: string, commitSha: string, protected: boolean }),
+  FixBranch: object({
+    branch: string,
+    baseBranch: string,
+    baseSha: string,
+    duplicate: boolean,
+  }),
+  FileCommit: object({
+    branch: string,
+    path: string,
+    contentSha: nullableString,
+    commitSha: nullableString,
+    duplicate: boolean,
+  }),
+  PullRequest: object({
+    number: integer,
+    url: string,
+    state: string,
+    head: string,
+    base: string,
+    title: string,
+    draft: boolean,
+  }),
+  PullRequestResult: object({
+    number: integer,
+    url: string,
+    state: string,
+    head: string,
+    base: string,
+    title: string,
+    draft: boolean,
+    duplicate: boolean,
+  }),
   WebhookAccepted: object({
     accepted: { type: "boolean", enum: [true] },
     duplicate: boolean,
@@ -347,11 +380,85 @@ endpoint(
   { parameters: [{ ...pathQuery, required: true }, branchRef] },
 );
 endpoint(
+  "/github/repositories/{repositoryId}/branches/metadata",
+  "get",
+  "repositoryBranchMetadata",
+  ref("Branch"),
+  { parameters: [parameter("branch", "query", { type: "string", minLength: 1, maxLength: 255 }, true)] },
+);
+endpoint(
   "/github/repositories/{repositoryId}/branches",
   "get",
   "repositoryBranches",
   array(ref("Branch")),
   { paginated: true, parameters: [cursor] },
+);
+const idempotencyKey = parameter(
+  "Idempotency-Key",
+  "header",
+  { type: "string", minLength: 16, maxLength: 100 },
+  true,
+);
+endpoint(
+  "/github/repositories/{repositoryId}/branches",
+  "post",
+  "createFixBranch",
+  ref("FixBranch"),
+  {
+    status: 201,
+    parameters: [idempotencyKey],
+    body: object({
+      branch: { type: "string", minLength: 1, maxLength: 255 },
+      baseBranch: { type: "string", minLength: 1, maxLength: 255 },
+      baseSha: { type: "string", pattern: "^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$" },
+    }),
+  },
+);
+endpoint(
+  "/github/repositories/{repositoryId}/file",
+  "put",
+  "commitFixFile",
+  ref("FileCommit"),
+  {
+    parameters: [idempotencyKey],
+    body: object({
+      branch: { type: "string", minLength: 1, maxLength: 255 },
+      path: { type: "string", minLength: 1, maxLength: 1024 },
+      content: { type: "string", maxLength: 524288 },
+      expectedSha: { type: "string", pattern: "^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$" },
+      commitMessage: { type: "string", minLength: 1, maxLength: 200 },
+    }),
+  },
+);
+endpoint(
+  "/github/repositories/{repositoryId}/pull-requests",
+  "get",
+  "listFixPullRequests",
+  array(ref("PullRequest")),
+  {
+    parameters: [
+      parameter("head", "query", { type: "string", minLength: 1, maxLength: 255 }, true),
+      parameter("base", "query", { type: "string", minLength: 1, maxLength: 255 }),
+      parameter("state", "query", { type: "string", enum: ["open", "closed", "all"], default: "open" }),
+    ],
+  },
+);
+endpoint(
+  "/github/repositories/{repositoryId}/pull-requests",
+  "post",
+  "createFixPullRequest",
+  ref("PullRequestResult"),
+  {
+    status: 201,
+    parameters: [idempotencyKey],
+    body: object({
+      head: { type: "string", minLength: 1, maxLength: 255 },
+      base: { type: "string", minLength: 1, maxLength: 255 },
+      title: { type: "string", minLength: 1, maxLength: 200 },
+      body: { type: "string", maxLength: 4000 },
+      draft: boolean,
+    }, ["head", "base", "title"]),
+  },
 );
 endpoint("/webhooks/github", "post", "githubWebhook", ref("WebhookAccepted"), {
   public: true,
@@ -364,13 +471,15 @@ endpoint("/webhooks/github", "post", "githubWebhook", ref("WebhookAccepted"), {
   ].map((name) => parameter(name, "header", string, true)),
 });
 
+registerDeploymentContract({ schemas, endpoint, parameter });
+
 export const openapi = {
   openapi: "3.0.3",
   info: {
     title: "PocketOps implemented API",
     version: "0.1.0",
     description:
-      "Identity and GitHub App read-only milestone. Unversioned health/auth aliases are legacy aliases. Provider credentials never belong in bearer authentication. Webhooks require HMAC over raw bytes, not a PocketOps session.",
+      "Identity, GitHub App repository APIs, guarded source editing and manual Render deployments. Unversioned health/auth aliases are legacy aliases. Provider credentials never belong in bearer authentication. Webhooks require HMAC over raw bytes, not a PocketOps session.",
   },
   servers: [{ url: "/api/v1" }],
   paths,

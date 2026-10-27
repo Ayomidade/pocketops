@@ -1,3 +1,4 @@
+import { createDeploymentRuntime } from "./modules/deployments/runtime.js";
 import { pathToFileURL } from "node:url";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config/env.js";
@@ -10,6 +11,8 @@ import { createAuthService } from "./modules/auth/service.js";
 import { createGitHubAppAdapter } from "./modules/github/adapter.js";
 import { createGitHubRepository } from "./modules/github/repository.js";
 import { createGitHubService } from "./modules/github/service.js";
+import { createEditorRepository } from "./modules/editor/repository.js";
+import { createEditorService } from "./modules/editor/service.js";
 
 export function startServer() {
   const config = loadConfig();
@@ -35,11 +38,20 @@ export function startServer() {
           config,
         })
       : null;
+  const editorService =
+    githubService && models
+      ? createEditorService({
+          repository: createEditorRepository({ sequelize, models }),
+          githubService,
+        })
+      : null;
   const app = createApp({
     config,
     sequelize,
     authService,
     githubService,
+    editorService,
+    deploymentService: createDeploymentRuntime({ config, sequelize, models, githubService }),
     logger,
   });
   const server = app.listen(config.port, "0.0.0.0", () => {

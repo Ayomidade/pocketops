@@ -359,6 +359,7 @@ function VisibleFileScreen() {
   const ref = singleParam(params.ref);
   const authenticated = useAccess();
   const back = useBack();
+  const router = useRouter();
   const { isOffline } = useConnectivity();
   const repo = useRepository(id);
   const file = useRepositoryFile(
@@ -421,6 +422,22 @@ function VisibleFileScreen() {
             </Text>
           </View>
           <FilePreview file={file.data.data} />
+          {file.data.data.editable && !file.data.data.binary ? (
+            <View className="border-t border-slate-700 p-5">
+              <Text className="mb-3 text-sm text-slate-300">
+                Editing creates a new fix branch and requires confirmation before committing.
+              </Text>
+              <Action
+                label="Edit on a fix branch"
+                onPress={() =>
+                  router.push({
+                    pathname: "/editor/[id]",
+                    params: { id, path, ref },
+                  })
+                }
+              />
+            </View>
+          ) : null}
         </>
       ) : null}
     </RepositoryFrame>

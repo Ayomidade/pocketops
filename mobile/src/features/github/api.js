@@ -65,5 +65,48 @@ export function createGitHubApi(request) {
         options,
       );
     },
+    getBranch(repositoryId, branch) {
+      const query = new URLSearchParams({ branch });
+      return request(
+        `/github/repositories/${encodeURIComponent(repositoryId)}/branches/metadata?${query.toString()}`,
+      );
+    },
+    createFixBranch(repositoryId, input, idempotencyKey) {
+      return request(
+        `/github/repositories/${encodeURIComponent(repositoryId)}/branches`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": idempotencyKey },
+          body: input,
+        },
+      );
+    },
+    commitFixFile(repositoryId, input, idempotencyKey) {
+      return request(
+        `/github/repositories/${encodeURIComponent(repositoryId)}/file`,
+        {
+          method: "PUT",
+          headers: { "Idempotency-Key": idempotencyKey },
+          body: input,
+        },
+      );
+    },
+    listPullRequests(repositoryId, head, base) {
+      const query = new URLSearchParams({ head });
+      if (base) query.set("base", base);
+      return request(
+        `/github/repositories/${encodeURIComponent(repositoryId)}/pull-requests?${query.toString()}`,
+      );
+    },
+    createPullRequest(repositoryId, input, idempotencyKey) {
+      return request(
+        `/github/repositories/${encodeURIComponent(repositoryId)}/pull-requests`,
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": idempotencyKey },
+          body: input,
+        },
+      );
+    },
   };
 }

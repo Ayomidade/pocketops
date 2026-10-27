@@ -1,6 +1,6 @@
 # PocketOps — Technical Architecture
 
-**Version:** 1.2 | **Status:** Target architecture with foundation, identity/session and GitHub App read-only integration implemented
+**Version:** 1.4 | **Status:** Target architecture with identity/session, repository explorer, guarded source editor and Render deployment operations implemented
 
 ## 1. Architectural decisions
 
@@ -26,13 +26,13 @@ flowchart TD
 
 ## 2. Runtime boundaries
 
-**Mobile:** screens, secure PocketOps credential storage, navigation, local drafts, optimistic read-only UX and user confirmations. Never receives GitHub installation tokens, Render credentials or backend encryption keys.
+**Mobile:** screens, secure PocketOps credential storage, navigation, encrypted local editor drafts and user confirmations. Never receives GitHub installation tokens, Render credentials or backend encryption keys.
 
 **API:** identity, resource-level authorization, request validation, GitHub/Render orchestration, audit persistence, webhook verification and job scheduling. Provider responses must be normalized and sanitized.
 
-**Worker:** retryable and scheduled work, reconciliation, notifications, health verification. It should have separate process entrypoint and constrained provider credentials. Do not assume worker tasks are exactly-once: design for at-least-once delivery.
+**Worker:** retryable and scheduled work, reconciliation, notifications, health verification. The deployment worker is a separate process entrypoint (`server/src/jobs/deployment-worker.js`, `npm run worker:deployments`) with constrained provider credentials; GitHub webhook processing currently runs in the API process. Do not assume worker tasks are exactly-once: design for at-least-once delivery, and never re-dispatch a deployment request whose provider outcome is ambiguous.
 
-**PostgreSQL:** source of truth for users, sessions, OAuth transactions, authentication audit events, GitHub App installation links/memberships, repository catalog/selections and webhook deliveries, plus later planned provider/project/deployment/incident state.
+**PostgreSQL:** source of truth for users, sessions, OAuth transactions, authentication audit events, GitHub App installation links/memberships, repository catalog/selections and webhook deliveries, plus Render provider connections, projects, deployment records and durable deployment operation requests. Incident and notification state remain planned.
 
 **Redis:** queue transport and transient coordination, not authoritative record of production operations. Durable operation state lives in PostgreSQL.
 
@@ -66,7 +66,7 @@ mobile/
 
 ### Editor message bridge
 
-Allowlist message types: `EDITOR_READY`, `LOAD_DOCUMENT`, `DOCUMENT_CHANGED`, `REQUEST_CONTENT`, `CONTENT_RESULT`, `SET_THEME`, `EDITOR_ERROR`. Each payload carries an editor session ID, request ID and validated fields; enforce maximum payload length. The native host owns authoritative branch/file SHA and commit operation. The editor must not make direct authenticated provider requests. Disable arbitrary navigation, file access and uncontrolled JavaScript injection.
+Protocol v1 allowlists `EDITOR_READY`, `LOAD_DOCUMENT`, `DOCUMENT_READY`, `DOCUMENT_CHANGED`, `CURSOR_CHANGED`, `REQUEST_CONTENT`, `CONTENT_RESULT`, `SET_READ_ONLY` and `EDITOR_ERROR`. Each message carries version, session ID, request ID and strict validated fields; enforce bounded message/content size and correlation. The native host owns authoritative branch/file SHA and commit operation. The editor must not make authenticated provider requests. Disable arbitrary navigation, file access and uncontrolled JavaScript injection.
 
 ## 4. Backend modules and responsibilities
 
@@ -112,7 +112,7 @@ sequenceDiagram
 
 The implemented identity flow creates a hashed state transaction through a mobile-start request, uses the system browser, exchanges the code on the backend, and binds the one-use handoff to an in-memory mobile completion secret. OAuth transactions and handoffs expire and are consumed once. GitHub's published OAuth App authorization parameters do not document PKCE, so the current confidential backend client uses state and the completion-secret binding rather than unsupported PKCE parameters. Identity sign-in grants no GitHub App installation or repository permissions.
 
-The separate GitHub App flow uses its own hashed OAuth/setup state and native system-browser callback. The backend verifies the GitHub identity against the signed-in PocketOps user, encrypts expiring GitHub user/refresh tokens, and maps installation access per PocketOps user. It intersects the user's current GitHub repository visibility with the App installation's visible repositories, stores explicit per-user selections, and revalidates upstream access before each repository read. App private keys, GitHub user/refresh tokens and installation tokens remain server-side. GitHub webhooks are raw-body HMAC verified and deduplicated into a durable PostgreSQL queue processed by a loop in the API process; Redis and a separate worker are not used yet. Mobile screens provide connection/selection UX and a native repository explorer using session-scoped TanStack Query caches. Directory and branch/path navigation use native routes; text preview uses virtualized native monospace rows. See [Repository explorer](REPOSITORY_EXPLORER.md) for memory cleanup and authorization revalidation.
+The separate GitHub App flow uses its own hashed OAuth/setup state and native system-browser callback. The backend verifies the GitHub identity against the signed-in PocketOps user, encrypts expiring GitHub user/refresh tokens, maps installation access per PocketOps user and revalidates upstream access before each repository read or write. GitHub webhooks are raw-body HMAC verified and deduplicated into a durable PostgreSQL queue. Mobile screens provide a native repository explorer and use a bundled CodeMirror WebView only for source editing; branch selection, diff, confirmation, commit and PR screens remain native. Durable operation/idempotency rows and audit events track mutations without storing source content. See [Repository explorer](REPOSITORY_EXPLORER.md) and [Code editor](CODE_EDITOR.md).
 
 ## 6. Repository edit sequence
 

@@ -1,8 +1,8 @@
 # PocketOps — Database Design and Migration Specification
 
-**Version:** 1.2 | **Engine:** PostgreSQL 16+ | **ORM:** Sequelize | **Status:** migrations also create GitHub App installation and read-only repository integration state
+**Version:** 1.4 | **Engine:** PostgreSQL 16+ | **ORM:** Sequelize | **Status:** migrations create GitHub App integration, durable editor operation state and Render deployment state
 
-The foundation migrations `001-create-users.js` and `002-create-sessions.js` provide user/session storage. Migration `003-create-auth-workflows.js` adds state-bound identity OAuth transactions and authentication audit events. Migration `004-create-github-integration.js` adds GitHub App installation state, user memberships, repository catalog/selections and durable webhook deliveries.
+The foundation migrations `001-create-users.js` and `002-create-sessions.js` provide user/session storage. Migration `003-create-auth-workflows.js` adds state-bound identity OAuth transactions and authentication audit events. Migration `004-create-github-integration.js` adds GitHub App installation state, user memberships, repository catalog/selections and durable webhook deliveries. Migration `005-create-code-changes.js` adds idempotent editor operation records and optional audit linkage. Migration `006-create-deployments.js` adds provider connections, projects, deployments and operation requests, plus audit linkage to operation requests.
 
 ## 1. Design principles
 
@@ -22,7 +22,9 @@ Use UUID primary keys for PocketOps entities, provider-native identifiers as uni
   USERS ||--o{ PROJECTS : owns
   REPOSITORIES ||--o{ PROJECTS : maps_to
   PROVIDER_CONNECTIONS ||--o{ PROJECTS : serves
+  USERS ||--o{ CODE_CHANGES : initiates
   REPOSITORIES ||--o{ CODE_CHANGES : changed_in
+  CODE_CHANGES ||--o{ AUTH_AUDIT_EVENTS : audited_as
   PROJECTS ||--o{ DEPLOYMENTS : has
   PROJECTS ||--o{ INCIDENTS : has
   INCIDENTS ||--o{ INCIDENT_EVENTS : contains
@@ -43,13 +45,13 @@ Use UUID primary keys for PocketOps entities, provider-native identifiers as uni
 | `installation_memberships`  | installation_id FK, user_id FK, GitHub user ID, encrypted user/refresh tokens, expiries, status                             | UNIQUE(installation_id,user_id); current provider access rechecked before reads |
 | `repositories`              | id, installation_id FK, github_repository_id BIGINT, owner/name/full_name, default_branch, privacy/archive/removal state    | UNIQUE provider repository ID; shared catalog is not an authorization grant     |
 | `repository_selections`     | user_id FK, repository_id FK, selected_at                                                                                   | UNIQUE(repository_id,user_id); explicit per-user access selection               |
-| `provider_connections`      | id, user_id FK, provider, display_name, encrypted_credentials, key_version, status, revoked_at                              | Never return ciphertext to mobile                                               |
-| `projects`                  | id, user_id FK, repository_id FK, connection_id FK, provider_service_id, name, production_url, health_check_path            | UNIQUE(connection_id,provider_service_id); validate owner matches connection    |
-| `code_changes`              | id, user_id FK, repository_id FK, branch_name, base_commit_sha, commit_sha, pr_number, status                               | Audit-friendly metadata, no full file bodies                                    |
-| `deployments`               | id, project_id FK, provider_deployment_id, commit_sha, status, triggered_by nullable, started_at, finished_at               | UNIQUE(project_id,provider_deployment_id)                                       |
+| `provider_connections`      | id, user_id FK, provider, display_name, encrypted_credentials, key_version, status, revoked_at                              | UNIQUE(user_id,id); CHECK status active\|revoked; never return ciphertext to mobile                                       |
+| `projects`                  | id, user_id FK, repository_id FK, connection_id FK, provider_service_id, name, status                                       | UNIQUE(connection_id,provider_service_id) and UNIQUE(user_id,provider_service_id); composite FK (user_id,connection_id); validate owner matches connection |
+| `code_changes`              | id, actor_user_id FK, repository_id FK, operation_type, idempotency_key/fingerprint, status, branch/base/file/SHA/PR metadata, request_id | UNIQUE(actor_user_id,idempotency_key); operation/status checks; never stores source text or credentials |
+| `deployments`               | id, project_id FK, provider_deployment_id, status, provider_status, commit_sha, health_status default not_checked, started_at, finished_at | UNIQUE(project_id,provider_deployment_id); health_status is always not_checked until health verification ships |
 | `incidents`                 | id, project_id FK, deployment_id nullable FK, title, description, severity, status, detected_at, resolved_at                | Severity/status check constraints                                               |
 | `incident_events`           | id, incident_id FK, actor_id nullable FK, event_type, details JSONB, created_at                                             | Append-only timeline, redact sensitive content                                  |
-| `operation_requests`        | id, actor_id FK, project_id FK, action, idempotency_key, request_hash, status, provider_reference, result JSONB, timestamps | UNIQUE(actor_id,idempotency_key); reject same key with different request hash   |
+| `operation_requests`        | id, actor_id FK, project_id FK, action, idempotency_key, request_hash, target_deployment_id, commit_sha, status, provider_reference, deployment_id, error_code, request_id, attempts, next_attempt_at, claim_token, claim_expires_at | UNIQUE(actor_id,idempotency_key); CHECK status queued/validating/requesting/accepted/succeeded/failed/unknown; partial unique one active op per project; claim lease for the worker |
 | `webhook_deliveries`        | id, delivery_id, event_type, normalized payload, received/processed times, status, attempts, retry/claim metadata           | UNIQUE delivery ID; no raw webhook body; durable PostgreSQL processing queue    |
 | `audit_events`              | id, actor_id nullable FK, action, resource_type, resource_id, metadata JSONB, request_id, created_at                        | Append-only, no credentials                                                     |
 | `push_devices`              | id, user_id FK, device_token_ciphertext, platform, enabled, last_seen_at                                                    | Device token revocation and rotation                                            |
@@ -64,7 +66,7 @@ Migration `003-create-auth-workflows.js` creates `oauth_transactions` with uniqu
 
 Session credentials are 256-bit opaque random values. Only SHA-256 hashes are stored in `sessions.token_hash`. A 30-day session lifetime is enforced at query time; a six-hour cleanup task removes OAuth transactions older than 24 hours and expired/revoked sessions older than 30 days. Cleanup does not delete authentication audit records. Rotation accepts a new 256-bit token generated and persisted in Expo SecureStore by the client, then atomically revokes the prior session and stores the new hash.
 
-Use `npm run db:migrate` to apply pending migrations, `npm run db:migrate:undo` to reverse the latest one, and `npm run db:migrate:undo:all` only against a disposable database. The runner records applied filenames in `SequelizeMeta` and runs each migration in a transaction. Production rollback is intentionally disabled by the CLI; migration 003 rollback deletes OAuth transaction and authentication audit data and must not be used casually.
+Use `npm run db:migrate` to apply pending migrations, `npm run db:migrate:undo` to reverse the latest one, and `npm run db:migrate:undo:all` only against a disposable database. Migration `005-create-code-changes.js` is reversible and drops editor operation records/audit linkage on rollback; assess pending operations before rolling back. The runner records applied filenames in `SequelizeMeta` and runs each migration in a transaction. Production rollback is intentionally disabled by the CLI.
 
 ## 5. Suggested SQL migration excerpt
 
@@ -133,7 +135,7 @@ CREATE TABLE repository_selections (
 );
 ```
 
-**Important:** the excerpt is illustrative. The authoritative implementation is the versioned migration set, including `004-create-github-integration.js`; later product tables remain planned.
+**Important:** the excerpt is illustrative. The authoritative implementation is the versioned migration set, including `004-create-github-integration.js`, `005-create-code-changes.js` and `006-create-deployments.js`.
 
 ## 6. Index plan
 
@@ -150,7 +152,7 @@ CREATE TABLE repository_selections (
 
 ## 7. State machines
 
-**Operation:** `queued → processing → succeeded|failed|unknown`, with `unknown → reconciled` or manual intervention. **Deployment:** `pending → building → deploying → live|failed|canceled` (normalize provider states without inventing missing stages). **Incident:** `open → investigating → mitigated → resolved`, with reopen allowed and logged. Enforce transitions in services, not only UI.
+**Operation:** `queued → validating → requesting → accepted → succeeded|failed|unknown`, claimed with a `FOR UPDATE SKIP LOCKED` lease by the deployment worker; stale `requesting` claims become `unknown` and are never re-dispatched automatically. **Deployment:** normalized provider states `queued|building|live|failed|canceled|unknown` (no invented stages; unmapped provider values become `unknown` while the raw provider status is preserved). Health status is a separate column that remains `not_checked` until health verification ships. **Incident:** `open → investigating → mitigated → resolved`, with reopen allowed and logged. Enforce transitions in services, not only UI.
 
 ## 8. Data consistency
 
@@ -170,11 +172,10 @@ Wrap DB-local mutations and audit writes in transactions. Provider APIs cannot j
 1. Users and sessions (`001`, `002`).
 2. Identity OAuth transactions and authentication audit events (`003`).
 3. GitHub App links, installations, memberships, repositories, per-user selections and webhook deliveries (`004`).
-4. Provider connections and projects.
-5. Code changes and deployments.
-6. Operation requests and audit events.
-7. Incidents, incident events and health checks.
-8. Push devices and notification preferences.
+4. Durable editor operations and audit linkage (`005`).
+5. Provider connections, projects, deployments and operation requests (`006`).
+6. Incidents, incident events and health checks (planned).
+7. Push devices and notification preferences (planned).
 
 For each migration: up/down tests on disposable PostgreSQL, unique/FK checks, data backfill strategy and deployment order. No destructive migration without backup and rollback plan.
 

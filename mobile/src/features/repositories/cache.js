@@ -6,6 +6,13 @@ export function createRepositoryClient() {
   client = new QueryClient({
     queryCache: new QueryCache({
       onError(error, failed) {
+        if (failed.queryKey[0] === "deployments" && [401, 403, 404, 409].includes(error?.status)) {
+          failed.setState({ data: undefined, dataUpdatedAt: 0 });
+          const related = (q) => q !== failed && q.queryKey[0] === "deployments";
+          void client.cancelQueries({ predicate: related });
+          client.removeQueries({ predicate: related });
+          return;
+        }
         if (!denied(error)) return;
         // Never retain a known-denied response as usable cached content.
         failed.setState({ data: undefined, dataUpdatedAt: 0 });

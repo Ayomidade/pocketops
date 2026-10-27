@@ -1,4 +1,5 @@
 import { DataTypes } from "sequelize";
+import { defineDeploymentModels } from "../../modules/deployments/models.js";
 
 export function defineModels(sequelize) {
   const User = sequelize.define(
@@ -75,6 +76,141 @@ export function defineModels(sequelize) {
     },
   );
 
+  const CodeChange = sequelize.define(
+    "CodeChange",
+    {
+      id: {
+        type: DataTypes.UUID,
+        defaultValue: DataTypes.UUIDV4,
+        primaryKey: true,
+      },
+      actorUserId: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        field: "actor_user_id",
+        references: { model: "users", key: "id" },
+        onDelete: "CASCADE",
+      },
+      repositoryId: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        field: "repository_id",
+        references: { model: "repositories", key: "id" },
+        onDelete: "CASCADE",
+      },
+      operationType: {
+        type: DataTypes.STRING(24),
+        allowNull: false,
+        field: "operation_type",
+      },
+      idempotencyKey: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+        field: "idempotency_key",
+      },
+      requestFingerprint: {
+        type: DataTypes.CHAR(64),
+        allowNull: false,
+        field: "request_fingerprint",
+      },
+      status: { type: DataTypes.STRING(16), allowNull: false },
+      branchName: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: "branch_name",
+      },
+      baseBranch: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        field: "base_branch",
+      },
+      baseSha: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: "base_sha",
+      },
+      filePath: {
+        type: DataTypes.STRING(1024),
+        allowNull: true,
+        field: "file_path",
+      },
+      expectedFileSha: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: "expected_file_sha",
+      },
+      contentSha: {
+        type: DataTypes.CHAR(64),
+        allowNull: true,
+        field: "content_sha",
+      },
+      commitSha: {
+        type: DataTypes.STRING(64),
+        allowNull: true,
+        field: "commit_sha",
+      },
+      pullRequestNumber: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "pull_request_number",
+      },
+      pullRequestUrl: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+        field: "pull_request_url",
+      },
+      pullRequestState: {
+        type: DataTypes.STRING(16),
+        allowNull: true,
+        field: "pull_request_state",
+      },
+      resultMetadata: {
+        type: DataTypes.JSONB,
+        allowNull: false,
+        defaultValue: {},
+        field: "result_metadata",
+      },
+      errorCode: {
+        type: DataTypes.STRING(80),
+        allowNull: true,
+        field: "error_code",
+      },
+      errorStatus: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        field: "error_status",
+      },
+      errorMessage: {
+        type: DataTypes.STRING(200),
+        allowNull: true,
+        field: "error_message",
+      },
+      requestId: {
+        type: DataTypes.STRING(100),
+        allowNull: false,
+        field: "request_id",
+      },
+      completedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        field: "completed_at",
+      },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+        field: "created_at",
+      },
+      updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+        field: "updated_at",
+      },
+    },
+    { tableName: "code_changes", timestamps: false },
+  );
+
   const OAuthTransaction = sequelize.define(
     "OAuthTransaction",
     {
@@ -146,6 +282,7 @@ export function defineModels(sequelize) {
   const AuthAuditEvent = sequelize.define(
     "AuthAuditEvent",
     {
+      operationRequestId: { type: DataTypes.UUID, field: "operation_request_id", allowNull: true },
       id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -157,6 +294,13 @@ export function defineModels(sequelize) {
         field: "actor_user_id",
       },
       action: { type: DataTypes.STRING(64), allowNull: false },
+      codeChangeId: {
+        type: DataTypes.UUID,
+        allowNull: true,
+        field: "code_change_id",
+        references: { model: "code_changes", key: "id" },
+        onDelete: "SET NULL",
+      },
       requestId: {
         type: DataTypes.STRING(100),
         allowNull: false,
@@ -573,6 +717,14 @@ export function defineModels(sequelize) {
   OAuthTransaction.belongsTo(User, { foreignKey: "userId", as: "user" });
   User.hasMany(AuthAuditEvent, { foreignKey: "actorUserId", as: "authEvents" });
   AuthAuditEvent.belongsTo(User, { foreignKey: "actorUserId", as: "actor" });
+  CodeChange.hasMany(AuthAuditEvent, {
+    foreignKey: "codeChangeId",
+    as: "auditEvents",
+  });
+  AuthAuditEvent.belongsTo(CodeChange, {
+    foreignKey: "codeChangeId",
+    as: "codeChange",
+  });
   User.hasMany(GitHubInstallationLink, {
     foreignKey: "userId",
     as: "githubInstallationLinks",
@@ -613,8 +765,10 @@ export function defineModels(sequelize) {
     as: "repository",
   });
   return {
+    ...defineDeploymentModels(sequelize),
     User,
     Session,
+    CodeChange,
     OAuthTransaction,
     AuthAuditEvent,
     GitHubInstallationLink,

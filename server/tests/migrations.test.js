@@ -34,6 +34,8 @@ describe("users and sessions migrations", () => {
           "002-create-sessions.js",
           "003-create-auth-workflows.js",
           "004-create-github-integration.js",
+          "005-create-code-changes.js",
+          "006-create-deployments.js",
         ]);
         expect(await runMigrations({ sequelize, direction: "up" })).toEqual([]);
 
@@ -86,6 +88,75 @@ describe("users and sessions migrations", () => {
         expect(
           deliveryIndexes.some(
             (index) => index.name === "webhook_deliveries_queue_index",
+          ),
+        ).toBe(true);
+        const codeChangeIndexes = await sequelize
+          .getQueryInterface()
+          .showIndex("code_changes");
+        expect(
+          codeChangeIndexes.some(
+            (index) => index.name === "code_changes_actor_idempotency_unique" && index.unique,
+          ),
+        ).toBe(true);
+        const codeChangeAuditIndexes = await sequelize
+          .getQueryInterface()
+          .showIndex("auth_audit_events");
+        expect(
+          codeChangeAuditIndexes.some(
+            (index) => index.name === "auth_audit_code_change_index",
+          ),
+        ).toBe(true);
+
+        const connectionIndexes = await sequelize
+          .getQueryInterface()
+          .showIndex("provider_connections");
+        const projectIndexes = await sequelize
+          .getQueryInterface()
+          .showIndex("projects");
+        const deploymentIndexes = await sequelize
+          .getQueryInterface()
+          .showIndex("deployments");
+        const operationIndexes = await sequelize
+          .getQueryInterface()
+          .showIndex("operation_requests");
+        expect(
+          connectionIndexes.some(
+            (index) => index.name === "provider_connection_owner_unique" && index.unique,
+          ),
+        ).toBe(true);
+        expect(
+          projectIndexes.some(
+            (index) => index.name === "project_service_unique" && index.unique,
+          ),
+        ).toBe(true);
+        expect(
+          projectIndexes.some(
+            (index) => index.name === "project_owner_service_unique" && index.unique,
+          ),
+        ).toBe(true);
+        expect(
+          deploymentIndexes.some(
+            (index) => index.name === "deployment_provider_unique" && index.unique,
+          ),
+        ).toBe(true);
+        expect(
+          operationIndexes.some(
+            (index) => index.name === "operation_actor_key_unique" && index.unique,
+          ),
+        ).toBe(true);
+        expect(
+          operationIndexes.some(
+            (index) => index.name === "operation_project_active_unique" && index.unique,
+          ),
+        ).toBe(true);
+        expect(
+          operationIndexes.some(
+            (index) => index.name === "operation_requests_status_next_attempt_at",
+          ),
+        ).toBe(true);
+        expect(
+          codeChangeAuditIndexes.some(
+            (index) => index.name === "auth_audit_events_operation_request_id",
           ),
         ).toBe(true);
 
@@ -369,6 +440,8 @@ describe("users and sessions migrations", () => {
         expect(
           await runMigrations({ sequelize, direction: "down", all: true }),
         ).toEqual([
+          "006-create-deployments.js",
+          "005-create-code-changes.js",
           "004-create-github-integration.js",
           "003-create-auth-workflows.js",
           "002-create-sessions.js",

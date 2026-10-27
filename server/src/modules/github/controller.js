@@ -132,6 +132,16 @@ export function createGitHubController(service) {
       return paginatedResponse(response, request, result);
     },
 
+    async editorBranch(request, response) {
+      const data = await service.getEditorBranch({
+        userId: request.auth.user.id,
+        ...request.validated.params,
+        ...request.validated.query,
+        requestId: request.id,
+      });
+      return response.json(successResponse(data, request.id));
+    },
+
     async webhook(request, response) {
       const result = await service.acceptWebhook({
         rawBody: request.body,

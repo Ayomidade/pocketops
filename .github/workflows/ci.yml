@@ -40,4 +40,4 @@ jobs:
           name: npm-advisory-report
           path: npm-audit.json
       - run: npm exec --workspace=mobile -- expo install --check
-      - run: npm exec --workspace=mobile -- expo export --platform android --output-dir /tmp/pocketops-android
+      - run: npm run export -w mobile -- --platform android --output-dir /tmp/pocketops-android

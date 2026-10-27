@@ -32,7 +32,7 @@ export function RepositoryProvider({ children }) {
       setSourceVisible(state === "active");
       // Private source does not survive app backgrounding, even in memory cache.
       if (state !== "active") {
-        const files = (query) => query.queryKey[3] === "file";
+        const files = (query) => query.queryKey[3] === "file" || (query.queryKey[0] === "deployments" && query.queryKey[1] === "logs");
         void client.cancelQueries({ predicate: files });
         client.removeQueries({ predicate: files });
       }

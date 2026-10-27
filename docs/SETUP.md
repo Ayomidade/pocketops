@@ -4,7 +4,7 @@
 
 ## 1. What is included today
 
-The monorepo contains an Expo/React Native navigation shell, NativeWind configuration, Express server, liveness/readiness endpoints, identity authentication, PocketOps sessions, GitHub App installation and read-only repository APIs, reversible migrations, webhook processing and API/mobile tests. It does **not** contain repository writes, Render connections, notifications, source editing or deployment operations. Physical-device launch, live provider setup and runtime styling still require local verification.
+The monorepo contains an Expo/React Native navigation shell, NativeWind configuration, Express server, identity authentication, GitHub App repository APIs, guarded source editing, Render deployment connections/operations, reversible migrations, webhook processing, a deployment worker process and API/mobile tests. Notifications and incident workflows remain unimplemented. Physical-device launch, live provider setup and runtime styling still require local verification.
 
 ## 2. Prerequisites
 
@@ -93,7 +93,7 @@ Configure ingress/proxy access logs to omit query strings for `/api/v1/auth/gith
 
 ## 7. GitHub App setup (repository access)
 
-This integration is read-only. It requests only GitHub App **Contents: Read-only** and **Metadata: Read-only** permissions. Do not add write permissions for this milestone. GitHub identity OAuth and GitHub App user authorization are distinct: the server requires the App-authorized GitHub account ID to match the immutable GitHub identity on the signed-in PocketOps user.
+Browsing requires GitHub App **Contents: Read-only** and **Metadata: Read-only**. To enable source editing, grant **Contents: Read and write** and **Pull requests: Read and write** on a dedicated test installation/repository. The App does not need Administration or Workflows permissions. GitHub identity OAuth and GitHub App authorization are distinct: the server requires the App-authorized GitHub account ID to match the signed-in PocketOps identity.
 
 1. Register a GitHub App and enable **user-to-server authorization with expiring user access tokens and refresh tokens**. The implementation requires expiring user tokens; it rejects responses without refresh-token/expiry fields.
 2. Configure the App's **OAuth callback URL** to `https://<API_HOST>/api/v1/github/oauth/callback`, its **Setup URL** to `https://<API_HOST>/api/v1/github/installations/callback`, and its **Webhook URL** to `https://<API_HOST>/api/v1/webhooks/github`. Enable webhook SSL verification.
@@ -115,16 +115,39 @@ This integration is read-only. It requests only GitHub App **Contents: Read-only
 
    Generate a fresh encryption key with `openssl rand -base64 32`. Store it in a secret manager in deployed environments and back it up securely; losing it makes persisted GitHub user/refresh tokens unusable. Never place App credentials, private keys, webhook secrets or the encryption key in the mobile environment or `EXPO_PUBLIC_*`.
 
-5. Apply migrations with `npm run db:migrate`; `004-create-github-integration.js` creates expiring OAuth/install state, encrypted-token references, per-user installation memberships, repository catalog/selections and webhook delivery queue.
+5. Apply migrations with `npm run db:migrate`; `004-create-github-integration.js` creates GitHub state and webhook delivery queue, `005-create-code-changes.js` adds durable editor idempotency/audit linkage, and `006-create-deployments.js` adds Render provider connections, projects, deployments and operation requests. Roll back the latest migration with `npm run db:migrate:undo` only after reviewing operation records.
 6. Use an Android/iOS development build registering the `pocketops` scheme. Expo Go is not sufficient for verifying this app-specific callback. On device, use a public HTTPS API callback reachable by GitHub, then test with a non-production GitHub account and disposable test repositories.
 
 The mobile app uses Expo WebBrowser's system authentication session. OAuth and setup state are separate, hashed, one-use values expiring after 15 minutes. Only a status (`connected`, `cancelled`, `failed`) returns through the native deep link; no GitHub or PocketOps credential is placed in callback parameters. The server encrypts GitHub user and refresh tokens using AES-256-GCM; installation tokens are created server-side and never returned. Before exposing repository data the server intersects repositories visible to the signed-in GitHub user with those available to the installation, then requires the PocketOps user to select repositories. Repository read requests revalidate access with GitHub.
 
-Webhook deliveries are signature-verified against raw request bytes, deduplicated in PostgreSQL, and processed by a retrying loop in the API process. Redis is not required. Configure ingress logging to omit authorization headers and never log webhook bodies. The PostgreSQL delivery queue is durable, but this milestone does not provide a separately deployed worker or operational monitoring.
+Webhook deliveries are signature-verified against raw request bytes, deduplicated in PostgreSQL, and processed by a retrying loop in the API process. Redis is not required. Configure ingress logging to omit authorization headers and never log webhook bodies. The PostgreSQL delivery queue is durable, but GitHub webhook processing does not provide a separately deployed worker or operational monitoring.
 
-## 8. Database lifecycle
+## 8. Render deployment operations
 
-`/health` may respond without a database connection; it is not a readiness check. `/ready` checks PostgreSQL with a bounded timeout. Use the versioned migrations; do not use `sequelize.sync({alter:true})` in staging/production. The current migrations create `users`, `sessions`, identity OAuth transactions/audit events, and GitHub App installation state, memberships, repositories, selections and webhook deliveries. Identity OAuth persistence is in `003-create-auth-workflows.js`; GitHub App persistence is in `004-create-github-integration.js`.
+Deployment operations are disabled by default and require **every** value below in `server/.env`, plus the GitHub App configuration from section 7 (the worker revalidates repository access):
+
+```dotenv
+DEPLOYMENTS_ENABLED=true
+# JSON key ring of base64 32-byte keys; generate each with: openssl rand -base64 32
+PROVIDER_ENCRYPTION_KEYS={"v1":"<base64-32-bytes>"}
+PROVIDER_ACTIVE_KEY_VERSION=v1
+```
+
+`PROVIDER_ENCRYPTION_KEYS` encrypts Render API keys at rest with AES-256-GCM. Store it in a secret manager and back it up separately from database backups; losing every key requires users to reconnect their Render account. To rotate, add a new key version to the ring and switch `PROVIDER_ACTIVE_KEY_VERSION`; existing connections re-encrypt lazily on next use. Never place these values in `mobile/.env` or any `EXPO_PUBLIC_*` variable.
+
+Create a Render API key in **Render Account Settings** (use a dedicated test account; keys are account-scoped, not per-service). Connect it from the app's Deployments tab → Manage Render connections. The key is sent once over TLS, encrypted server-side, and never returned by the API or stored on the phone.
+
+Redeploy requests are queued in PostgreSQL and processed only by the **separate worker process**:
+
+```bash
+npm run worker:deployments
+```
+
+Without the worker, `POST /projects/:id/deployments` still returns `202` with `status: "queued"`, but operations never progress — the API process does not dispatch them. Run the worker in any environment where deployment actions are enabled, and monitor it per [OPERATIONS.md](OPERATIONS.md).
+
+## 9. Database lifecycle
+
+`/health` may respond without a database connection; it is not a readiness check. `/ready` checks PostgreSQL with a bounded timeout. Use the versioned migrations; do not use `sequelize.sync({alter:true})` in staging/production. The current migrations create `users`, `sessions`, identity OAuth transactions/audit events, GitHub App installation state/memberships/repositories/selections/webhook deliveries, durable editor operations (`005`), and Render provider connections/projects/deployments/operation requests (`006`).
 
 ```bash
 npm run db:migrate
@@ -134,7 +157,7 @@ npm run db:migrate:undo:all
 
 Rollback commands drop schema objects. Run rollback only against a disposable database. The migration integration test uses `DATABASE_URL_TEST` only when it points to a dedicated database name ending in `_test`; CI provisions a fresh PostgreSQL 16 test database. Without `DATABASE_URL_TEST`, that integration case is skipped, while API and mobile client tests still run.
 
-## 9. Recommended daily commands
+## 10. Recommended daily commands
 
 Root lint now checks both the backend and mobile JavaScript/JSX. To regenerate the
 implemented API contract, run `npm run api:contract`; CI checks that the generated
@@ -153,7 +176,7 @@ npm run lint
 
 Scripts may differ from future milestones: inspect root and workspace `package.json`. Do not assume a command exists without checking. For the database migration integration test, set `DATABASE_URL_TEST` to an isolated PostgreSQL database ending in `_test`. The ordinary API tests do not need provider credentials.
 
-## 10. Physical Android validation
+## 11. Physical Android validation
 
 1. Ensure phone and development machine share a reachable network.
 2. Check computer firewall allows the API port and Metro as required.
@@ -162,7 +185,7 @@ Scripts may differ from future milestones: inspect root and workspace `package.j
 5. Test airplane mode/offline UI, resume, app background/foreground and keyboard behavior.
 6. Test PocketOps identity sign-in and GitHub App system-browser callback; verify connection identity and repository selection remain distinct.
 
-## 11. Troubleshooting matrix
+## 12. Troubleshooting matrix
 
 | Symptom                            | Likely cause                             | Action                                                          |
 | ---------------------------------- | ---------------------------------------- | --------------------------------------------------------------- |
@@ -177,11 +200,11 @@ Scripts may differ from future milestones: inspect root and workspace `package.j
 | Render logs empty                  | Permissions, time filter, API limits     | Verify provider connection and bounded query                    |
 | Push not delivered                 | Permissions/token/background limitations | Verify device token, platform configuration and in-app fallback |
 
-## 12. CI and staging
+## 13. CI and staging
 
-CI uses `npm ci`, server/mobile tests, ESLint, Expo compatibility diagnostics and an Android JavaScript export. It provisions PostgreSQL 16 for migration up/down tests and needs no provider credentials. For later staging: managed DB/Redis, separate worker, staging GitHub App settings and a disposable Render service. Set up logs, metrics, backup and failure alerts before production access. Mobile builds should use distinct application identifiers/schemes for dev/staging/prod to avoid deep-link collisions.
+CI uses `npm ci`, server/mobile tests, ESLint, Expo compatibility diagnostics and an Android JavaScript export. It provisions PostgreSQL 16 for migration up/down tests and needs no provider credentials. For staging: managed DB, the deployment worker process (`npm run worker:deployments`), staging GitHub App settings, a disposable Render service and test account, and `DEPLOYMENTS_ENABLED` with a staging key ring. Set up logs, metrics, backup and failure alerts before production access. Mobile builds should use distinct application identifiers/schemes for dev/staging/prod to avoid deep-link collisions.
 
-## 13. Initial smoke test checklist
+## 14. Initial smoke test checklist
 
 - [ ] `npm ci` succeeds with locked compatible dependencies.
 - [ ] API starts and `GET /health` returns success.
@@ -193,6 +216,6 @@ CI uses `npm ci`, server/mobile tests, ESLint, Expo compatibility diagnostics an
 - [ ] `.env` files and secrets are excluded from version control.
 - [ ] Migrations apply and reverse on a disposable PostgreSQL database.
 
-## 14. Next steps
+## 15. Next steps
 
-The native explorer from prompt `04-repository-explorer.md` is now implemented. Follow its [acceptance checklist](REPOSITORY_EXPLORER.md) before proceeding to prompt `05-code-editor.md`. Implement one milestone at a time, update docs alongside code and retain an independent recovery path. See [Development plan](DEVELOPMENT_PLAN.md).
+The native explorer, safe source editor and Render deployment operations are implemented. Follow the [repository checklist](REPOSITORY_EXPLORER.md) and [editor checklist](CODE_EDITOR.md). Live provider setup (including Render with a disposable service/account) and physical-device checks remain outstanding. Implement one milestone at a time, update docs alongside code and retain an independent recovery path. See [Development plan](DEVELOPMENT_PLAN.md).

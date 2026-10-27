@@ -1,9 +1,11 @@
+import { createDeploymentRouter } from "../src/modules/deployments/routes.js";
 import { readFile } from "node:fs/promises";
 import Ajv from "ajv";
 import SwaggerParser from "@apidevtools/swagger-parser";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
+import { createEditorRouter } from "../src/modules/editor/routes.js";
 import { openapi } from "../src/contracts/openapi.js";
 import { createAuthRouter } from "../src/modules/auth/routes.js";
 import {
@@ -38,9 +40,14 @@ describe("implemented OpenAPI contract", () => {
     );
     expect(artifact).toBe(`${JSON.stringify(openapi, null, 2)}\n`);
     const expected = [
+      ...routes(createDeploymentRouter({ service: null, authService: null }), ""),
       "get /health",
       "get /ready",
       ...routes(createAuthRouter({ service: null }), "/auth"),
+      ...routes(
+        createEditorRouter({ service: null, authService: null }),
+        "/github",
+      ),
       ...routes(
         createGitHubRouter({ service: null, authService: null }),
         "/github",
@@ -110,6 +117,7 @@ describe("implemented OpenAPI contract", () => {
     expect(openapi.paths["/webhooks/github"].post.responses).toHaveProperty(
       "202",
     );
-    expect(openapi.paths).not.toHaveProperty("/projects");
+    expect(openapi.paths["/projects"].get.security).toEqual([{ PocketOpsSession: [] }]);
+    expect(openapi.paths).not.toHaveProperty("/incidents");
   });
 });

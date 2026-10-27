@@ -66,6 +66,24 @@ const fileQuery = z.object({
     .optional(),
 });
 const branchesQuery = z.object({ cursor: z.string().max(500).optional() });
+function validGitRef(value) {
+  return (
+    !value.startsWith("/") &&
+    !value.endsWith("/") &&
+    !value.endsWith(".") &&
+    !value.includes("..") &&
+    !value.includes("//") &&
+    !value.includes("@{") &&
+    ![...value].some(
+      (character) => character.charCodeAt(0) <= 32 || character.charCodeAt(0) === 127,
+    ) &&
+    !/[~^:?*\x5b\\]/.test(value) &&
+    value.split("/").every((part) => part && !part.startsWith(".") && !part.endsWith(".lock"))
+  );
+}
+const editorBranchQuery = z.object({
+  branch: z.string().min(1).max(255).refine(validGitRef),
+}).strict();
 
 function asyncHandler(handler) {
   return (request, response, next) =>
@@ -206,6 +224,15 @@ export function createGitHubRouter({ service, authService }) {
     validate(repositoryParams, "params"),
     validate(fileQuery, "query"),
     asyncHandler((request, response) => controller.file(request, response)),
+  );
+  router.get(
+    "/repositories/:repositoryId/branches/metadata",
+    requireService,
+    userRateLimit,
+    authenticate,
+    validate(repositoryParams, "params"),
+    validate(editorBranchQuery, "query"),
+    asyncHandler((request, response) => controller.editorBranch(request, response)),
   );
   router.get(
     "/repositories/:repositoryId/branches",

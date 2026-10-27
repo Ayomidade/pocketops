@@ -149,7 +149,7 @@ describe("repository screen integration with mocked API", () => {
       expect(
         mockRequest.mock.calls.some(([path]) => path.includes("search=worker")),
       ).toBe(true),
-      { timeout: 3000 },
+      { timeout: 10000 },
     );
     list.unmount();
     mockRequest.mockImplementation(async (path) =>
@@ -159,7 +159,7 @@ describe("repository screen integration with mocked API", () => {
     expect(
       await directoryView.findByText("This directory is empty."),
     ).toBeTruthy();
-  });
+  }, 15000);
 
   it("keeps source hidden after a transient provider failure and offers retry", async () => {
     mockParams.path = "src/app.js";

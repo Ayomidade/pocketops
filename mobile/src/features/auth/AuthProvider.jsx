@@ -44,6 +44,7 @@ export function AuthProvider({ children }) {
   });
   const pendingCompletionSecret = useRef(null);
   const callbackCodes = useRef(new Set());
+  const previousUserId = useRef(null);
 
   const restoreSession = useCallback(async () => {
     setAuth((current) => ({
@@ -132,6 +133,26 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     void restoreSession();
   }, [restoreSession]);
+
+  useEffect(() => {
+    if (auth.status === "authenticated" && auth.user?.id) {
+      if (previousUserId.current && previousUserId.current !== auth.user.id) {
+        const previous = previousUserId.current;
+        void import("../editor/draft-storage.js").then(({ editorDraftStore }) =>
+          editorDraftStore.clearUser(previous),
+        );
+      }
+      previousUserId.current = auth.user.id;
+      return;
+    }
+    if (["signed_out", "expired"].includes(auth.status) && previousUserId.current) {
+      const previous = previousUserId.current;
+      previousUserId.current = null;
+      void import("../editor/draft-storage.js").then(({ editorDraftStore }) =>
+        editorDraftStore.clearUser(previous),
+      );
+    }
+  }, [auth.status, auth.user?.id]);
 
   const completeCallbackUrl = useCallback(async (callbackUrl) => {
     const callback = parseAuthCallback(

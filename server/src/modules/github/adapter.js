@@ -44,6 +44,14 @@ function providerError(error) {
   );
 }
 
+function writeProviderError(error, conflictCode, conflictMessage) {
+  if (error instanceof AppError) throw error;
+  if ([409, 422].includes(error.status)) {
+    throw new AppError(409, conflictCode, conflictMessage);
+  }
+  throw providerError(error);
+}
+
 function normalizedRepository(repo) {
   return {
     id: String(repo.id),
@@ -378,6 +386,145 @@ export function createGitHubAppAdapter({
         };
       } catch (error) {
         normalizeCall(error);
+      }
+    },
+
+    async getBranch(installationId, owner, repo, branch) {
+      try {
+        const octokit = await app.getInstallationOctokit(
+          Number(installationId),
+        );
+        const { data } = await octokit.rest.repos.getBranch({
+          owner,
+          repo,
+          branch,
+          request: { timeout: timeoutMs },
+        });
+        return {
+          name: data.name,
+          commitSha: data.commit.sha,
+          protected: Boolean(data.protected),
+        };
+      } catch (error) {
+        normalizeCall(error);
+      }
+    },
+
+    async createBranch(installationId, owner, repo, branch, baseSha) {
+      try {
+        const octokit = await app.getInstallationOctokit(
+          Number(installationId),
+        );
+        const { data } = await octokit.rest.git.createRef({
+          owner,
+          repo,
+          ref: `refs/heads/${branch}`,
+          sha: baseSha,
+          request: { timeout: timeoutMs },
+        });
+        return { ref: data.ref, sha: data.object.sha };
+      } catch (error) {
+        if (error.status === 422) {
+          throw new AppError(
+            409,
+            "BRANCH_ALREADY_EXISTS",
+            "That branch already exists. Choose a new branch name.",
+          );
+        }
+        writeProviderError(
+          error,
+          "BRANCH_CREATE_CONFLICT",
+          "The branch could not be created from the selected revision.",
+        );
+      }
+    },
+
+    async updateFile(installationId, owner, repo, input) {
+      try {
+        const octokit = await app.getInstallationOctokit(
+          Number(installationId),
+        );
+        const { data } = await octokit.rest.repos.createOrUpdateFileContents({
+          owner,
+          repo,
+          path: input.path,
+          branch: input.branch,
+          message: input.commitMessage,
+          content: Buffer.from(input.content, "utf8").toString("base64"),
+          sha: input.expectedSha,
+          request: { timeout: timeoutMs },
+        });
+        return {
+          contentSha: data.content?.sha || null,
+          commitSha: data.commit?.sha || null,
+        };
+      } catch (error) {
+        writeProviderError(
+          error,
+          "FILE_VERSION_CONFLICT",
+          "The file changed after it was opened. Reload it before saving.",
+        );
+      }
+    },
+
+    async listPullRequests(installationId, owner, repo, input) {
+      try {
+        const octokit = await app.getInstallationOctokit(
+          Number(installationId),
+        );
+        const { data } = await octokit.rest.pulls.list({
+          owner,
+          repo,
+          head: `${owner}:${input.head}`,
+          ...(input.base ? { base: input.base } : {}),
+          state: input.state || "open",
+          per_page: 50,
+          request: { timeout: timeoutMs },
+        });
+        return data.map((item) => ({
+          number: item.number,
+          title: item.title,
+          url: item.html_url,
+          state: item.state,
+          head: item.head.ref,
+          base: item.base.ref,
+          draft: Boolean(item.draft),
+        }));
+      } catch (error) {
+        normalizeCall(error);
+      }
+    },
+
+    async createPullRequest(installationId, owner, repo, input) {
+      try {
+        const octokit = await app.getInstallationOctokit(
+          Number(installationId),
+        );
+        const { data } = await octokit.rest.pulls.create({
+          owner,
+          repo,
+          title: input.title,
+          body: input.body,
+          head: input.head,
+          base: input.base,
+          draft: Boolean(input.draft),
+          request: { timeout: timeoutMs },
+        });
+        return {
+          number: data.number,
+          title: data.title,
+          url: data.html_url,
+          state: data.state,
+          head: data.head.ref,
+          base: data.base.ref,
+          draft: Boolean(data.draft),
+        };
+      } catch (error) {
+        writeProviderError(
+          error,
+          "PULL_REQUEST_CONFLICT",
+          "The pull request could not be created for these branches.",
+        );
       }
     },
   };

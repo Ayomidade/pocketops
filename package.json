@@ -20,13 +20,15 @@
     "db:migrate:undo": "npm run db:migrate:undo -w server",
     "db:migrate:undo:all": "npm run db:migrate:undo:all -w server",
     "api:contract": "npm run api:contract -w server",
-    "api:contract:check": "npm run api:contract:check -w server"
+    "api:contract:check": "npm run api:contract:check -w server",
+    "worker:deployments": "npm run worker:deployments -w server"
   },
   "devDependencies": {
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
   "overrides": {
+    "body-parser": "^1.20.9",
     "postcss": "^8.5.31",
     "sequelize": {
       "uuid": "11.1.1"

@@ -44,6 +44,7 @@ function makeServices(overrides = {}) {
     listTree: vi.fn(async () => ({ data: [], nextCursor: null })),
     getFile: vi.fn(async () => ({ path: "README.md", content: "hi" })),
     listBranches: vi.fn(async () => ({ data: [], nextCursor: null })),
+    getEditorBranch: vi.fn(async () => ({ name: "main", commitSha: "a".repeat(40), protected: true })),
     acceptWebhook: vi.fn(async () => ({ accepted: true, duplicate: false })),
     ...overrides,
   };
@@ -92,6 +93,22 @@ describe("GitHub integration API", () => {
     });
     await request(app).get("/api/v1/github/installations").expect(401);
     expect(githubService.listInstallations).not.toHaveBeenCalled();
+  });
+
+  it("returns selected branch metadata only after session and repository authorization", async () => {
+    const { app, githubService } = makeServices();
+    const response = await request(app)
+      .get("/api/v1/github/repositories/11111111-1111-4111-8111-111111111111/branches/metadata?branch=fix%2Ftask")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(response.body.data.commitSha).toHaveLength(40);
+    expect(githubService.getEditorBranch).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: user.id, branch: "fix/task" }),
+    );
+    await request(app)
+      .get("/api/v1/github/repositories/11111111-1111-4111-8111-111111111111/branches/metadata?branch=bad%20ref")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(422);
   });
 
   it("starts the GitHub App flow only for the authenticated user", async () => {
