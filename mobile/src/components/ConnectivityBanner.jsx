@@ -11,7 +11,7 @@ export default function ConnectivityBanner() {
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
     >
-      <Text className="text-white text-center font-medium">
+      <Text className="text-textPrimary text-center font-medium">
         Offline — check your connection before retrying.
       </Text>
     </View>

@@ -1,3 +1,4 @@
+import { colors } from "../../src/theme/tokens";
 import { Link, Redirect, Tabs } from "expo-router";
 import { Text, View } from "react-native";
 import RemoteState from "../../src/components/RemoteState";
@@ -20,14 +21,14 @@ export default function TabLayout() {
   const routeAction = protectedRouteAction(status);
   if (routeAction === "loading") {
     return (
-      <View className="flex-1 justify-center bg-ink px-6">
+      <View className="flex-1 justify-center bg-bg px-6">
         <RemoteState kind="loading" title="Restoring secure session..." />
       </View>
     );
   }
   if (routeAction === "retry") {
     return (
-      <View className="flex-1 justify-center bg-ink px-6">
+      <View className="flex-1 justify-center bg-bg px-6">
         <RemoteState
           kind="error"
           title="Unable to restore session"
@@ -36,7 +37,7 @@ export default function TabLayout() {
           retryLabel="Retry"
         />
         <Link
-          className="mt-4 text-center text-mint"
+          className="mt-4 text-center text-accentHi"
           href="/(auth)/login"
           accessibilityRole="link"
         >
@@ -52,15 +53,15 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: "#142033",
-          borderTopColor: "#29384F",
+          backgroundColor: colors.surface,
+          borderTopColor: colors.border,
           height: 70,
         },
         tabBarItemStyle: {
           minHeight: 56,
         },
-        tabBarActiveTintColor: "#38D9B3",
-        tabBarInactiveTintColor: "#94A3B8",
+        tabBarActiveTintColor: colors.accentHi,
+        tabBarInactiveTintColor: colors.textSecondary,
       }}
     >
       {tabs.map((t) => (

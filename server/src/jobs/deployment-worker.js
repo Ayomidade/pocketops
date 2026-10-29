@@ -3,6 +3,8 @@ import { loadConfig } from "../config/env.js";
 import { createDatabase } from "../config/database.js";
 import { defineModels } from "../db/models/index.js";
 import { createLogger } from "../logging/logger.js";
+import { measureJob } from "../logging/metrics.js";
+import { reportQueueHealth } from "../logging/queue-health.js";
 import { createGitHubAppAdapter } from "../modules/github/adapter.js";
 import { createGitHubRepository } from "../modules/github/repository.js";
 import { createGitHubService } from "../modules/github/service.js";
@@ -16,12 +18,18 @@ async function main() {
   const githubService = createGitHubService({ repository: createGitHubRepository({ sequelize, models }), adapter: createGitHubAppAdapter({ config }), config });
   const service = createDeploymentRuntime({ config, sequelize, models, githubService });
   let stopping = false;
+  let nextSnapshot = 0;
   for (const signal of ["SIGTERM", "SIGINT"]) process.once(signal, () => { stopping = true; });
   try {
     await sequelize.authenticate(); logger.info("Deployment worker started");
     while (!stopping) {
-      try { if (!await service.processNext()) await delay(1500); }
-      catch (error) { logger.error({ errorName: error.name, errorCode: error.code }, "Deployment worker iteration failed"); await delay(5000); }
+      if (Date.now() >= nextSnapshot) {
+        nextSnapshot = Date.now() + 30000;
+        try { await reportQueueHealth(sequelize, logger); }
+        catch { logger.error({ event: "queue.snapshot_failed" }, "Queue monitoring unavailable"); }
+      }
+      try { if (!await measureJob(logger, () => service.processNext())) await delay(1500); }
+      catch { await delay(5000); }
     }
   } finally { await sequelize.close(); }
 }

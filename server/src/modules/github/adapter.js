@@ -108,6 +108,8 @@ export function createGitHubAppAdapter({
     ? new AppClass({
         appId: config.githubAppId,
         privateKey: config.githubAppPrivateKey,
+        // App defaults to @octokit/core, which has no .rest endpoint methods.
+        Octokit: OctokitClass,
       })
     : null;
 
@@ -115,6 +117,7 @@ export function createGitHubAppAdapter({
     try {
       const response = await fetchImplementation(githubTokenUrl, {
         method: "POST",
+        redirect: "error",
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
@@ -177,11 +180,12 @@ export function createGitHubAppAdapter({
   }
 
   return {
-    async exchangeUserCode(code) {
+    async exchangeUserCode(code, { codeVerifier } = {}) {
       const body = await tokenRequest({
         client_id: config.githubAppClientId,
         client_secret: config.githubAppClientSecret,
         code,
+        code_verifier: codeVerifier,
         redirect_uri: config.githubAppOAuthCallbackUrl,
       });
       if (

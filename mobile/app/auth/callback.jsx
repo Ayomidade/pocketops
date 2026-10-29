@@ -50,7 +50,7 @@ export default function AuthCallbackPage() {
       )}
       {error || status === "failed" ? (
         <Link
-          className="mt-4 text-center text-mint"
+          className="mt-4 text-center text-accentHi"
           href="/(auth)/login"
           accessibilityRole="link"
         >

@@ -6,6 +6,7 @@ import helmet from "helmet";
 import { AppError } from "./errors/app-error.js";
 import { errorResponse, successResponse } from "./lib/responses.js";
 import { createLogger, createRequestLogger } from "./logging/logger.js";
+import { requestMetrics } from "./logging/metrics.js";
 import { errorHandler, notFound } from "./middleware/errors.js";
 import { createAuthRouter } from "./modules/auth/routes.js";
 import { createEditorRouter } from "./modules/editor/routes.js";
@@ -26,7 +27,9 @@ export function createApp({
 }) {
   const app = express();
   app.disable("x-powered-by");
+  app.set("trust proxy", config.trustProxy ?? false);
   app.use(createRequestLogger(logger));
+  app.use(requestMetrics(logger));
   app.use(helmet());
   app.use(
     cors({

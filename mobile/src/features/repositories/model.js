@@ -64,3 +64,17 @@ export function readError(error) {
 export function denied(error) {
   return [401, 403, 404].includes(error?.status);
 }
+
+
+const filenameOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+export function sortDirectoryEntries(entries = []) {
+  return [...entries].sort((left, right) => {
+    const foldersFirst = Number(right.type === "dir") - Number(left.type === "dir");
+    if (foldersFirst) return foldersFirst;
+    const byName = filenameOrder.compare(left.name, right.name);
+    if (byName) return byName;
+    // Keep equivalent names deterministic without mutating the query cache.
+    return left.name < right.name ? -1 : left.name > right.name ? 1 : 0;
+  });
+}

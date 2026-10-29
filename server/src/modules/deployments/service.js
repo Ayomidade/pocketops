@@ -94,8 +94,9 @@ export function createDeploymentService({ repository, githubService, adapter, va
       if (ctx.service.capabilities.canRedeploy) {
         try { live = await target(ctx); } catch (error) { if (error.code !== "REDEPLOY_UNAVAILABLE") throw error; }
       }
-      return { ...projectDTO(ctx.project), service: ctx.service, capabilities: { ...ctx.service.capabilities, canRedeploy: !!live && config.deploymentsEnabled },
-        pendingOperation: await repository.activeOperation(id).then((op) => op ? operationDTO(op) : null),
+      const pending = await repository.activeOperation(id);
+      return { ...projectDTO(ctx.project), service: ctx.service, capabilities: { ...ctx.service.capabilities, canRedeploy: !!live && config.deploymentsEnabled && !pending },
+        pendingOperation: pending ? operationDTO(pending) : null,
         redeployTarget: live ? { providerDeploymentId: live.providerDeploymentId, commitSha: live.commitSha } : null, healthStatus: "not_checked" };
     },
     async updateProject({ userId, id, name, requestId }) { await context(userId, id, requestId); return projectDTO(await repository.updateProject(userId, id, name, requestId)); },
@@ -168,9 +169,9 @@ export function createDeploymentService({ repository, githubService, adapter, va
         // A DB failure after provider acceptance is also ambiguous. Never resubmit.
         const ambiguous = dispatched && error.ambiguous !== false;
         const accepted = op.status === "accepted";
-        const retry = !ambiguous && (error.retryable || error.status === 429 || error.status >= 500) && op.attempts < (accepted ? 120 : 5);
+        const retry = !ambiguous && error.code !== "DEPLOYMENTS_DISABLED" && (error.retryable === true || (error.retryable === undefined && (error.status === 429 || error.status >= 500))) && op.attempts < (accepted ? 120 : 5);
         const status = ambiguous ? "unknown" : retry ? (accepted ? "accepted" : "queued") : accepted ? "unknown" : "failed";
-        await repository.finish(op, { status, errorCode: ambiguous ? "PROVIDER_OUTCOME_UNKNOWN" : error instanceof AppError ? error.code : "DEPLOYMENT_PROCESSING_FAILED", nextAttemptAt: new Date(now.getTime() + Math.min(300000, 15000 * 2 ** Math.min(op.attempts, 5))) }, null, `deployment.${status}`);
+        await repository.finish(op, { status, errorCode: ambiguous ? "PROVIDER_OUTCOME_UNKNOWN" : error instanceof AppError ? error.code : "DEPLOYMENT_PROCESSING_FAILED", nextAttemptAt: new Date(now.getTime() + Math.max(error.retryAfterMs || 0, Math.min(300000, 15000 * 2 ** Math.min(op.attempts, 5))) + Math.floor(Math.random() * 1000)) }, null, `deployment.${status}`);
       }
       return true;
     },

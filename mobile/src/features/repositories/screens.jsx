@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { colors } from "../../theme/tokens";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BackHandler, FlatList, Text, TextInput, View } from "react-native";
 import {
   Redirect,
@@ -9,7 +10,7 @@ import {
 import { useAuth } from "../auth/AuthProvider";
 import { useSourceVisible } from "./RepositoryProvider";
 import { useConnectivity } from "../../hooks/useConnectivity";
-import { denied, flattenPages, repositoryRoute, singleParam } from "./model.js";
+import { denied, flattenPages, repositoryRoute, singleParam, sortDirectoryEntries } from "./model.js";
 import {
   useBranches,
   useDirectory,
@@ -75,7 +76,7 @@ export function RepositoriesScreen() {
     >
       <View className="gap-3 p-5">
         <View className="flex-row justify-between">
-          <Text className="font-semibold text-mint">GITHUB WORKSPACE</Text>
+          <Text className="font-semibold text-accentHi">GITHUB WORKSPACE</Text>
           <Action
             label="Connections"
             onPress={() => router.push("/connections")}
@@ -88,12 +89,12 @@ export function RepositoriesScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           placeholder="Search owner or repository"
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={colors.textSecondary}
           accessibilityLabel="Search repositories"
-          className="min-h-12 rounded-xl border border-slate-600 bg-panel px-4 text-white"
+          className="min-h-12 rounded-xl border border-border bg-surface px-4 text-textPrimary"
         />
         {installations.data && !denied(installations.error) ? (
-          <Text className="text-sm text-slate-300">
+          <Text className="text-sm text-textSecondary">
             Connected accounts:{" "}
             {installations.data.data
               .map((item) => item.accountLogin)
@@ -169,7 +170,7 @@ export function RepositoriesScreen() {
                 </View>
               ) : repositories.data?.pages.length === 10 &&
                 repositories.data.pages[9].meta.nextCursor ? (
-                <Text className="p-5 text-amber-300">
+                <Text className="p-5 text-warning">
                   Showing the first 300 repositories. Narrow your search for
                   more.
                 </Text>
@@ -213,6 +214,7 @@ export function DirectoryScreen() {
       return () => subscription.remove();
     }, [path, router]),
   );
+  const directoryEntries = useMemo(() => sortDirectoryEntries(tree.data?.data), [tree.data]);
   if (!authenticated) return <Redirect href="/(auth)/login" />;
   const error = repo.error || tree.error;
   const hidden = denied(error);
@@ -242,7 +244,7 @@ export function DirectoryScreen() {
       />
       {!hidden && repo.data ? (
         <View className="px-5 pt-3">
-          <Text className="text-sm text-slate-300">
+          <Text className="text-sm text-textSecondary">
             {repo.data.data.private ? "Private" : "Public"} ·{" "}
             {repo.data.data.archived ? "Archived" : "Active"} · Default:{" "}
             {repo.data.data.defaultBranch || "None"}
@@ -267,7 +269,7 @@ export function DirectoryScreen() {
         }}
       />
       {branchNotice ? (
-        <Text accessibilityLiveRegion="polite" className="px-5 pb-3 text-mint">
+        <Text accessibilityLiveRegion="polite" className="px-5 pb-3 text-accentHi">
           Branch changed. Contents may differ; returned to root.
         </Text>
       ) : null}
@@ -296,7 +298,7 @@ export function DirectoryScreen() {
       {!hidden && tree.data ? (
         <FlatList
           key={`${id}:${ref}:${path}`}
-          data={tree.data.data}
+          data={directoryEntries}
           keyExtractor={(entry) => entry.path}
           initialNumToRender={16}
           maxToRenderPerBatch={16}
@@ -318,11 +320,11 @@ export function DirectoryScreen() {
             />
           )}
           ListEmptyComponent={
-            <Text className="p-5 text-slate-300">This directory is empty.</Text>
+            <Text className="p-5 text-textSecondary">This directory is empty.</Text>
           }
           ListFooterComponent={
             tree.data.meta?.directoryLimitReached ? (
-              <Text className="p-5 text-amber-300">
+              <Text className="p-5 text-warning">
                 Directory limit reached: GitHub returns at most 1,000 entries.
                 This listing may be incomplete.
               </Text>
@@ -332,7 +334,7 @@ export function DirectoryScreen() {
         />
       ) : null}
       {!ref && repo.isSuccess ? (
-        <Text className="p-5 text-slate-300">
+        <Text className="p-5 text-textSecondary">
           This repository has no default branch or files yet.
         </Text>
       ) : null}
@@ -373,7 +375,7 @@ function VisibleFileScreen() {
   if (!id || !path || !ref)
     return (
       <RepositoryFrame title="File unavailable" onBack={back}>
-        <Text className="p-5 text-slate-300">
+        <Text className="p-5 text-textSecondary">
           Open a file from its repository and branch to preview it.
         </Text>
       </RepositoryFrame>
@@ -394,7 +396,7 @@ function VisibleFileScreen() {
         />
       ) : null}
       {isOffline ? (
-        <Text accessibilityRole="alert" className="p-5 text-amber-300">
+        <Text accessibilityRole="alert" className="p-5 text-warning">
           Offline. Reconnect to verify access before viewing source.
         </Text>
       ) : null}
@@ -412,19 +414,19 @@ function VisibleFileScreen() {
       !file.isFetching &&
       file.data ? (
         <>
-          <View className="gap-2 border-b border-slate-700 p-5">
-            <Text className="text-mint">Branch / ref: {ref}</Text>
-            <Text selectable className="text-sm text-slate-300">
+          <View className="gap-2 border-b border-border p-5">
+            <Text className="text-accentHi">Branch / ref: {ref}</Text>
+            <Text selectable className="text-sm text-textSecondary">
               {file.data.data.size} bytes · Blob SHA: {file.data.data.sha}
             </Text>
-            <Text className="text-xs text-slate-400">
+            <Text className="text-xs text-textSecondary">
               Blob revision, not the last commit timestamp.
             </Text>
           </View>
           <FilePreview file={file.data.data} />
           {file.data.data.editable && !file.data.data.binary ? (
-            <View className="border-t border-slate-700 p-5">
-              <Text className="mb-3 text-sm text-slate-300">
+            <View className="border-t border-border p-5">
+              <Text className="mb-3 text-sm text-textSecondary">
                 Editing creates a new fix branch and requires confirmation before committing.
               </Text>
               <Action

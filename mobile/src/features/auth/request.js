@@ -4,7 +4,7 @@ export function createAuthenticatedRequest({ getToken, request, onExpired }) {
   return async (path, options = {}) => {
     const token = await getToken();
     if (!token) {
-      await onExpired();
+      await onExpired(token);
       throw new ApiError("Sign in to continue.", {
         code: "UNAUTHENTICATED",
         status: 401,
@@ -18,7 +18,7 @@ export function createAuthenticatedRequest({ getToken, request, onExpired }) {
         error.code === "UNAUTHENTICATED" &&
         (await getToken()) === token
       )
-        await onExpired();
+        await onExpired(token);
       throw error;
     }
   };

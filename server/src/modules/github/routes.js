@@ -108,6 +108,7 @@ function apiRateLimit(windowMs, limit, code) {
 
 export function createGitHubRouter({ service, authService }) {
   const router = Router();
+  router.use((_request, response, next) => { response.set("Cache-Control", "no-store"); next(); });
   const controller = service ? createGitHubController(service) : null;
   const authenticate = createSessionAuthentication(authService);
   const userRateLimit = apiRateLimit(60_000, 60, "GITHUB_RATE_LIMITED");
@@ -248,6 +249,7 @@ export function createGitHubRouter({ service, authService }) {
 
 export function createGitHubWebhookRouter({ service }) {
   const router = Router();
+  router.use((_request, response, next) => { response.set("Cache-Control", "no-store"); next(); });
   const controller = service ? createGitHubController(service) : null;
   router.post(
     "/",

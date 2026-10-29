@@ -1,3 +1,4 @@
 <resources>
   <string name="app_name">PocketOps</string>
+  <string name="expo_runtime_version">0.1.0-updates.2</string>
 </resources>

@@ -25,18 +25,22 @@ export function parseAuthCallback(callbackUrl, redirectUri) {
     callback.host !== expected.host ||
     callback.pathname !== expected.pathname ||
     callback.username ||
-    callback.password
+    callback.password ||
+    callback.hash ||
+    [...callback.searchParams.keys()].some((key) => !["handoff", "error"].includes(key)) ||
+    callback.searchParams.getAll("handoff").length > 1 ||
+    callback.searchParams.getAll("error").length > 1
   ) {
     throw new Error("The sign-in callback did not match this app.");
   }
 
   const handoffCode = callback.searchParams.get("handoff");
   const error = callback.searchParams.get("error");
-  if (handoffCode && /^[A-Za-z0-9_-]{43}$/.test(handoffCode) && !error) {
+  if (handoffCode && /^[A-Za-z0-9_-]{43}$/.test(handoffCode) && !callback.searchParams.has("error")) {
     return { handoffCode, error: null };
   }
   if (
-    !handoffCode &&
+    !callback.searchParams.has("handoff") &&
     ["access_denied", "oauth_failed", "github_unavailable"].includes(error)
   ) {
     return { handoffCode: null, error };

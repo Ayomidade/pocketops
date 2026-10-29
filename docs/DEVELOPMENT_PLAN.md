@@ -24,7 +24,7 @@ Build a runnable, testable native mobile app and backend first. Add GitHub ident
 
 **Backend:** OAuth state schema; GitHub OAuth initiation/callback; one-use mobile handoff; session issuance/revocation using the foundation sessions table; auth middleware; auth tests. **Mobile:** login/logout, system-browser auth session, deep links, SecureStore, protected route groups. **Security:** state, PKCE only if the provider documents support, expired/replayed callback tests, no provider token on device. **Exit:** sign in and out on physical device; revoked session rejected.
 
-**Implementation status (2026-10):** backend identity/session endpoints, migrations, audit events, native system-browser flow, SecureStore session hydration/rotation/logout, and automated tests are implemented. GitHub's published OAuth App authorization parameters do not document PKCE, so this flow uses a confidential backend client, state validation and a separate mobile completion-secret binding. GitHub App installation and repository access remain separate Milestone 2 work. The physical Android sign-in/logout exit gate still requires a configured OAuth App, reachable HTTPS callback and development build; it is not claimed passed by automated tests or JS export.
+**Implementation status (2026-10):** backend identity/session endpoints, migrations, audit events, native system-browser flow, SecureStore session hydration/rotation/logout, and automated tests are implemented. The 2026-10-28 authentication review corrected the earlier PKCE assumption: GitHub supports S256, now implemented for both identity and GitHub App user authorization alongside state validation and mobile completion-secret binding. See [AUTHENTICATION.md](AUTHENTICATION.md). GitHub App installation and repository access remain separate Milestone 2 work. The physical Android sign-in/logout exit gate still requires a configured OAuth App, reachable HTTPS callback and development build; it is not claimed passed by automated tests or JS export.
 
 ### Milestone 2 — GitHub App connection and read-only APIs (weeks 3–4)
 
@@ -46,7 +46,7 @@ Build a runnable, testable native mobile app and backend first. Add GitHub ident
 
 **Backend:** encrypted credential store, provider adapter, service mapping, deployment/log APIs, idempotent operation table, worker queue and reconciliation. **Mobile:** connection setup, project mapping, deployment list, log viewer, confirmation UI and operation progress. **Exit:** authorized developer can inspect logs and request exactly one test redeploy; duplicate request does not duplicate upstream action.
 
-**Status (2026-10):** implemented as encrypted Render API-key connections (AES-256-GCM key ring with lazy version rotation), a Render adapter covering the six verified service/deploy/log endpoints with honest capability flags (no rollback, promotion or health verification), project mapping bound to authorized GitHub repositories, bounded redacted logs with signed cursors, and confirmed idempotent redeploy requests processed by a separate PostgreSQL-leased worker (`npm run worker:deployments`) that never re-triggers ambiguous writes. Native mobile screens cover connections, mapping, timeline, logs, two-stage redeploy confirmation and operation polling that never treats 202 as success. Live Render account verification and physical-device checks are NOT RUN; incident automation and health verification remain Milestone 6.
+**Status (2026-10):** implemented as encrypted Render API-key connections (AES-256-GCM key ring with lazy version rotation), a Render adapter covering the six verified service/deploy/log endpoints with honest capability flags (no rollback, promotion or health verification), project mapping bound to authorized GitHub repositories, bounded redacted logs with signed cursors, and confirmed idempotent redeploy requests processed by a separate PostgreSQL-leased worker (`npm run worker:deployments`) that never re-triggers ambiguous writes. Native mobile screens cover connections, mapping, timeline, logs, two-stage redeploy confirmation and operation polling that never treats 202 as success. PostgreSQL apply/rollback and durable queue concurrency/restart tests pass locally (2026-10-28). Redis/BullMQ transport remains deferred in favor of the existing PostgreSQL queue pattern with a separate deployment worker. Live Render account verification and physical-device checks are NOT RUN; see [DEPLOYMENTS.md](DEPLOYMENTS.md). Incident automation and health verification remain Milestone 6.
 
 ### Milestone 6 — Incident workflow and alerts (weeks 8–9)
 
@@ -109,3 +109,15 @@ Use feature flags and staged access. Begin with internal test accounts, then a h
 ## 11. Weekly review template
 
 Record: milestone, shipped functionality, automated checks, physical-device checks, known bugs, security blockers, upstream API issues, decisions and next week's acceptance criteria. Treat the roadmap as adaptive rather than a fixed deadline promise.
+
+
+## Validation update — 2026-10-28
+
+The operator has now confirmed installed Android APK identity sign-in, GitHub App
+installation and visibility of a selected repository. Earlier statements above
+that this environment has no configured GitHub App are historical. Opening a
+repository exposed an Octokit client wiring defect, now fixed with a real-library,
+mocked-HTTP regression test; successful live nested browsing/file preview is still
+awaiting confirmation. Live editing/commit/PR and Render deployment checks remain
+outstanding. Incident workflows, health verification and push notifications remain
+planned, followed by hardening and the phone-only recovery drill.

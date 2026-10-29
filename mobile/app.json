@@ -6,17 +6,43 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "platforms": ["android", "ios"],
+    "platforms": [
+      "android",
+      "ios"
+    ],
     "newArchEnabled": true,
-    "plugins": ["expo-router", "expo-secure-store"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
     "experiments": {
       "typedRoutes": false
     },
     "android": {
-      "package": "com.pocketops.mobile"
+      "package": "com.pocketops.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0B1220"
+      }
     },
     "ios": {
       "bundleIdentifier": "com.pocketops.mobile"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "b7077a14-20cb-47b6-8f9b-fa7b2425e95b"
+      }
+    },
+    "owner": "ayomight",
+    "runtimeVersion": "0.1.0-updates.2",
+    "updates": {
+      "url": "https://u.expo.dev/b7077a14-20cb-47b6-8f9b-fa7b2425e95b",
+      "enabled": true
+    },
+    "icon": "./assets/icon.png",
+    "androidStatusBar": {
+      "hidden": true
     }
   }
 }

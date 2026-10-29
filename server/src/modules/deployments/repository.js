@@ -81,8 +81,8 @@ export function createDeploymentRepository({ sequelize, models }) {
       const current = await Operation.findOne({ where: { id: op.id, claimToken: op.claimToken }, transaction, lock: transaction.LOCK.UPDATE });
       if (!current) return null;
       if (deployment) {
-        const existing = await Deployment.findOne({ where: { projectId: op.projectId, providerDeploymentId: deployment.providerDeploymentId }, transaction });
-        const row = existing ? await existing.update(deployment, { transaction }) : await Deployment.create({ id: randomUUID(), projectId: op.projectId, ...deployment }, { transaction });
+        const [row] = await Deployment.findOrCreate({ where: { projectId: op.projectId, providerDeploymentId: deployment.providerDeploymentId }, defaults: { id: randomUUID(), projectId: op.projectId, ...deployment }, transaction });
+        await row.update(deployment, { transaction });
         values = { ...values, providerReference: deployment.providerDeploymentId, deploymentId: row.id };
       }
       await current.update({ ...values, claimToken: null, claimExpiresAt: null }, { transaction });

@@ -156,3 +156,7 @@ the uploaded online advisory report, including unresolved transitive findings.
 CI reports advisories without claiming a clean release gate. Reject a production
 release until security review, live authorization/revocation checks, device tests,
 backup restore and monitoring alerts have recorded evidence and an accountable owner.
+
+## Deployment unknown-state and retention gate
+
+Use [DEPLOYMENTS.md](DEPLOYMENTS.md) for dispatch fencing, retry ceilings, rate-limit handling and manual reconciliation. Never reset requesting/unknown operations to queued or delete idempotency records to force another deployment. Unknown rows intentionally hold the project lock. An approved audited operator resolution procedure is required before production use. Disable dispatch on both API and worker while investigating; a provider action already sent may continue. Audit/operation/deployment retention remains operator-defined; never delete active/unknown records through generic cleanup. Log bodies are not persisted.

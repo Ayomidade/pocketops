@@ -34,12 +34,12 @@ export default function LoginPage() {
         />
         {status === "awaiting_callback" ? (
           <Pressable
-            className="mt-4 min-h-12 items-center justify-center rounded-xl border border-slate-600 px-5"
+            className="mt-4 min-h-12 items-center justify-center rounded-xl border border-border px-5"
             accessibilityRole="button"
             accessibilityLabel="Cancel GitHub sign-in"
             onPress={() => void cancelGithubLogin()}
           >
-            <Text className="text-white font-semibold">Cancel</Text>
+            <Text className="text-textPrimary font-semibold">Cancel</Text>
           </Pressable>
         ) : null}
       </Screen>
@@ -53,7 +53,7 @@ export default function LoginPage() {
     >
       {message ? (
         <View
-          className="mb-4 rounded-xl bg-panel p-4"
+          className="mb-4 rounded-xl bg-surface p-4"
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"
         >
@@ -62,12 +62,12 @@ export default function LoginPage() {
       ) : null}
       {status === "failed" ? (
         <Pressable
-          className="mb-3 min-h-12 items-center justify-center rounded-xl border border-slate-600 px-5"
+          className="mb-3 min-h-12 items-center justify-center rounded-xl border border-border px-5"
           accessibilityRole="button"
           accessibilityLabel="Retry restoring your session"
           onPress={() => void restoreSession()}
         >
-          <Text className="text-white font-semibold">Retry connection</Text>
+          <Text className="text-textPrimary font-semibold">Retry connection</Text>
         </Pressable>
       ) : null}
       <Pressable
@@ -76,11 +76,11 @@ export default function LoginPage() {
         accessibilityLabel="Continue with GitHub"
         onPress={() => void beginGithubLogin()}
       >
-        <Text className="text-white font-semibold text-base">
+        <Text className="text-textOnAccent font-semibold text-base">
           Continue with GitHub
         </Text>
       </Pressable>
-      <Text className="mt-4 text-slate-400 text-sm leading-5">
+      <Text className="mt-4 text-textSecondary text-sm leading-5">
         PocketOps requests GitHub identity only. This sign-in does not grant
         repository access.
       </Text>

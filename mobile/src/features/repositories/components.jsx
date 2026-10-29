@@ -1,3 +1,4 @@
+import { colors } from "../../theme/tokens";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -14,7 +15,7 @@ import { breadcrumbs, previewReason, readError } from "./model.js";
 
 cssInterop(SafeAreaView, { className: "style" });
 
-export function Action({ label, onPress, disabled = false }) {
+export function Action({ label, onPress, disabled = false, caution = false }) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -22,9 +23,9 @@ export function Action({ label, onPress, disabled = false }) {
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      className="min-h-12 justify-center rounded-xl border border-slate-600 px-4 py-3"
+      className={`min-h-12 justify-center rounded-xl border px-4 py-3 ${caution ? "border-warning bg-warning/10" : "border-border"}`}
     >
-      <Text className={disabled ? "text-slate-500" : "font-semibold text-mint"}>
+      <Text className={disabled ? "text-textMutedReadable" : caution ? "font-semibold text-warning" : "font-semibold text-accentHi"}>
         {label}
       </Text>
     </Pressable>
@@ -34,19 +35,19 @@ export function Action({ label, onPress, disabled = false }) {
 export function RepositoryFrame({ title, subtitle, onBack, children }) {
   return (
     <SafeAreaView
-      className="flex-1 bg-ink"
+      className="flex-1 bg-bg"
       edges={["top", "left", "right", "bottom"]}
     >
-      <View className="border-b border-slate-700 px-5 pb-4 pt-2">
+      <View className="border-b border-border px-5 pb-4 pt-2">
         {onBack ? <Action label="Back" onPress={onBack} /> : null}
         <Text
           accessibilityRole="header"
-          className="mt-3 text-3xl font-bold text-white"
+          className="mt-3 text-3xl font-bold text-textPrimary"
         >
           {title}
         </Text>
         {subtitle ? (
-          <Text className="mt-2 text-sm leading-5 text-slate-300">
+          <Text className="mt-2 text-sm leading-5 text-textSecondary">
             {subtitle}
           </Text>
         ) : null}
@@ -63,10 +64,10 @@ export function RepositorySkeleton({ label = "Loading repository data" }) {
       accessibilityLabel={label}
       className="gap-3 p-5"
     >
-      <ActivityIndicator color="#38D9B3" />
-      <Text className="text-center text-slate-300">{label}</Text>
+      <ActivityIndicator color={colors.accentHi} />
+      <Text className="text-center text-textSecondary">{label}</Text>
       {[0, 1, 2].map((key) => (
-        <View key={key} className="h-16 rounded-xl bg-panel" />
+        <View key={key} className="h-16 rounded-xl bg-surface" />
       ))}
     </View>
   );
@@ -79,8 +80,8 @@ export function RetryState({ error, onRetry }) {
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
     >
-      <Text className="text-lg font-semibold text-white">Unable to load</Text>
-      <Text className="leading-6 text-slate-300">{readError(error)}</Text>
+      <Text className="text-lg font-semibold text-textPrimary">Unable to load</Text>
+      <Text className="leading-6 text-textSecondary">{readError(error)}</Text>
       <Action label="Retry" onPress={onRetry} />
     </View>
   );
@@ -89,14 +90,14 @@ export function RetryState({ error, onRetry }) {
 export function ConnectionEmptyState({ connected, searching, onConnect }) {
   return (
     <View className="gap-3 p-5">
-      <Text className="text-xl font-semibold text-white">
+      <Text className="text-xl font-semibold text-textPrimary">
         {searching
           ? "No matching repositories"
           : connected
             ? "No repositories selected"
             : "Connect your GitHub App"}
       </Text>
-      <Text className="leading-6 text-slate-300">
+      <Text className="leading-6 text-textSecondary">
         {searching
           ? "Try a different repository name."
           : connected
@@ -112,10 +113,10 @@ export function CacheNotice({ offline, checking, updatedAt }) {
   if (!offline && !checking && !updatedAt) return null;
   return (
     <View
-      className="border-b border-slate-700 bg-panel px-5 py-3"
+      className="border-b border-border bg-surface px-5 py-3"
       accessibilityLiveRegion="polite"
     >
-      <Text className="text-sm leading-5 text-slate-300">
+      <Text className="text-sm leading-5 text-textSecondary">
         {offline
           ? "Offline · cached metadata may be stale. Reconnect to verify access."
           : checking
@@ -134,17 +135,17 @@ export function RepositoryCard({ repository, onOpen, disabled }) {
       accessibilityRole="button"
       accessibilityLabel={`Open repository ${repository.fullName}`}
       accessibilityState={{ disabled }}
-      className="mx-5 my-2 min-h-24 rounded-2xl border border-slate-700 bg-panel p-4"
+      className="mx-5 my-2 min-h-24 rounded-2xl border border-border bg-surface p-4"
     >
       <View className="flex-row items-start justify-between gap-3">
-        <Text className="flex-1 text-lg font-semibold text-white">
+        <Text className="flex-1 text-lg font-semibold text-textPrimary">
           {repository.fullName}
         </Text>
-        <Text className="text-xs text-mint">
+        <Text className="text-xs text-accentHi">
           {repository.private ? "PRIVATE" : "PUBLIC"}
         </Text>
       </View>
-      <Text className="mt-2 text-sm text-slate-300">
+      <Text className="mt-2 text-sm text-textSecondary">
         {repository.defaultBranch || "No default branch"}
         {repository.archived ? " · Archived" : ""}
       </Text>
@@ -199,7 +200,7 @@ export function Breadcrumbs({ path, onNavigate, disabled }) {
           accessibilityLabel={`Navigate to ${crumb.label}`}
           className="min-h-12 justify-center px-2"
         >
-          <Text className="text-mint">{crumb.label} /</Text>
+          <Text className="text-accentHi">{crumb.label} /</Text>
         </Pressable>
       ))}
     </View>
@@ -211,24 +212,24 @@ export function FileTreeRow({ entry, onOpen, disabled }) {
   const supported = directory || entry.type === "file";
   return (
     <Pressable
-      className="mx-5 min-h-16 flex-row items-center gap-3 border-b border-slate-700 py-3"
+      className="mx-5 min-h-16 flex-row items-center gap-3 border-b border-border py-3"
       onPress={() => onOpen(entry)}
       disabled={disabled || !supported}
       accessibilityRole="button"
       accessibilityLabel={`${directory ? "Open directory" : "Preview file"} ${entry.name}`}
       accessibilityState={{ disabled: disabled || !supported }}
     >
-      <Text className="w-10 text-xs font-bold text-mint">
+      <Text className="w-10 text-xs font-bold text-accentHi">
         {directory ? "DIR" : "FILE"}
       </Text>
       <View className="flex-1">
-        <Text className="text-base text-white">{entry.name}</Text>
-        <Text className="mt-1 text-xs text-slate-400">
+        <Text className="text-base text-textPrimary">{entry.name}</Text>
+        <Text className="mt-1 text-xs text-textSecondary">
           {entry.type} · {entry.size ?? 0} bytes
           {!supported ? " · Unsupported link or submodule" : ""}
         </Text>
       </View>
-      <Text className="text-mint">›</Text>
+      <Text className="text-accentHi">›</Text>
     </Pressable>
   );
 }
@@ -266,15 +267,15 @@ export function BranchSelector({
         animationType="slide"
         onRequestClose={close}
       >
-        <SafeAreaView className="flex-1 bg-ink">
+        <SafeAreaView className="flex-1 bg-bg">
           <View className="gap-3 p-5">
             <Text
               accessibilityRole="header"
-              className="text-2xl font-bold text-white"
+              className="text-2xl font-bold text-textPrimary"
             >
               Choose a branch
             </Text>
-            <Text className="leading-6 text-slate-300">
+            <Text className="leading-6 text-textSecondary">
               Changing branches returns to the repository root. File contents
               may differ.
             </Text>
@@ -291,7 +292,7 @@ export function BranchSelector({
               initialNumToRender={12}
               renderItem={({ item }) => (
                 <Pressable
-                  className="mx-5 min-h-14 justify-center border-b border-slate-700 py-3"
+                  className="mx-5 min-h-14 justify-center border-b border-border py-3"
                   accessibilityRole="radio"
                   accessibilityLabel={`Select branch ${item.name}`}
                   accessibilityState={{ selected: item.name === current }}
@@ -300,14 +301,14 @@ export function BranchSelector({
                     close();
                   }}
                 >
-                  <Text className="text-white">
+                  <Text className="text-textPrimary">
                     {item.name}
                     {item.protected ? " · Protected" : ""}
                   </Text>
                 </Pressable>
               )}
               ListEmptyComponent={
-                <Text className="p-5 text-slate-300">
+                <Text className="p-5 text-textSecondary">
                   No branches available.
                 </Text>
               }
@@ -329,7 +330,7 @@ export function FilePreview({ file }) {
   if (reason)
     return (
       <View className="p-5">
-        <Text className="leading-6 text-slate-300">{reason}</Text>
+        <Text className="leading-6 text-textSecondary">{reason}</Text>
       </View>
     );
   const allLines = file.content.split("\n", 5001);
@@ -343,11 +344,11 @@ export function FilePreview({ file }) {
       windowSize={5}
       ListHeaderComponent={
         <View className="p-5">
-          <Text className="text-mint">
+          <Text className="text-accentHi">
             Read-only · {file.encoding} ·{" "}
             {file.editable ? "Text supported" : "Not editable"}
           </Text>
-          <Text className="mt-2 text-slate-300">
+          <Text className="mt-2 text-textSecondary">
             Preview limited to 5,000 lines and 2,000 characters per line. No
             edits are saved.
           </Text>
@@ -355,7 +356,7 @@ export function FilePreview({ file }) {
       }
       renderItem={({ item, index }) => (
         <View className="flex-row px-3 py-1">
-          <Text accessible={false} className="w-12 text-right text-slate-500">
+          <Text accessible={false} className="w-12 text-right text-textMutedReadable">
             {index + 1}{" "}
           </Text>
           <Text
@@ -375,7 +376,7 @@ export function FilePreview({ file }) {
       )}
       ListFooterComponent={
         allLines.length > 5000 ? (
-          <Text className="p-5 text-amber-300">
+          <Text className="p-5 text-warning">
             Remaining lines are not rendered in this mobile preview.
           </Text>
         ) : null

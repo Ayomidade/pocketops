@@ -8,10 +8,10 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <RepositoryProvider>
-        <StatusBar style="light" />
+        <StatusBar style="light" hidden />
         <Stack
           initialRouteName="(tabs)"
-          screenOptions={{ headerShown: false }}
+          screenOptions={{ headerShown: false, statusBarHidden: true, navigationBarHidden: true }}
         />
       </RepositoryProvider>
     </AuthProvider>

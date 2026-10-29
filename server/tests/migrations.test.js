@@ -1,3 +1,4 @@
+import { verifyPersistentDeployments } from "./fixtures/persistent-deployments.js";
 import { describe, expect, it } from "vitest";
 import { Sequelize } from "sequelize";
 import { runMigrations } from "../src/db/migrate.js";
@@ -422,6 +423,8 @@ describe("users and sessions migrations", () => {
           }),
         ).toBe(0);
 
+        await verifyPersistentDeployments({ sequelize, models, user, githubRepository });
+
         const expiredState = "n".repeat(43);
         now = new Date("2026-10-22T08:00:00Z");
         await service.createMobileStart({
@@ -453,6 +456,6 @@ describe("users and sessions migrations", () => {
         await sequelize.close();
       }
     },
-    15000,
+    30000,
   );
 });

@@ -61,3 +61,9 @@ compiles Android debug and iOS simulator builds. See
 Native screens remain native; the source editor is the only WebView. Implemented: identity/session workflows, GitHub App connections, authorized repository browsing, bundled CodeMirror editing, safe fix-branch commits, pull-request creation, encrypted Render API-key connections, service-to-repository project mapping, bounded deployment history/logs and confirmed idempotent redeploy requests. Writes require separate GitHub App Contents: write and Pull requests: write permissions. Deployment operations additionally require `DEPLOYMENTS_ENABLED=true`, a provider encryption key ring and a separately running worker process (`npm run worker:deployments`); without the worker, accepted operations remain queued. See [docs/REPOSITORY_EXPLORER.md](docs/REPOSITORY_EXPLORER.md), [docs/CODE_EDITOR.md](docs/CODE_EDITOR.md) and [docs/SETUP.md](docs/SETUP.md). Incidents, notifications, health verification, Render webhooks and remote execution remain unimplemented.
 
 To enable identity sign-in, configure its server-only OAuth variables. Browsing requires Contents: read and Metadata: read; editor writes additionally require Contents: write and Pull requests: write on the GitHub App. Configure all `GITHUB_APP_*` variables server-side, apply migrations and use a native development build. See [docs/SETUP.md](docs/SETUP.md). Never place provider credentials, private keys or tokens in an `EXPO_PUBLIC_*` variable.
+
+See [manual Render deployment implementation and validation](docs/DEPLOYMENTS.md) for provider capabilities, worker safety, exact file inventory and remaining staging/device gates.
+
+## Private beta hardening
+
+The current candidate is **NO-GO**, with unresolved dependency and staging/device gates. See [review and evidence](docs/BETA_HARDENING.md), [beta operations/onboarding](docs/BETA_RUNBOOK.md), and [draft data-handling policy](docs/PRIVACY.md). No public release is authorized.

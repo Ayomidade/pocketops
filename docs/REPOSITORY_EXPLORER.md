@@ -220,3 +220,11 @@ Deferred: syntax-highlighting dependencies (monospace is implemented), large-dir
 Trees API traversal, commit timestamps, source persistence/offline edits, WebView,
 branch/commit/PR writes, Render/deployments, incidents, notifications and Redis workers.
 Remote execution remains excluded from MVP. Stop here before editor implementation.
+
+
+Directory ordering uses folders first, then case-insensitive natural filename order
+(`file2` before `file10`), matching the default VS Code explorer convention. Sorting
+copies the current directory result and does not mutate the TanStack Query cache.
+VS Code custom sorting, file nesting and exclusion settings are not imported.
+The preview/edit cap remains 512 KiB (524,288 bytes) per file to bound mobile text,
+bridge and diff processing; larger-file streaming is not implemented.

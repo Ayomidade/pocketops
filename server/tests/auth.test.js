@@ -122,7 +122,8 @@ describe("GitHub OAuth identity flow", () => {
     expect(url.pathname).toBe("/login/oauth/authorize");
     expect(url.searchParams.get("state")).toBe("s".repeat(43));
     expect(url.searchParams.get("scope")).toBe("read:user");
-    expect(url.searchParams.has("code_challenge")).toBe(false);
+    expect(url.searchParams.get("code_challenge")).toHaveLength(43);
+    expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("client_id")).toBe(config.githubOAuthClientId);
     expect(url.searchParams.has("client_secret")).toBe(false);
   });
@@ -345,7 +346,7 @@ describe("GitHub OAuth adapter", () => {
       fetchImplementation,
     });
 
-    const profile = await client.getIdentity("one-time-code");
+    const profile = await client.getIdentity("one-time-code", { codeVerifier: "v".repeat(43) });
     expect(profile).toEqual({
       id: "456",
       login: "mobile-user",
@@ -354,6 +355,8 @@ describe("GitHub OAuth adapter", () => {
     });
     expect(requests).toHaveLength(2);
     expect(requests[0].options.body).toContain("server-secret");
+    expect(JSON.parse(requests[0].options.body).code_verifier).toBe("v".repeat(43));
+    expect(requests[0].options.redirect).toBe("error");
     expect(requests[1].options.headers.Authorization).toBe(
       "Bearer github-private-token",
     );
@@ -375,4 +378,16 @@ describe("GitHub OAuth adapter", () => {
       status: 502,
     });
   });
+});
+
+it("binds the authorization challenge to the matching server-only S256 verifier", async () => {
+  const getIdentity = vi.fn(async () => ({ id: "12345", login: "pocket-user" }));
+  const { service } = createService({ githubOAuthClient: { getIdentity } });
+  const state = "s".repeat(43);
+  const authorize = new URL(await service.getAuthorizationUrl(state));
+  await service.handleCallback({ state, code: "one-time-code", requestId: "pkce-fixture" });
+  const { codeVerifier } = getIdentity.mock.calls[0][1];
+  const { createHash } = await import("node:crypto");
+  expect(createHash("sha256").update(codeVerifier).digest("base64url")).toBe(authorize.searchParams.get("code_challenge"));
+  expect(codeVerifier).toHaveLength(43); expect(authorize.toString()).not.toContain(codeVerifier); expect(codeVerifier).not.toContain(config.githubOAuthClientSecret);
 });

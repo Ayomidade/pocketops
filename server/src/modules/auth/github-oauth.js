@@ -19,11 +19,12 @@ export function createGitHubOAuthClient({
   timeoutMs = 8000,
 }) {
   return {
-    async getIdentity(code) {
+    async getIdentity(code, { codeVerifier } = {}) {
       let tokenResponse;
       try {
         const response = await fetchImplementation(githubTokenUrl, {
           method: "POST",
+          redirect: "error",
           headers: {
             Accept: "application/json",
             "Content-Type": "application/json",
@@ -32,12 +33,13 @@ export function createGitHubOAuthClient({
             client_id: clientId,
             client_secret: clientSecret,
             code,
+            code_verifier: codeVerifier,
             redirect_uri: callbackUrl,
           }),
           signal: AbortSignal.timeout(timeoutMs),
         });
         tokenResponse = await readJson(response);
-        if (!response.ok || typeof tokenResponse.access_token !== "string") {
+        if (!response.ok || tokenResponse.error || typeof tokenResponse.access_token !== "string" || !tokenResponse.access_token) {
           throw new Error("Token exchange failed");
         }
       } catch {
@@ -50,6 +52,7 @@ export function createGitHubOAuthClient({
 
       try {
         const response = await fetchImplementation(`${githubApiBaseUrl}/user`, {
+          redirect: "error",
           headers: {
             Accept: "application/vnd.github+json",
             Authorization: `Bearer ${tokenResponse.access_token}`,

@@ -85,7 +85,7 @@ Identity OAuth signs the person in to PocketOps. GitHub App authorization is a s
 
 3. Apply migrations with `npm run db:migrate`; the OAuth transaction and authentication audit tables are added by `003-create-auth-workflows.js`.
 4. Use an Android/iOS development build that registers the `pocketops` scheme from `mobile/app.json` (for example, build with the Expo development client or `npx expo run:android`). Expo Go may run screens but does not register this app-specific callback scheme; do not count an Expo Go run as OAuth verification.
-5. Test sign-in with a non-production GitHub account. OAuth requests only the `read:user` identity scope. The returned profile email is optional and not considered verified.
+5. Disable wildcard matching for the provider callback when not needed and keep the exact canonical callback URL. Both identity and GitHub App user authorization use S256 PKCE; do not rotate their client secrets mid-flow. Test sign-in with a non-production GitHub account. OAuth requests only the `read:user` identity scope. The returned profile email is optional and not considered verified.
 
 The mobile opens the backend authorization URL in Expo WebBrowser's system auth session. The OAuth state expires after 10 minutes; the app's one-time handoff expires after two minutes. A 256-bit completion secret binds the handoff to the initiating app process and is held only in memory. If the flow is cancelled or the app process is interrupted, restart sign-in.
 
@@ -98,7 +98,7 @@ Browsing requires GitHub App **Contents: Read-only** and **Metadata: Read-only**
 1. Register a GitHub App and enable **user-to-server authorization with expiring user access tokens and refresh tokens**. The implementation requires expiring user tokens; it rejects responses without refresh-token/expiry fields.
 2. Configure the App's **OAuth callback URL** to `https://<API_HOST>/api/v1/github/oauth/callback`, its **Setup URL** to `https://<API_HOST>/api/v1/github/installations/callback`, and its **Webhook URL** to `https://<API_HOST>/api/v1/webhooks/github`. Enable webhook SSL verification.
 3. Subscribe to `installation`, `installation_repositories`, and `github_app_authorization` events. These support install/uninstall, suspension, permission updates, repository changes and user-authorization revocation.
-4. Set every GitHub App variable in `server/.env` (see `.env.example`):
+4. To enable repository access, set every GitHub App variable in `server/.env` (see `.env.example`). Partial GitHub App setup is allowed at API startup: identity sign-in and health endpoints remain available, while GitHub App routes return `GITHUB_APP_NOT_CONFIGURED` until the complete set is supplied. Supplied values still undergo format and callback safety validation. This does not remove the credentials needed to access repositories:
 
    ```dotenv
    GITHUB_APP_ID=<numeric-app-id>
@@ -124,7 +124,7 @@ Webhook deliveries are signature-verified against raw request bytes, deduplicate
 
 ## 8. Render deployment operations
 
-Deployment operations are disabled by default and require **every** value below in `server/.env`, plus the GitHub App configuration from section 7 (the worker revalidates repository access):
+Deployment writes are disabled by default. Connections, history and logs require the key ring and active key; dispatch additionally requires `DEPLOYMENTS_ENABLED=true`. Configure these values in `server/.env`, plus the GitHub App configuration from section 7 (the worker revalidates repository access):
 
 ```dotenv
 DEPLOYMENTS_ENABLED=true
@@ -219,3 +219,157 @@ CI uses `npm ci`, server/mobile tests, ESLint, Expo compatibility diagnostics an
 ## 15. Next steps
 
 The native explorer, safe source editor and Render deployment operations are implemented. Follow the [repository checklist](REPOSITORY_EXPLORER.md) and [editor checklist](CODE_EDITOR.md). Live provider setup (including Render with a disposable service/account) and physical-device checks remain outstanding. Implement one milestone at a time, update docs alongside code and retain an independent recovery path. See [Development plan](DEVELOPMENT_PLAN.md).
+
+Follow [DEPLOYMENTS.md](DEPLOYMENTS.md) for the isolated Render staging checklist and unknown-operation handling. Do not retire old encryption keys until dormant connections and backup recovery are accounted for.
+
+For identity sign-in and GitHub App callback fixes, session race coverage and current setup diagnostics, see [AUTHENTICATION.md](AUTHENTICATION.md). No extra environment variables or migrations are needed for those fixes.
+
+If GitHub cannot return to the API, check DNS and `/api/v1/health` at `API_PUBLIC_URL` from outside the development machine. A healthy LAN API does not prove that an expired development tunnel hostname still resolves. A replacement origin requires updating both the server canonical OAuth callback and the registered GitHub OAuth App callback.
+
+
+## Android APK through EAS (no USB required)
+
+The `mobile/eas.json` `preview` profile builds a standalone, internally distributed
+APK with bundled JavaScript. It needs neither Expo Go nor a running Metro server.
+The existing native Android project registers `pocketops://auth/callback`; EAS uses
+the checked-in native project. Native app-config changes must also be reflected in
+that project. EAS injects managed signing credentials for the cloud release build;
+the local Gradle debug-signing fallback is not a production signing setup.
+
+From the repository root:
+
+```bash
+cd mobile
+npx eas-cli@latest login
+npx eas-cli@latest init
+npx eas-cli@latest env:create --environment preview --name EXPO_PUBLIC_API_URL --value https://YOUR_API_HOST/api/v1 --visibility plaintext
+npx eas-cli@latest build --platform android --profile preview
+```
+
+Use your Expo account and link/create the PocketOps project when prompted. `init`
+records the real project ID in app configuration; do not invent one. Let EAS create
+an Android signing keystore when prompted unless you already have the signing key
+for this application. A differently signed existing installation cannot be updated
+in place; removing it deletes its local app data.
+
+Replace `YOUR_API_HOST` with the current public backend/tunnel hostname. This URL
+is public and embedded in the APK; never add server credentials to EAS mobile
+variables. Local `.env` files and signing keys are excluded through `.gitignore`.
+The post-install hook validates the public URL format and bundles CodeMirror before
+native compilation. Keep the backend and tunnel running; if a temporary tunnel URL
+changes, update the EAS variable and rebuild the APK. The backend OAuth callback
+and GitHub OAuth App registration must also match that tunnel, while the mobile
+redirect remains `pocketops://auth/callback`.
+
+Open the completed build's installation link on the phone, download the APK, and
+allow installation from that browser when Android asks. Launch PocketOps and test
+sign-in. Treat internal build links as shareable access to the APK.
+
+Configuration and local tests do not prove a cloud build or device login succeeds.
+Account linking, cloud compilation, APK installation and live OAuth require manual
+validation. No iOS distribution or store-release profile is configured here.
+
+References: [Expo monorepo builds](https://docs.expo.dev/build-reference/build-with-monorepos/),
+[build hooks](https://docs.expo.dev/build-reference/npm-hooks/), and
+[internal distribution](https://docs.expo.dev/build/internal-distribution/).
+
+
+### GitHub installation return and local tunnels
+
+The installation callback maps GitHub's `installation_id` and `setup_action`
+query fields to the service's installation ID and action before verifying account
+access and saving membership. After updating the backend, restart **Connect GitHub
+App** from PocketOps, complete the return to the app, and save repository selection.
+An installation on GitHub alone does not establish PocketOps membership.
+
+For a trusted cloudflared process on the same host, set `TRUST_PROXY=loopback` in
+`server/.env` and restart the API. The default `false` suits direct access. Only
+loopback peers are trusted; arbitrary remote forwarded headers are not trusted.
+Do not use unrestricted proxy trust or disable rate-limit validation. Other proxy
+topologies require an explicitly reviewed trusted-address configuration. Ensure the
+proxy controls forwarded headers; processes on the trusted host can supply them.
+
+
+Repository details, directory contents and branch reads require the REST-enabled
+Octokit constructor supplied to the GitHub App client. The adapter now shares that
+constructor with user clients; a regression test uses the actual App/REST libraries
+and mocked HTTP responses. This fixes a local missing-method error previously
+reported as `GITHUB_UNAVAILABLE`. Restart the backend after updating; an APK rebuild
+or reconnection is not required for this adapter correction.
+
+## Automatic Android APK builds and OTA updates
+
+`.github/workflows/eas-android.yml` triggers on every branch push, or manually via
+GitHub Actions. It runs tests (with isolated PostgreSQL), lint and API contract
+validation before building. It waits for the EAS `preview` APK, records its download
+URL in the run summary/artifact, then publishes an Android OTA update. APK hosting
+on EAS is the chosen distribution method: no Google Play submission is configured.
+
+One-time setup:
+
+1. Add a personal Expo access token as the GitHub repository Actions secret
+   `EXPO_TOKEN`, with access to the existing `ayomight/pocketops` EAS project.
+2. Keep `EXPO_PUBLIC_API_URL` configured in the EAS **preview** environment. Both
+   build and update use that environment; ignored local `.env` files are not CI
+   configuration. Use a stable HTTPS API hostname for ongoing testing.
+3. Ensure EAS has the existing Android signing credentials. Build once interactively
+   if credentials still need setup. Remote app versioning and `autoIncrement` now
+   assign Android version codes; retain the same signing key for APK upgrades.
+4. Push the complete changes, including `package-lock.json` and native Android
+   update settings. Open Actions → Android APK and OTA update → run summary to
+   download the completed APK on your phone.
+5. Install this new APK once. Older APKs have updates disabled and cannot bootstrap
+   OTA support themselves. On subsequent launches a compatible update downloads;
+   it normally takes effect on the next cold launch. APKs are not silently installed.
+
+The default branch uses the `preview` update channel. Other branches use a stable
+hash of their Git ref, isolating their APKs/updates from the default branch. Builds
+on the same branch serialize publication; GitHub concurrency can replace older
+pending runs during rapid pushes. Every branch push triggers the workflow, but a
+failed validation prevents build/publication. Each completed build consumes EAS
+build quota. Only trusted collaborators should be allowed to push workflow code.
+
+The native project uses explicit runtime `0.1.0-updates.1` in both `app.json` and
+Android `strings.xml`. When native code, dependencies, or app configuration change,
+bump both runtime values and install a new APK. `check-update-runtime.mjs` rejects
+changed native/config/dependency inputs without a runtime bump (conservatively,
+lockfile and package-script changes also require a bump). Pure JS/JSX changes can
+reuse the runtime. The guard compares the push's previous commit, falling back to
+the parent commit for a new branch/manual run. It is not a native compatibility
+certification; review custom native build inputs too.
+
+No cloud build or OTA publication is performed by local validation. Cloud builds,
+APK installation and OTA receipt require an actual configured workflow run. iOS
+builds/submissions remain outside this Android automation.
+
+References: [Expo CI builds](https://docs.expo.dev/build/building-on-ci/),
+[EAS Update setup](https://docs.expo.dev/eas-update/getting-started/),
+[runtime compatibility](https://docs.expo.dev/eas-update/runtime-versions/).
+
+### Fullscreen and launcher icon
+
+PocketOps native stacks hide the system status/navigation bars; Android users can
+swipe from an edge to reveal navigation controls temporarily. The app's own tabs
+remain visible. Check system Back, keyboard dismissal, browser/OAuth return and
+screen-reader navigation on the physical device; system dialogs may show bars.
+
+The pocket/pulse launcher artwork lives in `mobile/assets/` (SVG source, opaque
+1024px icon and transparent adaptive foreground). Checked-in Android legacy WebP
+and adaptive vector resources are included because EAS builds the native project.
+Runtime `0.1.0-updates.2` requires a new APK for the new launcher assets. Run EAS
+commands from `mobile/`, using `com.pocketops.mobile` and its existing signing key.
+
+### Operational color palette
+
+`mobile/src/theme/tokens.js` supplies NativeWind and native component colors. Dark
+surfaces use `bg`, `surface` and `surfaceHi`; text uses `textPrimary` and
+`textSecondary`. Blue accents identify actions and selection. Deployment cards use
+labeled status tints and a colored edge; live deployment remains distinct from
+verified health. Redeploy controls use amber outlines and retain both confirmations.
+Sign-out uses neutral styling rather than error red.
+
+Raw `textMuted` (#6B7788) is not AA body text on these surfaces (3.92:1 on
+`surface`), so metadata uses the readable secondary color. Filled blue buttons use
+`textOnAccent` (5.23:1). Contrast regression tests cover the readable token pairs;
+physical-device visual/accessibility review is still required. Light theme support
+is deferred; semantic names allow a future alternate palette.

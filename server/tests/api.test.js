@@ -220,13 +220,9 @@ describe("environment configuration", () => {
     ).toThrow(/GitHub OAuth client ID/);
   });
 
-  it("validates GitHub App configuration as an all-or-none server-only set", () => {
-    expect(() =>
-      loadConfig({
-        NODE_ENV: "test",
-        GITHUB_APP_ID: "123",
-      }),
-    ).toThrow(/all GitHub App credentials/);
+  it("allows partial GitHub App setup but enables access only with the complete set", () => {
+    expect(loadConfig({ NODE_ENV: "test", GITHUB_APP_ID: "123" }))
+      .toMatchObject({ githubAppEnabled: false });
 
     const githubAppConfig = {
       NODE_ENV: "test",
@@ -256,6 +252,16 @@ describe("environment configuration", () => {
       githubAppMobileRedirectUri: "pocketops://github/callback",
       githubTokenEncryptionKey: Buffer.alloc(32, 7),
     });
+    for (const key of Object.keys(githubAppConfig).filter((name) =>
+      name.startsWith("GITHUB_APP_") || name === "GITHUB_TOKEN_ENCRYPTION_KEY")) {
+      const partial = { ...githubAppConfig, [key]: "" };
+      expect(loadConfig(partial)).toMatchObject({
+        githubAppEnabled: false,
+        githubOAuthEnabled: true,
+      });
+    }
+    expect(() => loadConfig({ GITHUB_APP_ID: "invalid" })).toThrow(/numeric GitHub App ID/);
+    expect(() => loadConfig({ GITHUB_TOKEN_ENCRYPTION_KEY: "invalid" })).toThrow(/32-byte key/);
     expect(() =>
       loadConfig({
         ...githubAppConfig,
@@ -281,5 +287,22 @@ describe("environment configuration", () => {
       databaseSsl: false,
       corsOrigins: ["http://localhost:8081"],
     });
+  });
+});
+
+
+describe("trusted local reverse proxy", () => {
+  it("defaults to no proxy trust and rejects unrestricted trust", () => {
+    expect(loadConfig({}).trustProxy).toBe(false);
+    expect(() => loadConfig({ TRUST_PROXY: "true" })).toThrow(/TRUST_PROXY/);
+  });
+  it("accepts proxied requests without trusting arbitrary remote peers", async () => {
+    const app = createApp({ config: { ...config, trustProxy: loadConfig({ TRUST_PROXY: "loopback" }).trustProxy } });
+    expect(app.get("trust proxy fn")("203.0.113.10")).toBe(false);
+    const trust = app.get("trust proxy fn");
+    expect(trust("127.0.0.1")).toBe(true);
+    const response = await request(app).get("/api/v1/health")
+      .set("X-Forwarded-For", "198.51.100.5").expect(200);
+    expect(response.headers.ratelimit).toBeDefined();
   });
 });

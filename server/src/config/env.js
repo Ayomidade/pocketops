@@ -11,6 +11,7 @@ const environmentSchema = z
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    TRUST_PROXY: z.enum(["false", "loopback"]).default("false"),
     PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     DATABASE_URL: z.string().trim().optional(),
     DATABASE_SSL: z.enum(["true", "false"]).default("false"),
@@ -85,15 +86,47 @@ const environmentSchema = z
       }
     }
 
-    if (!!value.PROVIDER_ENCRYPTION_KEYS !== !!value.PROVIDER_ACTIVE_KEY_VERSION) {
-      context.addIssue({ code: "custom", path: ["PROVIDER_ENCRYPTION_KEYS"], message: "key ring and active version must be configured together" });
+    if (
+      !!value.PROVIDER_ENCRYPTION_KEYS !== !!value.PROVIDER_ACTIVE_KEY_VERSION
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["PROVIDER_ENCRYPTION_KEYS"],
+        message: "key ring and active version must be configured together",
+      });
     }
-    if (value.DEPLOYMENTS_ENABLED === "true" && !value.PROVIDER_ENCRYPTION_KEYS) context.addIssue({ code: "custom", path: ["DEPLOYMENTS_ENABLED"], message: "requires a provider key ring" });
+    if (value.DEPLOYMENTS_ENABLED === "true" && !value.PROVIDER_ENCRYPTION_KEYS)
+      context.addIssue({
+        code: "custom",
+        path: ["DEPLOYMENTS_ENABLED"],
+        message: "requires a provider key ring",
+      });
     if (value.PROVIDER_ENCRYPTION_KEYS) {
       try {
         const keys = JSON.parse(value.PROVIDER_ENCRYPTION_KEYS);
-        if (!keys || Array.isArray(keys) || typeof keys !== "object" || !keys[value.PROVIDER_ACTIVE_KEY_VERSION] || Object.keys(keys).length > 5 || Object.entries(keys).some(([version, key]) => !/^[a-zA-Z0-9_-]{1,32}$/.test(version) || typeof key !== "string" || Buffer.from(key, "base64").length !== 32 || Buffer.from(key, "base64").toString("base64") !== key)) throw new Error();
-      } catch { context.addIssue({ code: "custom", path: ["PROVIDER_ENCRYPTION_KEYS"], message: "must be a JSON key ring of up to five versioned base64 32-byte keys including the active key" }); }
+        if (
+          !keys ||
+          Array.isArray(keys) ||
+          typeof keys !== "object" ||
+          !keys[value.PROVIDER_ACTIVE_KEY_VERSION] ||
+          Object.keys(keys).length > 5 ||
+          Object.entries(keys).some(
+            ([version, key]) =>
+              !/^[a-zA-Z0-9_-]{1,32}$/.test(version) ||
+              typeof key !== "string" ||
+              Buffer.from(key, "base64").length !== 32 ||
+              Buffer.from(key, "base64").toString("base64") !== key,
+          )
+        )
+          throw new Error();
+      } catch {
+        context.addIssue({
+          code: "custom",
+          path: ["PROVIDER_ENCRYPTION_KEYS"],
+          message:
+            "must be a JSON key ring of up to five versioned base64 32-byte keys including the active key",
+        });
+      }
     }
     const oauthValues = [
       value.GITHUB_OAUTH_CLIENT_ID,
@@ -184,29 +217,9 @@ const environmentSchema = z
       }
     }
 
-    const githubAppValues = [
-      value.GITHUB_APP_ID,
-      value.GITHUB_APP_CLIENT_ID,
-      value.GITHUB_APP_CLIENT_SECRET,
-      value.GITHUB_APP_PRIVATE_KEY,
-      value.GITHUB_APP_SLUG,
-      value.GITHUB_APP_WEBHOOK_SECRET,
-      value.GITHUB_APP_OAUTH_CALLBACK_URL,
-      value.GITHUB_APP_SETUP_CALLBACK_URL,
-      value.GITHUB_APP_MOBILE_REDIRECT_URI,
-      value.GITHUB_TOKEN_ENCRYPTION_KEY,
-    ];
-    if (
-      githubAppValues.some(Boolean) &&
-      githubAppValues.some((item) => !item)
-    ) {
-      context.addIssue({
-        code: "custom",
-        path: ["GITHUB_APP_ID"],
-        message:
-          "all GitHub App credentials and callback settings must be configured together",
-      });
-    }
+    // Partial GitHub App setup must not prevent unrelated API features from starting.
+    // Supplied values are validated below; loadConfig enables the integration only
+    // when its complete credential/callback set is available.
     if (value.GITHUB_APP_ID && !/^\d+$/.test(value.GITHUB_APP_ID)) {
       context.addIssue({
         code: "custom",
@@ -346,7 +359,14 @@ export function loadConfig(source = process.env) {
   ];
   return {
     nodeEnv: config.NODE_ENV,
-    providerEncryptionKeys: config.PROVIDER_ENCRYPTION_KEYS ? Object.fromEntries(Object.entries(JSON.parse(config.PROVIDER_ENCRYPTION_KEYS)).map(([version, key]) => [version, Buffer.from(key, "base64")])) : {},
+    trustProxy: config.TRUST_PROXY === "loopback" ? "loopback" : false,
+    providerEncryptionKeys: config.PROVIDER_ENCRYPTION_KEYS
+      ? Object.fromEntries(
+          Object.entries(JSON.parse(config.PROVIDER_ENCRYPTION_KEYS)).map(
+            ([version, key]) => [version, Buffer.from(key, "base64")],
+          ),
+        )
+      : {},
     providerActiveKeyVersion: config.PROVIDER_ACTIVE_KEY_VERSION || null,
     deploymentsEnabled: config.DEPLOYMENTS_ENABLED === "true",
     port: config.PORT,

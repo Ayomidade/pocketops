@@ -1,3 +1,4 @@
+import { colors } from "../../theme/tokens";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -58,11 +59,11 @@ function errorText(error) {
 
 function NativeFrame({ title, subtitle, onBack, children }) {
   return (
-    <SafeAreaView className="flex-1 bg-ink" edges={["top", "left", "right", "bottom"]}>
-      <View className="border-b border-slate-700 px-5 pb-4 pt-2">
+    <SafeAreaView className="flex-1 bg-bg" edges={["top", "left", "right", "bottom"]}>
+      <View className="border-b border-border px-5 pb-4 pt-2">
         <Action label="Back" onPress={onBack} />
-        <Text accessibilityRole="header" className="mt-3 text-2xl font-bold text-white">{title}</Text>
-        <Text className="mt-1 text-sm text-slate-300">{subtitle}</Text>
+        <Text accessibilityRole="header" className="mt-3 text-2xl font-bold text-textPrimary">{title}</Text>
+        <Text className="mt-1 text-sm text-textSecondary">{subtitle}</Text>
       </View>
       {children}
     </SafeAreaView>
@@ -91,7 +92,7 @@ function NativeDiff({ before, after }) {
           {item.text.slice(0, 2000) || " "}
         </Text>
       )}
-      ListEmptyComponent={<Text className="p-5 text-slate-300">No changes to commit.</Text>}
+      ListEmptyComponent={<Text className="p-5 text-textSecondary">No changes to commit.</Text>}
     />
   );
 }
@@ -453,18 +454,18 @@ export default function EditorScreen() {
 
   return (
     <NativeFrame title={stage === "diff" ? "Review changes" : stage === "pull-request" ? "Open pull request" : stage === "done" ? "Pull request created" : "Code editor"} subtitle={`${repository.data?.data.fullName} · ${branch || baseRef} · ${path}`} onBack={() => dirty ? discardAndLeave() : router.back()}>
-      {error ? <View className="p-4"><Text accessibilityRole="alert" className="mb-3 text-amber-300">{errorText(error)}</Text>{error.code === "FILE_VERSION_CONFLICT" || error.message?.includes("crashed") || error.message?.includes("stopped") ? <Action label="Reload editor and current file" onPress={reloadCurrentFile} /> : <Action label="Dismiss" onPress={() => {
+      {error ? <View className="p-4"><Text accessibilityRole="alert" className="mb-3 text-warning">{errorText(error)}</Text>{error.code === "FILE_VERSION_CONFLICT" || error.message?.includes("crashed") || error.message?.includes("stopped") ? <Action label="Reload editor and current file" onPress={reloadCurrentFile} /> : <Action label="Dismiss" onPress={() => {
         setError(null);
         if (stage === "error") {
           if (file && sourceLoaded && ready) { if (dirty) setDraftContent(content); setStage("loading"); }
           else { setReady(false); createBridge(); setWebViewRevision((current) => current + 1); setLoadAttempt((attempt) => attempt + 1); }
         }
       }} />}</View> : null}
-      {stage === "unsupported" ? <View className="p-5"><Text className="mb-4 text-slate-200">This file is binary, oversized, or marked non-editable by GitHub. It remains available in read-only preview.</Text><Action label="Back to preview" onPress={() => router.back()} /></View> : null}
+      {stage === "unsupported" ? <View className="p-5"><Text className="mb-4 text-textPrimary">This file is binary, oversized, or marked non-editable by GitHub. It remains available in read-only preview.</Text><Action label="Back to preview" onPress={() => router.back()} /></View> : null}
       {stage === "loading" || (stage === "edit" && !ready) || stage === "error" ? <RepositorySkeleton label="Loading source into local editor" /> : null}
       {file && canEdit && ["loading", "edit", "diff", "error"].includes(stage) ? (
         <>
-          <View className="flex-row items-center justify-between border-b border-slate-700 px-4 py-2"><Text className="text-xs text-slate-300">{file.size} bytes · {language(path)} · cursor {cursor.line}:{cursor.column}</Text><Text className="text-xs text-amber-300">Local only until confirmed</Text></View>
+          <View className="flex-row items-center justify-between border-b border-border px-4 py-2"><Text className="text-xs text-textSecondary">{file.size} bytes · {language(path)} · cursor {cursor.line}:{cursor.column}</Text><Text className="text-xs text-warning">Local only until confirmed</Text></View>
           <WebView
             key={`${activeBridgeIds.sessionId}:${webViewRevision}`}
             ref={webView}
@@ -490,26 +491,26 @@ export default function EditorScreen() {
             style={{ flex: 1, backgroundColor: "#0b1220" }}
           />
           {stage === "edit" ? (
-            <View className="gap-3 border-t border-slate-700 p-4">
+            <View className="gap-3 border-t border-border p-4">
               {showBranchForm ? <>
-                <Text className="text-sm text-white">Create a fix branch from {baseRef} ({baseSha.slice(0, 8) || "loading revision"})</Text>
-                <TextInput value={branchName} onChangeText={setBranchName} placeholder="fix/short-description" placeholderTextColor="#94A3B8" autoCapitalize="none" maxLength={190} accessibilityLabel="New fix branch name" className="min-h-12 rounded-xl border border-slate-600 bg-panel px-3 text-white" />
+                <Text className="text-sm text-textPrimary">Create a fix branch from {baseRef} ({baseSha.slice(0, 8) || "loading revision"})</Text>
+                <TextInput value={branchName} onChangeText={setBranchName} placeholder="fix/short-description" placeholderTextColor={colors.textSecondary} autoCapitalize="none" maxLength={190} accessibilityLabel="New fix branch name" className="min-h-12 rounded-xl border border-border bg-surface px-3 text-textPrimary" />
                 <Action label={busy ? "Creating branch…" : "Create fix branch"} disabled={busy || !baseSha} onPress={() => Alert.alert("Create a new branch?", `Create ${branchName || "fix/…"} from ${baseRef}.`, [{ text: "Cancel", style: "cancel" }, { text: "Create branch", onPress: createBranch }])} />
               </> : branch === baseRef ? <>
-                <Text className="text-sm text-slate-300">Create a separate fix branch before editing this base branch.</Text>
+                <Text className="text-sm text-textSecondary">Create a separate fix branch before editing this base branch.</Text>
                 <Action label="Choose fix branch" disabled={busy || !baseSha} onPress={() => setShowBranchForm(true)} />
               </> : <>
-                <TextInput value={commitMessage} onChangeText={setCommitMessage} maxLength={200} accessibilityLabel="Commit message" placeholder="Commit message" placeholderTextColor="#94A3B8" className="min-h-12 rounded-xl border border-slate-600 bg-panel px-3 text-white" />
+                <TextInput value={commitMessage} onChangeText={setCommitMessage} maxLength={200} accessibilityLabel="Commit message" placeholder="Commit message" placeholderTextColor={colors.textSecondary} className="min-h-12 rounded-xl border border-border bg-surface px-3 text-textPrimary" />
                 <Action label={busy ? "Reading editor…" : "Review native diff"} disabled={busy || !dirty || !commitMessage.trim()} onPress={showDiff} />
               </>}
             </View>
           ) : null}
-          {stage === "diff" ? <><NativeDiff before={original} after={content} /><View className="gap-3 border-t border-slate-700 p-4"><Text className="text-sm text-white">{repository.data?.data.fullName} · {branch} → commit message: {commitMessage}</Text><Action label={busy ? "Committing…" : "Confirm and commit"} disabled={busy || !dirty} onPress={confirmCommit} /><Action label="Continue editing" disabled={busy} onPress={() => setStage("edit")} /></View></> : null}
+          {stage === "diff" ? <><NativeDiff before={original} after={content} /><View className="gap-3 border-t border-border p-4"><Text className="text-sm text-textPrimary">{repository.data?.data.fullName} · {branch} → commit message: {commitMessage}</Text><Action label={busy ? "Committing…" : "Confirm and commit"} disabled={busy || !dirty} onPress={confirmCommit} /><Action label="Continue editing" disabled={busy} onPress={() => setStage("edit")} /></View></> : null}
         </>
       ) : null}
-      {stage === "pull-request" ? <View className="gap-4 p-5"><Text className="leading-6 text-slate-300">Commit created on {branch}. Tests and deployment have not been run.</Text><TextInput value={pullTitle} onChangeText={setPullTitle} maxLength={200} accessibilityLabel="Pull request title" placeholder="Pull request title" placeholderTextColor="#94A3B8" className="min-h-12 rounded-xl border border-slate-600 bg-panel px-3 text-white" /><TextInput value={pullBody} onChangeText={setPullBody} maxLength={4000} multiline accessibilityLabel="Pull request description" placeholder="Describe the change" placeholderTextColor="#94A3B8" className="min-h-32 rounded-xl border border-slate-600 bg-panel px-3 py-3 text-white" /><Text className="text-sm text-slate-300">{branch} → {baseRef}</Text><Action label={busy ? "Opening pull request…" : "Review and open pull request"} disabled={busy || !pullTitle.trim()} onPress={confirmPullRequest} /></View> : null}
-      {stage === "done" && pullRequest ? <View className="gap-4 p-5"><Text className="text-lg text-white">Pull request #{pullRequest.number} is open.</Text><Text className="text-sm text-slate-300">GitHub CI and review determine whether it can merge. PocketOps has not merged or deployed it.</Text><Action label="Open on GitHub" onPress={() => void Linking.openURL(pullRequest.url)} /><Action label="Done" onPress={() => router.back()} /></View> : null}
-      {busy ? <ActivityIndicator accessibilityLabel="Saving change" color="#38D9B3" /> : null}
+      {stage === "pull-request" ? <View className="gap-4 p-5"><Text className="leading-6 text-textSecondary">Commit created on {branch}. Tests and deployment have not been run.</Text><TextInput value={pullTitle} onChangeText={setPullTitle} maxLength={200} accessibilityLabel="Pull request title" placeholder="Pull request title" placeholderTextColor={colors.textSecondary} className="min-h-12 rounded-xl border border-border bg-surface px-3 text-textPrimary" /><TextInput value={pullBody} onChangeText={setPullBody} maxLength={4000} multiline accessibilityLabel="Pull request description" placeholder="Describe the change" placeholderTextColor={colors.textSecondary} className="min-h-32 rounded-xl border border-border bg-surface px-3 py-3 text-textPrimary" /><Text className="text-sm text-textSecondary">{branch} → {baseRef}</Text><Action label={busy ? "Opening pull request…" : "Review and open pull request"} disabled={busy || !pullTitle.trim()} onPress={confirmPullRequest} /></View> : null}
+      {stage === "done" && pullRequest ? <View className="gap-4 p-5"><Text className="text-lg text-textPrimary">Pull request #{pullRequest.number} is open.</Text><Text className="text-sm text-textSecondary">GitHub CI and review determine whether it can merge. PocketOps has not merged or deployed it.</Text><Action label="Open on GitHub" onPress={() => void Linking.openURL(pullRequest.url)} /><Action label="Done" onPress={() => router.back()} /></View> : null}
+      {busy ? <ActivityIndicator accessibilityLabel="Saving change" color={colors.accentHi} /> : null}
     </NativeFrame>
   );
 }

@@ -27,7 +27,7 @@ export function createGitHubController(service) {
 
     async oauthCallback(request, response) {
       try {
-        const url = await service.handleOAuthCallback(request.validated.query);
+        const url = await service.handleOAuthCallback({ state: request.validated.query.state, code: request.validated.query.code, providerError: request.validated.query.error });
         return response.redirect(302, url);
       } catch (error) {
         if (error instanceof AppError) {
@@ -43,7 +43,9 @@ export function createGitHubController(service) {
     async installationCallback(request, response) {
       try {
         const url = await service.handleInstallationCallback({
-          ...request.validated.query,
+          state: request.validated.query.state,
+          installationId: request.validated.query.installation_id,
+          setupAction: request.validated.query.setup_action,
           requestId: request.id,
         });
         return response.redirect(302, url);

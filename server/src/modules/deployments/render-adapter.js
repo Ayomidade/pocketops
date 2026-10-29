@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 import { AppError } from "../../errors/app-error.js";
 import { DeploymentProvider } from "./provider.js";
@@ -32,9 +33,18 @@ function deploymentDTO(raw) {
     commitSha: d.commit?.id || null, startedAt: d.startedAt || null, finishedAt: d.finishedAt || null, healthStatus: "not_checked" };
 }
 export class RenderAdapter extends DeploymentProvider {
-  constructor({ fetchImpl = fetch, timeoutMs = 10000 } = {}) { super(); this.fetch = fetchImpl; this.timeoutMs = timeoutMs; }
+  constructor({ fetchImpl = fetch, timeoutMs = 10000, clock = () => Date.now() } = {}) {
+    super(); this.fetch = fetchImpl; this.timeoutMs = timeoutMs; this.clock = clock; this.cooldowns = new Map();
+  }
   async call(token, path, { query = {}, body } = {}) {
     const mutation = body !== undefined;
+    const category = path === "/logs" ? "logs" : mutation ? "deploy" : "read";
+    const quota = `${createHash("sha256").update(token).digest("hex")}:${category}`;
+    const until = this.cooldowns.get(quota) || 0;
+    if (until > this.clock()) {
+      const error = new AppError(429, "RENDER_RATE_LIMITED", "Render rate limit window has not reset.");
+      error.ambiguous = false; error.retryable = true; error.retryAfterMs = until - this.clock(); throw error;
+    }
     const url = new URL(`https://api.render.com/v1${path}`);
     for (const [key, value] of Object.entries(query)) if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
     let response;
@@ -45,10 +55,17 @@ export class RenderAdapter extends DeploymentProvider {
       if (!response.ok) {
         await response.body?.cancel();
         const status = response.status;
-        const error = new AppError(status === 401 || status === 403 ? 403 : status === 404 || status === 410 ? 404 : status === 429 ? 429 : 502,
-          status === 401 || status === 403 ? "RENDER_ACCESS_REVOKED" : status === 429 ? "RENDER_RATE_LIMITED" : status === 404 || status === 410 ? "RENDER_RESOURCE_UNAVAILABLE" : "RENDER_REQUEST_FAILED", "Render could not complete the request.");
+        const error = new AppError(status === 401 || status === 403 ? 403 : status === 404 || status === 410 ? 404 : status === 429 ? 429 : status === 409 ? 409 : status === 400 ? 422 : 502,
+          status === 401 || status === 403 ? "RENDER_ACCESS_REVOKED" : status === 429 ? "RENDER_RATE_LIMITED" : status === 404 || status === 410 ? "RENDER_RESOURCE_UNAVAILABLE" : status === 409 ? "RENDER_CONFLICT" : status === 400 ? "RENDER_ACTION_REJECTED" : "RENDER_REQUEST_FAILED", "Render could not complete the request.");
         error.ambiguous = mutation && status >= 500;
         error.retryable = status === 429 || status >= 500;
+        if (status === 429) {
+          const retrySeconds = Number(response.headers.get("retry-after"));
+          const resetSeconds = Number(response.headers.get("ratelimit-reset"));
+          error.retryAfterMs = Math.min(3600000, Math.max(15000, retrySeconds * 1000 || 0, resetSeconds * 1000 - this.clock() || 0));
+          if (this.cooldowns.size >= 1000) this.cooldowns.delete(this.cooldowns.keys().next().value);
+          this.cooldowns.set(quota, this.clock() + error.retryAfterMs);
+        }
         throw error;
       }
       const reader = response.body.getReader();

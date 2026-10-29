@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "b7077a14-20cb-47b6-8f9b-fa7b2425e95b"
+      }
+    },
+    "android": {
+      "package": "com.ayomight.pocketops"
+    }
+  }
+}

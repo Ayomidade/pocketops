@@ -53,3 +53,18 @@ describe("verified Render API adapter", () => {
     expect(result).not.toMatch(/very secret|sensitive|sessionvalue|ghp_fixture|\nprivate|\x1b|\x00/); expect(result).toContain("hello");
   });
 });
+
+it("respects provider rate-limit reset headers without resending during the cooldown", async () => {
+  let now = Date.parse("2026-10-28T10:00:00Z");
+  const fetchImpl = vi.fn(async () => new Response("{}", { status: 429, headers: { "RateLimit-Reset": String(now / 1000 + 120) } }));
+  const adapter = new RenderAdapter({ fetchImpl, clock: () => now });
+  await expect(adapter.getService(token, "srv-fixture")).rejects.toMatchObject({ retryAfterMs: 120000, status: 429 });
+  await expect(adapter.getService(token, "srv-fixture")).rejects.toMatchObject({ status: 429 });
+  expect(fetchImpl).toHaveBeenCalledTimes(1);
+  now += 121000; await expect(adapter.getService(token, "srv-fixture")).rejects.toMatchObject({ status: 429 }); expect(fetchImpl).toHaveBeenCalledTimes(2);
+});
+
+it.each([[400, 422], [409, 409]])("does not retry a definite provider %s mutation rejection", async (providerStatus, status) => {
+  const { adapter } = setup({}, providerStatus);
+  await expect(adapter.requestDeployment(token, service.id, deploy.commit.id)).rejects.toMatchObject({ status, retryable: false, ambiguous: false });
+});

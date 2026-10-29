@@ -1,3 +1,5 @@
+import { generateKeyPairSync } from "node:crypto";
+import { Octokit } from "@octokit/rest";
 import { describe, expect, it, vi } from "vitest";
 import { AppError } from "../src/errors/app-error.js";
 import { createGitHubAppAdapter } from "../src/modules/github/adapter.js";
@@ -126,7 +128,7 @@ describe("GitHub App adapter", () => {
     });
 
     await expect(
-      adapter.exchangeUserCode("one-time-code"),
+      adapter.exchangeUserCode("one-time-code", { codeVerifier: "v".repeat(43) }),
     ).resolves.toMatchObject({
       accessToken: "access-1",
       refreshToken: "refresh-1",
@@ -142,6 +144,7 @@ describe("GitHub App adapter", () => {
       client_id: "client-id",
       client_secret: "server-secret",
       code: "one-time-code",
+      code_verifier: "v".repeat(43),
       redirect_uri: config.githubAppOAuthCallbackUrl,
     });
     expect(fetchImplementation.mock.calls[1][1].body).toContain(
@@ -489,4 +492,39 @@ describe("GitHub App adapter", () => {
       code: "GITHUB_UNAVAILABLE",
     });
   });
+});
+
+
+it("uses REST-enabled real installation clients for repository details, trees and branches", async () => {
+  const { privateKey } = generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+    publicKeyEncoding: { type: "spki", format: "pem" },
+  });
+  const paths = [];
+  const mockFetch = vi.fn(async (input) => {
+    const path = new URL(typeof input === "string" ? input : input.url).pathname;
+    paths.push(path);
+    let body;
+    if (path === "/app/installations/123/access_tokens") {
+      body = { token: "fixture-installation-token", expires_at: new Date(Date.now() + 3600000).toISOString() };
+    } else if (path === "/repos/PocketOrg/repo-1") {
+      body = repository(1);
+    } else if (["/repos/PocketOrg/repo-1/contents", "/repos/PocketOrg/repo-1/contents/"].includes(path)) {
+      body = [{ name: "README.md", path: "README.md", type: "file", sha: "a".repeat(40), size: 5 }];
+    } else if (path === "/repos/PocketOrg/repo-1/branches") {
+      body = [{ name: "main", commit: { sha: "b".repeat(40) }, protected: true }];
+    } else {
+      throw new Error("Unexpected fixture request path");
+    }
+    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  });
+  const adapter = createGitHubAppAdapter({
+    config: { ...config, githubAppPrivateKey: privateKey },
+    OctokitClass: Octokit.defaults({ request: { fetch: mockFetch }, log: { debug() {}, info() {}, warn() {}, error() {} } }),
+  });
+  expect((await adapter.getRepository("123", "PocketOrg", "repo-1")).full_name).toBe("PocketOrg/repo-1");
+  expect((await adapter.listDirectory("123", "PocketOrg", "repo-1", "", "main")).entries[0].path).toBe("README.md");
+  await adapter.listBranches("123", "PocketOrg", "repo-1");
+  expect(paths).toContain("/repos/PocketOrg/repo-1/branches");
 });

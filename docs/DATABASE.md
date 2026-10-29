@@ -142,17 +142,17 @@ CREATE TABLE repository_selections (
 - `repositories(installation_id, removed_at)` and `repositories(github_repository_id)` unique.
 - `installation_memberships(user_id, status)` and unique `(installation_id, user_id)`.
 - `repository_selections(user_id, selected_at)` and unique `(repository_id, user_id)`.
-- `projects(user_id, created_at DESC)` and unique `(connection_id, provider_service_id)`.
+- `projects(user_id, created_at DESC)` and unique `(connection_id, provider_service_id)` and `(user_id,provider_service_id)`; composite connection-owner FK.
 - `deployments(project_id, created_at DESC)` and unique `(project_id, provider_deployment_id)`.
 - `incidents(project_id, status, detected_at DESC)`.
 - `incident_events(incident_id, created_at ASC)`.
 - `audit_events(actor_id, created_at DESC)`; `audit_events(resource_type, resource_id, created_at DESC)`.
 - `webhook_deliveries(delivery_id)` unique; delivery rows retain normalized payloads, retry count and claim state.
-- `operation_requests(actor_id, idempotency_key)` unique; optionally `(project_id, created_at DESC)`.
+- `operation_requests(actor_id, idempotency_key)` unique; `(status,next_attempt_at)` queue index and partial unique project index including `unknown` requests.
 
 ## 7. State machines
 
-**Operation:** `queued → validating → requesting → accepted → succeeded|failed|unknown`, claimed with a `FOR UPDATE SKIP LOCKED` lease by the deployment worker; stale `requesting` claims become `unknown` and are never re-dispatched automatically. **Deployment:** normalized provider states `queued|building|live|failed|canceled|unknown` (no invented stages; unmapped provider values become `unknown` while the raw provider status is preserved). Health status is a separate column that remains `not_checked` until health verification ships. **Incident:** `open → investigating → mitigated → resolved`, with reopen allowed and logged. Enforce transitions in services, not only UI.
+**Operation:** `queued → validating → requesting → accepted → succeeded|failed|unknown`, claimed with a `FOR UPDATE SKIP LOCKED` lease by the deployment worker; stale `requesting` claims become `unknown` and are never re-dispatched automatically. **Deployment:** normalized provider states `queued|building|live|failed|canceled|unknown` (no invented stages; unmapped provider values become `unknown` and unknown provider status text is not retained). Health status is a separate column that remains `not_checked` until health verification ships. **Incident:** `open → investigating → mitigated → resolved`, with reopen allowed and logged. Enforce transitions in services, not only UI.
 
 ## 8. Data consistency
 
@@ -184,3 +184,5 @@ For each migration: up/down tests on disposable PostgreSQL, unique/FK checks, da
 `GET /projects/:id`: constrain by authenticated user and connection ownership, then verify external provider access when needed. `GET /github/repositories/:id/file`: require an explicit user selection, active user-to-installation membership, current GitHub user and App installation visibility, and current repository membership; never authorize solely by a guessed UUID. `POST /deployments`: validate ownership, connection status, operation policy and exact provider service mapping.
 
 See [Security](SECURITY.md), [API](API.md), [Architecture](ARCHITECTURE.md).
+
+Migration 006 concurrency, lease, retention and rollback verification are recorded in [DEPLOYMENTS.md](DEPLOYMENTS.md).

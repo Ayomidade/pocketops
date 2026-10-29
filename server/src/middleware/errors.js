@@ -31,5 +31,8 @@ export function errorHandler(error, request, response, next) {
     "Request failed",
   );
 
+  if (status === 429 && Number.isFinite(error.retryAfterMs)) {
+    response.set("Retry-After", String(Math.ceil(Math.max(1000, Math.min(3600000, error.retryAfterMs)) / 1000)));
+  }
   return response.status(status).json(errorResponse(code, message, request.id));
 }

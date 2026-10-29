@@ -10,7 +10,7 @@ route coverage and real response envelopes. Endpoints described below that are
 not yet implemented (section 7) remain planned and are intentionally absent from
 the generated contract.
 
-> Implemented: liveness/readiness, identity/session endpoints, GitHub App repository reads, the guarded editor APIs in section 5, and the Render provider-connection, project, deployment, log and operation endpoints in sections 5–6. Editor writes require server configuration and explicit GitHub App write permissions; deployment endpoints require `DEPLOYMENTS_ENABLED=true`, a provider encryption key ring and GitHub App configuration, and redeploy processing requires the separate `npm run worker:deployments` process. Incidents, notifications, health verification and Render webhooks remain planned and are intentionally absent from the generated contract.
+> Implemented: liveness/readiness, identity/session endpoints, GitHub App repository reads, the guarded editor APIs in section 5, and the Render provider-connection, project, deployment, log and operation endpoints in sections 5–6. Editor writes require server configuration and explicit GitHub App write permissions; deployment reads require a provider encryption key ring and GitHub App configuration; new redeploy requests additionally require `DEPLOYMENTS_ENABLED=true`, and redeploy processing requires the separate `npm run worker:deployments` process. Incidents, notifications, health verification and Render webhooks remain planned and are intentionally absent from the generated contract.
 
 ## 1. Conventions
 
@@ -59,7 +59,7 @@ These paths are available under `/api/v1` and as unversioned `/auth` aliases; th
 
 **Implemented OAuth behavior:** the mobile client first posts an allowlisted redirect URI and a 256-bit completion secret to `/auth/mobile/start`. The backend stores hashes of both OAuth state and the completion secret, and returns an authorization URL. Opening that URL in the system browser goes through `GET /auth/github` to GitHub. The OAuth state expires after 10 minutes and can be consumed once. The callback exchanges the authorization code using backend-only credentials, requests only `read:user`, reads identity server-side, and redirects to `pocketops://auth/callback` with a random, one-use handoff that expires after two minutes. The app exchanges the handoff together with the completion secret held only in memory. The handoff alone is insufficient to create a session.
 
-GitHub's published OAuth App authorization parameter list does not document `code_challenge`/PKCE. This implementation therefore does not send unsupported PKCE parameters; it uses a confidential backend client, state validation, a fixed callback URI and the additional mobile completion-secret binding. See [GitHub's OAuth authorization documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps).
+Identity OAuth and GitHub App user authorization use `code_challenge_method=S256`, a challenge and matching server-only `code_verifier`. The confidential backend client, state validation, fixed callback URI and independent mobile completion-secret binding remain in place. See [GitHub's OAuth authorization documentation](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps).
 
 The exchange response includes the raw PocketOps session token exactly once. It is stored by the app only in Expo SecureStore; PostgreSQL stores only its SHA-256 hash. Sessions expire after 30 days. When a stored session approaches expiry, the app generates and stores a replacement token in SecureStore before the server atomically revokes the old session and stores the replacement hash. `GET /auth/me` returns an allowlisted user/session summary and never returns a token. `POST /auth/logout` revokes the current session; every authenticated request checks revocation and expiry against PostgreSQL. No automatic replay of non-idempotent requests is performed.
 
@@ -99,7 +99,7 @@ The App needs Contents: write for branches/commits and Pull requests: write for 
 | GET    | `/github/repositories/:repositoryId/file`     | `path,ref`            | Text metadata/content; max 512 KiB                     |
 | GET    | `/github/repositories/:repositoryId/branches` | `cursor`              | Branches, paginated in batches of 100                  |
 
-The API repository IDs are PocketOps UUIDs. All routes require the authenticated user's explicit selection, an active installation membership and live GitHub authorization. Paths reject traversal and control characters. Files are returned as editable UTF-8 only when valid; binary content returns `content: null`, `encoding: "binary"` and `editable: false`. Branch, commit, pull-request and deployment write routes do not exist in this milestone.
+The API repository IDs are PocketOps UUIDs. All routes require the authenticated user's explicit selection, an active installation membership and live GitHub authorization. Paths reject traversal and control characters. Files are returned as editable UTF-8 only when valid; binary content returns `content: null`, `encoding: "binary"` and `editable: false`. Guarded branch, commit, pull-request and deployment write routes are documented in their dedicated sections; these read-only routes never mutate repositories.
 
 **Directory limit:** GitHub Contents does not paginate directories. `meta.nextCursor` is always null for tree responses; `meta.directoryLimitReached` is true at 1,000 entries and the UI warns that the listing may be incomplete. Supplying a tree cursor returns 422 `DIRECTORY_CURSOR_UNSUPPORTED`. Repository and branch list pagination is unchanged. Submodules are identified as `type: "submodule"`; the explorer does not follow them.
 
@@ -205,7 +205,7 @@ Content-Type: application/json
   "target": {
     "serviceId": "srv-abc123",
     "deploymentId": "dep-xyz789",
-    "commitSha": "abc123..."
+    "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
   }
 }
 ```
@@ -225,7 +225,7 @@ The target must name the exact service, the current live deployment and its comm
     "deploymentId": null,
     "providerReference": null,
     "targetDeploymentId": "dep-xyz789",
-    "commitSha": "abc123...",
+    "commitSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "errorCode": null,
     "healthStatus": "not_checked",
     "reconciliationRequired": false
@@ -238,7 +238,7 @@ The target must name the exact service, the current live deployment and its comm
 
 **Idempotency:** key unique per actor, persisted with request hash; replay with same body returns original operation; same key/different body returns 409. One active operation per project. Provider support determines allowed actions; rollback and promotion are not supported by the Render adapter and are exposed as `capabilities: false`, never simulated.
 
-**Logs:** server caps time range (≤1 hour window), number of records and payload bytes; sanitize provider data; return HMAC-signed expiring cursors, not unlimited dumps. Example fields: `timestamp,level,message`. No secrets in logs or audit metadata.
+**Logs:** common secrets are redacted, but arbitrary application logs can still contain secrets or personal data. The server caps time range (≤1 hour window), number of records and payload bytes; sanitize provider data; return HMAC-signed expiring cursors, not unlimited dumps. Example fields: `timestamp,level,message`. No log contents or credentials are stored in audit metadata. See [DEPLOYMENTS.md](DEPLOYMENTS.md) for exact limits and redaction boundaries.
 
 **Verified Render API operations** (base `https://api.render.com/v1`, used only server-side by the Render adapter):
 
@@ -308,3 +308,5 @@ Use request cancellation, bounded retries for safe GET requests, explicit user r
 ## 11. Open API questions
 
 Provider-specific logs/redeploy capabilities must be verified at implementation time; API schema and status enums should be frozen before mobile/backend parallel development. Add generated OpenAPI schema and contract tests during Milestone 1–2.
+
+Render capability sources, queue/unknown-outcome semantics, setup and validation: [DEPLOYMENTS.md](DEPLOYMENTS.md).

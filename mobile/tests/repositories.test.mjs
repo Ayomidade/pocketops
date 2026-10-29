@@ -8,6 +8,7 @@ import {
   repositoryKey,
 } from "../src/features/repositories/cache.js";
 import {
+  sortDirectoryEntries,
   breadcrumbs,
   flattenPages,
   previewReason,
@@ -185,4 +186,33 @@ test("an old request cannot expire a newly rotated or signed-in session", async 
   });
   await assert.rejects(request("/github/repositories"));
   assert.equal(expired, false);
+});
+
+test("known-denied Render responses erase deployment and log caches before they can be displayed", async () => {
+  for (const status of [401, 403, 404, 409]) {
+    const client = createRepositoryClient();
+    const projectKey = ["deployments", "project", "project-id"];
+    const logsKey = ["deployments", "logs", "project-id", "{}"];
+    client.setQueryData(projectKey, { data: { name: "Private service" } });
+    client.setQueryData(logsKey, { data: { items: [{ message: "Private log" }] } });
+    await assert.rejects(client.fetchQuery({ queryKey: projectKey, queryFn: async () => { throw Object.assign(new Error("Access denied"), { status }); }, retry: false }));
+    assert.equal(client.getQueryData(projectKey), undefined);
+    assert.equal(client.getQueryData(logsKey), undefined);
+    await disposeRepositoryClient(client);
+  }
+});
+
+
+test("directory order places folders first with natural case-insensitive filenames without changing cached data", () => {
+  const entries = [
+    { name: "file10.js", type: "file" }, { name: "Zoo", type: "dir" },
+    { name: "file2.js", type: "file" }, { name: ".github", type: "dir" },
+    { name: "alpha.js", type: "file" }, { name: "src", type: "dir" },
+    { name: "Alpha.js", type: "file" },
+  ].map(Object.freeze);
+  Object.freeze(entries);
+  assert.deepEqual(sortDirectoryEntries(entries).map((item) => item.name),
+    [".github", "src", "Zoo", "Alpha.js", "alpha.js", "file2.js", "file10.js"]);
+  assert.equal(entries[0].name, "file10.js");
+  assert.deepEqual(sortDirectoryEntries(), []);
 });

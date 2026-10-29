@@ -4,7 +4,7 @@
 
 ## 1. Architectural decisions
 
-PocketOps uses a **single npm-workspaces monorepo** with a **native React Native/Expo application**, a **modular-monolith Express API**, **PostgreSQL/Sequelize** for persistent state, **Redis/BullMQ** for background jobs and external adapters for **GitHub and Render**. Native navigation/dashboards/notifications/deployment operations are mandatory. Only source editing uses a packaged **CodeMirror 6 WebView**. A cloud terminal and arbitrary repository execution are **excluded** from the MVP.
+PocketOps uses a **single npm-workspaces monorepo** with a **native React Native/Expo application**, a **modular-monolith Express API**, **PostgreSQL/Sequelize** for persistent state, **PostgreSQL leased operation queues** for current background jobs (**Redis/BullMQ** remains a target transport) and external adapters for **GitHub and Render**. Native navigation/dashboards/notifications/deployment operations are mandatory. Only source editing uses a packaged **CodeMirror 6 WebView**. A cloud terminal and arbitrary repository execution are **excluded** from the MVP.
 
 ### System context
 
@@ -13,7 +13,7 @@ flowchart TD
   D[Developer / Android or iOS] --> M[React Native / Expo mobile]
   M -->|HTTPS REST| A[Express API]
   A --> DB[(PostgreSQL)]
-  A --> Q[(Redis / BullMQ)]
+  A --> Q[(PostgreSQL operation queue)]
   Q --> W[Background worker]
   A --> GH[GitHub OAuth / GitHub App API]
   A --> R[Render API]
@@ -26,7 +26,7 @@ flowchart TD
 
 ## 2. Runtime boundaries
 
-**Mobile:** screens, secure PocketOps credential storage, navigation, encrypted local editor drafts and user confirmations. Never receives GitHub installation tokens, Render credentials or backend encryption keys.
+**Mobile:** screens, secure PocketOps credential storage, navigation, encrypted local editor drafts and user confirmations. Never receives provider credentials in API responses or backend encryption keys. A Render key entered in native onboarding is held only for submission and cleared on submit/background; it is not persisted on device.
 
 **API:** identity, resource-level authorization, request validation, GitHub/Render orchestration, audit persistence, webhook verification and job scheduling. Provider responses must be normalized and sanitized.
 
@@ -34,7 +34,7 @@ flowchart TD
 
 **PostgreSQL:** source of truth for users, sessions, OAuth transactions, authentication audit events, GitHub App installation links/memberships, repository catalog/selections and webhook deliveries, plus Render provider connections, projects, deployment records and durable deployment operation requests. Incident and notification state remain planned.
 
-**Redis:** queue transport and transient coordination, not authoritative record of production operations. Durable operation state lives in PostgreSQL.
+**Redis:** target queue transport, currently deferred. The deployment worker leases durable PostgreSQL operations directly; Redis/BullMQ is not installed or required. See the explicit transport decision in [DEPLOYMENTS.md](DEPLOYMENTS.md).
 
 ## 3. Mobile architecture
 
@@ -110,7 +110,7 @@ sequenceDiagram
   A-->>U: Opaque PocketOps credential
 ```
 
-The implemented identity flow creates a hashed state transaction through a mobile-start request, uses the system browser, exchanges the code on the backend, and binds the one-use handoff to an in-memory mobile completion secret. OAuth transactions and handoffs expire and are consumed once. GitHub's published OAuth App authorization parameters do not document PKCE, so the current confidential backend client uses state and the completion-secret binding rather than unsupported PKCE parameters. Identity sign-in grants no GitHub App installation or repository permissions.
+The implemented identity flow creates a hashed state transaction through a mobile-start request, uses the system browser, exchanges the code on the backend, and binds the one-use handoff to an in-memory mobile completion secret. OAuth transactions and handoffs expire and are consumed once. Identity and GitHub App user authorization both use S256 PKCE, with verifiers derived server-side from random state and their respective client secrets. State validation and the independent mobile completion-secret binding remain mandatory. See [Authentication review](AUTHENTICATION.md). Identity sign-in grants no GitHub App installation or repository permissions.
 
 The separate GitHub App flow uses its own hashed OAuth/setup state and native system-browser callback. The backend verifies the GitHub identity against the signed-in PocketOps user, encrypts expiring GitHub user/refresh tokens, maps installation access per PocketOps user and revalidates upstream access before each repository read or write. GitHub webhooks are raw-body HMAC verified and deduplicated into a durable PostgreSQL queue. Mobile screens provide a native repository explorer and use a bundled CodeMirror WebView only for source editing; branch selection, diff, confirmation, commit and PR screens remain native. Durable operation/idempotency rows and audit events track mutations without storing source content. See [Repository explorer](REPOSITORY_EXPLORER.md) and [Code editor](CODE_EDITOR.md).
 
@@ -187,3 +187,5 @@ Add Workspace Orchestrator, isolated ephemeral containers/VMs, filesystem and te
 - Team ownership/authorization schema before multi-user release.
 
 See [PRD](PRD.md), [Security](SECURITY.md), [Database](DATABASE.md), [API](API.md).
+
+Deployment behavior, failure semantics and manual gates: [DEPLOYMENTS.md](DEPLOYMENTS.md).

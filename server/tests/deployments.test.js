@@ -100,3 +100,16 @@ describe("Render connection and deployment services", () => {
     f.advance(6 * 60_000); await expect(f.app.logs({ ...f.input, ...window, cursor: first.nextCursor })).rejects.toMatchObject({ code: "INVALID_LOG_CURSOR" });
   });
 });
+
+it("stops queued writes when the operator disables deployments and never retries them after re-enable", async () => {
+  const f = deploymentFixture(); await f.app.requestDeployment(f.input); f.config.deploymentsEnabled = false;
+  await f.app.processNext(); expect([...f.ops.values()][0].status).toBe("failed"); expect(f.adapter.requestDeployment).not.toHaveBeenCalled();
+  f.config.deploymentsEnabled = true; f.advance(3600000); await f.app.processNext(); expect(f.adapter.requestDeployment).not.toHaveBeenCalled();
+});
+
+it("fails a definite provider conflict without automatically retrying the mutation", async () => {
+  const f = deploymentFixture(); await f.app.requestDeployment(f.input);
+  const rejected = new AppError(409, "RENDER_CONFLICT", "Render rejected the action."); rejected.retryable = false; rejected.ambiguous = false;
+  f.adapter.requestDeployment.mockRejectedValueOnce(rejected); await f.app.processNext();
+  expect([...f.ops.values()][0].status).toBe("failed"); f.advance(3600000); await f.app.processNext(); expect(f.adapter.requestDeployment).toHaveBeenCalledTimes(1);
+});

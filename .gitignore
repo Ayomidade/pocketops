@@ -17,3 +17,12 @@ mobile/android/.cxx/
 mobile/android/**/build/
 mobile/android/local.properties
 mobile/android/app/debug.keystore
+
+# EAS signing material and local build artifacts
+credentials.json
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+*.apk
+*.aab

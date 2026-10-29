@@ -26,12 +26,12 @@ export default function Page() {
         </Text>
       ) : null}
       <Pressable
-        className="min-h-14 items-center justify-center rounded-xl border border-red-400 px-5"
+        className="min-h-14 items-center justify-center rounded-xl border border-border px-5"
         accessibilityRole="button"
         accessibilityLabel="Sign out and revoke this session"
         onPress={() => void logout().catch(() => {})}
       >
-        <Text className="text-red-200 font-semibold">Sign out</Text>
+        <Text className="text-textSecondary font-semibold">Sign out</Text>
       </Pressable>
       <View className="mt-6">
         <InfoCard
@@ -40,7 +40,7 @@ export default function Page() {
           badge="Manage connection"
         />
         <Link
-          className="mt-3 min-h-12 text-center text-mint"
+          className="mt-3 min-h-12 text-center text-accentHi"
           href="/connections"
           accessibilityRole="link"
         >

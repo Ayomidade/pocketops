@@ -15,7 +15,8 @@
     "ios": "expo run:ios",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-test-isolation=none --test tests/*.test.mjs && jest --runInBand",
     "lint": "eslint app src tests scripts *.config.js *.config.cjs",
-    "test:ui": "jest --runInBand"
+    "test:ui": "jest --runInBand",
+    "eas-build-post-install": "node scripts/validate-build-env.mjs && npm run editor:bundle"
   },
   "dependencies": {
     "@codemirror/commands": "^6.11.1",
@@ -39,6 +40,7 @@
     "expo-router": "~6.0.0",
     "expo-secure-store": "~15.0.0",
     "expo-status-bar": "~3.0.0",
+    "expo-updates": "~29.0.20",
     "expo-web-browser": "~15.0.11",
     "nativewind": "^4.2.0",
     "react": "19.1.0",

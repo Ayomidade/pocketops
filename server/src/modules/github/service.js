@@ -1,3 +1,4 @@
+import { oauthPkce } from "../auth/pkce.js";
 import {
   createHash,
   createHmac,
@@ -531,8 +532,8 @@ export function createGitHubService({
       await repository.consumeDeniedLink(link.id, now);
       throw new AppError(
         400,
-        "GITHUB_AUTH_CANCELLED",
-        "GitHub connection was cancelled",
+        providerError === "access_denied" ? "GITHUB_AUTH_CANCELLED" : "GITHUB_AUTH_FAILED",
+        "GitHub connection was not authorized",
       );
     }
     if (!code || code.length > 2048) {
@@ -543,7 +544,7 @@ export function createGitHubService({
         "GitHub authorization could not be completed",
       );
     }
-    const tokens = await adapter.exchangeUserCode(code);
+    const tokens = await adapter.exchangeUserCode(code, { codeVerifier: oauthPkce(state, config.githubAppClientSecret, "github-app").verifier });
     const identity = await adapter.getAuthenticatedUser(tokens.accessToken);
     if (String(identity.id) !== String(link.githubUserId)) {
       await repository.consumeDeniedLink(link.id, now);
@@ -686,6 +687,8 @@ export function createGitHubService({
         config.githubAppOAuthCallbackUrl,
       );
       authorizationUrl.searchParams.set("state", state);
+      authorizationUrl.searchParams.set("code_challenge_method", "S256");
+      authorizationUrl.searchParams.set("code_challenge", oauthPkce(state, config.githubAppClientSecret, "github-app").challenge);
       authorizationUrl.searchParams.set("scope", "offline_access");
       return { authorizationUrl: authorizationUrl.toString() };
     },

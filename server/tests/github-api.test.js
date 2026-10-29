@@ -56,6 +56,20 @@ function makeServices(overrides = {}) {
 }
 
 describe("GitHub integration API", () => {
+  it.each(["install", "update"])("maps GitHub %s callback fields to the installation service", async (action) => {
+    const { app, githubService } = makeServices();
+    const state = "s".repeat(43);
+    const response = await request(app)
+      .get("/api/v1/github/installations/callback")
+      .query({ state, installation_id: "123456", setup_action: action })
+      .expect(302);
+    expect(githubService.handleInstallationCallback).toHaveBeenCalledWith({
+      state, installationId: "123456", setupAction: action,
+      requestId: expect.any(String),
+    });
+    expect(response.headers.location).toBe("pocketops://github/callback?status=connected");
+  });
+
   it.each([
     ["oauthCallback", "handleOAuthCallback"],
     ["installationCallback", "handleInstallationCallback"],
@@ -220,4 +234,10 @@ describe("GitHub integration API", () => {
       .set("Authorization", `Bearer ${token}`)
       .expect(404);
   });
+});
+
+it("forwards GitHub App denial correctly instead of treating it as a missing code", async () => {
+  const { app, githubService } = makeServices();
+  await request(app).get(`/api/v1/github/oauth/callback?state=${"s".repeat(43)}&error=access_denied`).expect(302);
+  expect(githubService.handleOAuthCallback).toHaveBeenCalledWith({ state: "s".repeat(43), code: undefined, providerError: "access_denied" });
 });

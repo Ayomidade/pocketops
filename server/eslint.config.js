@@ -22,6 +22,7 @@ export default [
         console: "readonly",
         fetch: "readonly",
         process: "readonly",
+        performance: "readonly",
         Response: "readonly",
         setInterval: "readonly",
         setImmediate: "readonly",

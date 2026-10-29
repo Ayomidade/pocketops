@@ -126,3 +126,12 @@ describe("authentication API", () => {
     expect(response.body.error.code).toBe("AUTH_UNAVAILABLE");
   });
 });
+
+it("passes a denied GitHub callback to the service as providerError and prevents caching auth responses", async () => {
+  const authService = makeAuthService();
+  const response = await request(createApp({ config, authService }))
+    .get(`/api/v1/auth/github/callback?state=${"s".repeat(43)}&error=access_denied`)
+    .expect(302);
+  expect(authService.handleCallback).toHaveBeenCalledWith(expect.objectContaining({ providerError: "access_denied", state: "s".repeat(43), code: undefined }));
+  expect(response.headers["cache-control"]).toBe("no-store");
+});

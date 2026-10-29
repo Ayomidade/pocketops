@@ -105,12 +105,12 @@ function showDocument(message) {
       active.editable.of(EditorView.editable.of(!active.readOnly)),
       EditorView.theme(
         {
-          "&": { height: "100%", color: "#e2e8f0", backgroundColor: "#0b1220" },
+          "&": { height: "100%", color: "#E6EDF3", backgroundColor: "#0B0F14" },
           ".cm-scroller": { overflow: "auto", fontFamily: "ui-monospace, monospace", fontSize: "14px" },
           ".cm-content": { minHeight: "100%", padding: "12px 0" },
-          ".cm-gutters": { color: "#94a3b8", backgroundColor: "#111c2f", border: "0" },
-          ".cm-activeLine": { backgroundColor: "#152238" },
-          ".cm-activeLineGutter": { backgroundColor: "#152238" },
+          ".cm-gutters": { color: "#9AA7B8", backgroundColor: "#121821", border: "0" },
+          ".cm-activeLine": { backgroundColor: "#1A2230" },
+          ".cm-activeLineGutter": { backgroundColor: "#1A2230" },
         },
         { dark: true },
       ),

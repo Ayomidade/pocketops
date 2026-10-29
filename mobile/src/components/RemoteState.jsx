@@ -1,3 +1,4 @@
+import { colors } from "../theme/tokens";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 export default function RemoteState({
@@ -14,24 +15,24 @@ export default function RemoteState({
         accessibilityRole="progressbar"
         accessibilityLabel={title || "Loading"}
       >
-        <ActivityIndicator color="#38D9B3" />
-        <Text className="text-slate-300 mt-3">{title || "Loading..."}</Text>
+        <ActivityIndicator color={colors.accentHi} />
+        <Text className="text-textSecondary mt-3">{title || "Loading..."}</Text>
       </View>
     );
   }
 
   return (
     <View
-      className="items-center rounded-2xl bg-panel p-5"
+      className="items-center rounded-2xl bg-surface p-5"
       accessibilityRole="summary"
       accessibilityLiveRegion="polite"
     >
-      <Text className="text-white text-lg font-semibold text-center">
+      <Text className="text-textPrimary text-lg font-semibold text-center">
         {title ||
           (kind === "error" ? "Something went wrong" : "Nothing here yet")}
       </Text>
       {message ? (
-        <Text className="text-slate-300 mt-2 text-center">{message}</Text>
+        <Text className="text-textSecondary mt-2 text-center">{message}</Text>
       ) : null}
       {kind === "error" && onRetry ? (
         <Pressable
@@ -40,7 +41,7 @@ export default function RemoteState({
           accessibilityLabel={retryLabel}
           onPress={onRetry}
         >
-          <Text className="text-white font-semibold">{retryLabel}</Text>
+          <Text className="text-textOnAccent font-semibold">{retryLabel}</Text>
         </Pressable>
       ) : null}
     </View>

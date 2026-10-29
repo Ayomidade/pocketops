@@ -10,11 +10,11 @@ export function createEditorHtml({ sessionId, bootRequestId, nonce, codeMirrorBu
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; connect-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'">
   <base href="${editorOrigin}/">
   <style nonce="${nonce}">
-    html, body, #editor { height: 100%; margin: 0; padding: 0; overflow: hidden; background: #0b1220; }
+    html, body, #editor { height: 100%; margin: 0; padding: 0; overflow: hidden; background: #0B0F14; }
     body { overscroll-behavior: contain; }
     .cm-editor { height: 100%; }
     .cm-scroller { -webkit-overflow-scrolling: touch; }
-    .cm-search { background: #111c2f; color: #e2e8f0; }
+    .cm-search { background: #121821; color: #E6EDF3; }
   </style>
 </head>
 <body>

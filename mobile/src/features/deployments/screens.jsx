@@ -14,9 +14,12 @@ function usePage() {
   const router = useRouter(); const { status } = useAuth(); const { isOffline } = useConnectivity();
   return { router, isOffline, authenticated: status === "authenticated" };
 }
-function SignedOut() { return <Redirect href="/(auth)/login" />; }
+function SignedOut() {
+  const { status } = useAuth();
+  return status === "starting" ? <Frame title="Restoring session"><QueryState query={{ isPending: true }} /></Frame> : <Redirect href="/(auth)/login" />;
+}
 function ErrorNotice({ error }) { return error ? <Copy alert>{error.message || "Unable to complete the request. Retry after checking access."}</Copy> : null; }
-function Card({ children }) { return <View className="rounded-2xl border border-slate-700 bg-panel p-4">{children}</View>; }
+function Card({ children }) { return <View className="rounded-2xl border border-border bg-surface p-4">{children}</View>; }
 function routeId(value) { return typeof value === "string" ? value : ""; }
 
 export function DeploymentsScreen() {
@@ -92,16 +95,22 @@ export function NewProjectScreen() {
   </Frame>;
 }
 
-function Logs({ projectId, enabled }) {
+export function LogRow({ item }) {
+  const [expanded, setExpanded] = useState(false);
+  return <View><Copy>{item.timestamp} · {item.level}</Copy><Text selectable className="font-mono text-textPrimary" numberOfLines={expanded ? undefined : 20}>{item.message}</Text>
+    <Action label={`${expanded ? "Collapse" : "Expand"} log ${item.id}`} onPress={() => setExpanded(!expanded)} /></View>;
+}
+function Logs({ projectId, enabled, header }) {
   const [window, setWindow] = useState(() => ({ from: new Date(Date.now() - 3600000).toISOString(), to: new Date().toISOString() }));
   const [level, setLevel] = useState(""); const { isOffline } = useConnectivity();
   const query = useDeploymentList("logs", projectId, { ...window, ...(level ? { level } : {}), limit: 50 }, enabled && !isOffline);
   const items = listItems(query);
   return <Rows query={query} items={isOffline || !enabled ? [] : items} empty="No logs in this bounded time window."
-    header={<View><Copy>Runtime logs · {window.from} → {window.to}</Copy><Copy>Common secrets are redacted; application logs may still contain sensitive information. Lines are capped at 4 KiB, pages at 128 KiB. Logs are not stored on this phone.</Copy>
+    header={<View>{header}<Copy>Runtime logs · {window.from} → {window.to}</Copy><Copy>Common secrets are redacted; application logs may still contain sensitive information. Lines are capped at 4 KiB, pages at 128 KiB. Only four pages are retained in memory. Logs are not stored on this phone.</Copy>
+      {query.data?.pages.some((p) => p.data.truncated) ? <Copy alert>The page was truncated at the byte limit. Narrow the time window or filter by level.</Copy> : null}
       <Action label="Refresh log window" disabled={isOffline} onPress={() => setWindow({ from: new Date(Date.now() - 3600000).toISOString(), to: new Date().toISOString() })} />
       <Action label={level ? "Show all log levels" : "Show error logs"} onPress={() => setLevel(level ? "" : "error")} /></View>}
-    renderItem={({ item }) => <View><Copy>{item.timestamp} · {item.level}</Copy><Text selectable className="font-mono text-slate-100" numberOfLines={20}>{item.message}</Text></View>} />;
+    renderItem={({ item }) => <LogRow item={item} />} />;
 }
 
 export function ProjectScreen() {
@@ -111,15 +120,15 @@ export function ProjectScreen() {
   const project = query.data?.data;
   if (!authenticated) return <SignedOut />;
   if (!project || query.isError) return <Frame title="Project" onBack={() => router.back()}><QueryState query={query} /></Frame>;
-  return <Frame title={project.name} subtitle={`${project.service.name} · ${project.providerServiceId}`} onBack={() => router.back()}>
-    <View className="px-5 gap-2"><Status value={project.status} /><Copy>Health verification is unavailable in this milestone.</Copy>
-      <Action label="Review redeployment" disabled={isOffline || query.isFetching || !project.capabilities.canRedeploy} onPress={() => router.push({ pathname: "/project/redeploy", params: { id } })} />
-      {!project.capabilities.canRedeploy ? <Copy>Redeploy unavailable: disabled by operator, unsupported service, or no known live commit.</Copy> : null}
+  const header = <View className="gap-2 mb-4"><Action label="Refresh project" disabled={isOffline || query.isFetching} onPress={() => { void query.refetch(); void history.refetch(); }} /><Copy>Project mapping: {project.status}</Copy><Status value={listItems(history)[0]?.status || "unknown"} /><Copy>Health verification is unavailable in this milestone.</Copy>
+      <Action caution label="Review redeployment" disabled={isOffline || query.isFetching || !project.capabilities.canRedeploy} onPress={() => router.push({ pathname: "/project/redeploy", params: { id } })} />
+      {!project.capabilities.canRedeploy ? <Copy>Redeploy unavailable: disabled by operator, unsupported service, no known live commit, or a pending operation.</Copy> : null}
       <Copy>Rollback and promotion are unavailable.</Copy>
       {project.pendingOperation ? <Action label="View current operation" onPress={() => router.push({ pathname: "/operation/[id]", params: { id: project.pendingOperation.operationId } })} /> : null}
       <View className="flex-row gap-3"><Action label="Deployment timeline" onPress={() => setTab("timeline")} /><Action label="Runtime logs" disabled={!project.capabilities.supportsLogs} onPress={() => setTab("logs")} /></View>
-    </View>
-    {tab === "logs" ? <Logs projectId={id} enabled={visible && !query.isError} /> : <Rows query={history} items={listItems(history)} empty="No deployments found."
+    </View>;
+  return <Frame title={project.name} subtitle={`${project.service.name} · ${project.providerServiceId}`} onBack={() => router.back()}>
+    {tab === "logs" ? <Logs projectId={id} enabled={visible && !query.isError} header={header} /> : <Rows query={history} items={listItems(history)} header={header} empty="No deployments found."
       renderItem={({ item }) => <Card><Copy>{item.status} · {item.startedAt || "Start time unavailable"}</Copy><Copy>{item.commitSha || "Commit unavailable"}</Copy><Action label={`Open deployment ${item.providerDeploymentId}`} disabled={isOffline} onPress={() => router.push({ pathname: "/deployment/[id]", params: { id: item.id } })} /></Card>} />}
   </Frame>;
 }
@@ -146,11 +155,12 @@ export function RedeployScreen() {
   if (!authenticated) return <SignedOut />;
   return <Frame title="Review redeployment" onBack={() => router.back()}>
     <ScrollView contentContainerStyle={{ padding: 20 }}>
+      {isOffline ? <Copy alert>Offline. Reconnect and refresh the target before confirming.</Copy> : null}
       {!project || query.isError ? <QueryState query={query} /> : <View className="gap-3"><Copy>Project: {project.name}</Copy><Copy>Exact service: {project.service.name} · {project.providerServiceId}</Copy>
         <Copy>Rebuild and deploy live revision: {project.redeployTarget?.commitSha || "Unavailable"}</Copy><Copy>Source deployment: {project.redeployTarget?.providerDeploymentId || "Unavailable"}</Copy>
         <Copy>No branch update, rollback, promotion or health check is included. A queued request may later fail or have an unknown outcome.</Copy>
         <ErrorNotice error={error} />{error ? <Copy>Retry reuses the same request key for this target. If the outcome is unknown, inspect the current project operation before submitting another request.</Copy> : null}
-        <Action label={stage === "review" ? "Continue to confirmation" : busy ? "Requesting deployment" : "Confirm exact redeployment"} disabled={!allowed || busy} onPress={() => stage === "review" ? setStage("confirm") : confirm()} />
+        <Action caution label={stage === "review" ? "Continue to confirmation" : busy ? "Requesting deployment" : "Confirm exact redeployment"} disabled={!allowed || busy} onPress={() => stage === "review" ? setStage("confirm") : confirm()} />
         <Action label="Refresh target" disabled={busy || isOffline} onPress={() => { setStage("review"); void query.refetch(); }} />
       </View>}
     </ScrollView>
@@ -158,10 +168,11 @@ export function RedeployScreen() {
 }
 
 export function DeploymentDetailScreen() {
-  const { router, authenticated } = usePage(); const { id } = useLocalSearchParams(); const query = useDeploymentDetail("deployment", routeId(id));
+  const { router, authenticated, isOffline } = usePage(); const { id } = useLocalSearchParams(); const query = useDeploymentDetail("deployment", routeId(id));
   if (!authenticated) return <SignedOut />;
   const d = query.data?.data;
   return <Frame title="Deployment detail" onBack={() => router.back()}><ScrollView contentContainerStyle={{ padding: 20 }}>
+    {isOffline ? <Copy alert>Offline. Displayed deployment metadata may be stale.</Copy> : null}
     {!d || query.isError ? <QueryState query={query} /> : <View className="gap-3"><Status value={d.status} /><Copy>Provider status: {d.providerStatus}</Copy><Copy>{d.providerDeploymentId}</Copy><Copy>Commit: {d.commitSha || "Unavailable"}</Copy><Copy>Started: {d.startedAt || "Unavailable"}</Copy><Copy>Finished: {d.finishedAt || "Unavailable"}</Copy><Action label="Refresh deployment" onPress={query.refetch} /></View>}
   </ScrollView></Frame>;
 }
@@ -170,6 +181,7 @@ export function OperationScreen() {
   if (!authenticated) return <SignedOut />;
   const op = query.data?.data;
   return <Frame title="Deployment operation" onBack={() => router.back()}><ScrollView contentContainerStyle={{ padding: 20 }}>
+    {isOffline ? <Copy alert>Offline. Displayed operation status may be stale; reconnect to verify.</Copy> : null}
     {!op || query.isError ? <QueryState query={query} /> : <View className="gap-3"><Copy>Request status: {op.status}</Copy><Copy>Operation: {op.operationId}</Copy><Copy>Commit: {op.commitSha}</Copy>
       <Copy>Application health: Not checked</Copy>
       {op.status === "succeeded" ? <Copy>Render reports the deployment live. Application recovery has not been verified.</Copy> : <Copy>Queued, requested and provider-accepted states do not mean deployment success.</Copy>}

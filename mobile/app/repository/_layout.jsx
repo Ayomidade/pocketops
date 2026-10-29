@@ -10,7 +10,7 @@ export default function RepositoryLayout() {
   if (action === "sign_in") return <Redirect href="/(auth)/login" />;
   if (action !== "render")
     return (
-      <View className="flex-1 justify-center bg-ink p-5">
+      <View className="flex-1 justify-center bg-bg p-5">
         <RemoteState
           kind={action === "loading" ? "loading" : "error"}
           title="Checking secure session"
@@ -18,5 +18,5 @@ export default function RepositoryLayout() {
         />
       </View>
     );
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return <Stack screenOptions={{ headerShown: false, statusBarHidden: true, navigationBarHidden: true }} />;
 }

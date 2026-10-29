@@ -31,7 +31,7 @@ PocketOps may access private repositories, production logs and deployment action
 
 ## 4. Authentication specification
 
-Use GitHub OAuth for identity. Repository access is a separate GitHub App authorization and installation flow; identity sign-in alone grants no repository permissions. The app opens the system browser using Expo WebBrowser, never an embedded login WebView. The backend hashes and validates OAuth state, exchanges authorization codes with its confidential client credentials, and requests only `read:user`. GitHub's published OAuth App authorization parameters do not document PKCE support, so this implementation does not assume or send PKCE parameters. The backend uses a fixed HTTPS callback and exact configured mobile redirect.
+Use GitHub OAuth for identity. Repository access is a separate GitHub App authorization and installation flow; identity sign-in alone grants no repository permissions. The app opens the system browser using Expo WebBrowser, never an embedded login WebView. The backend hashes and validates OAuth state, exchanges authorization codes with its confidential client credentials, and requests only `read:user`. GitHub supports and recommends S256 PKCE: both identity and GitHub App user authorization send a challenge and matching server-only verifier. See [Authentication review](AUTHENTICATION.md) for derivation, session race fixes and remaining manual gates. The backend uses a fixed HTTPS callback and exact configured mobile redirect.
 
 The mobile app generates a 256-bit completion secret and keeps it only in memory during the browser flow. The backend stores only its hash with the OAuth transaction. After the callback, a random handoff code is placed in the registered app-scheme callback; it expires within two minutes, is hashed at rest and can be consumed once only with the matching completion secret. Intercepting or spoofing the deep link alone therefore cannot mint a PocketOps session. A process interruption discards the completion secret and requires restarting sign-in.
 
@@ -108,3 +108,9 @@ Audit login/logout, connection creation/revocation, repository access changes, c
 ## 14. Deferred cloud execution threat model
 
 Future isolated workspaces introduce arbitrary-code execution, egress exfiltration, resource exhaustion and container escape risks. Require VM-grade isolation or equivalent, no host socket mounts, per-session quotas, network restrictions, short-lived credentials, cleanup and dedicated infrastructure. **Do not implement any remote terminal in MVP.**
+
+## Render milestone security boundary
+
+Render credentials use a versioned AES-256-GCM key ring with owner/connection/version AAD and lazy rotation. Native onboarding briefly handles the user-entered key for HTTPS submission, then clears it; responses are metadata-only and no key is persisted on device. Render API keys can be broadly privileged; use a dedicated test account. Deployment requests persist their confirmation, target fingerprint and audit before queueing. Expired dispatch claims and ambiguous writes become unknown and cannot be blindly replayed. The operator kill switch must be set consistently on API and worker; it cannot cancel an in-flight provider request.
+
+Log redaction is defense in depth, not comprehensive secret recognition. Source applications must avoid logging secrets. Logs are bounded and not stored; memory caches clear on authorization loss/background/logout. Durable operation/idempotency and audit rows require an approved retention policy. Health probes remain unavailable, avoiding an arbitrary-fetch/SSRF endpoint in this milestone. See [DEPLOYMENTS.md](DEPLOYMENTS.md) for manual security gates and rotation/revocation details.

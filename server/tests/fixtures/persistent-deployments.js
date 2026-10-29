@@ -1,0 +1,51 @@
+import { randomUUID } from "node:crypto";
+import { expect } from "vitest";
+import { createDeploymentRepository } from "../../src/modules/deployments/repository.js";
+import { credentialVault } from "../../src/modules/deployments/crypto.js";
+
+export async function verifyPersistentDeployments({ sequelize, models, user, githubRepository }) {
+  const repository = createDeploymentRepository({ sequelize, models });
+  const vault = credentialVault({ keys: { test: Buffer.alloc(32, 6) }, activeVersion: "test" });
+  const connectionId = randomUUID();
+  await repository.createConnection({ id: connectionId, userId: user.id, provider: "render", displayName: "Isolated fixture", status: "active", ...vault.seal("rnd_fake_test_only", user.id, connectionId) }, "db-test");
+  const connection = await repository.findConnection(user.id, connectionId);
+  expect(vault.open(connection)).toBe("rnd_fake_test_only");
+  expect(await repository.findConnection(randomUUID(), connectionId)).toBeNull();
+  const secondUser = await models.User.create({ githubUserId: "99999123", username: "other-fixture" });
+  const project = await repository.createProject({ id: randomUUID(), userId: user.id, repositoryId: githubRepository.id, connectionId, providerServiceId: "srv-fixture", name: "Isolated test service", status: "active" }, "db-test");
+  await expect(models.Project.create({ id: randomUUID(), userId: secondUser.id, repositoryId: githubRepository.id, connectionId, providerServiceId: "srv-other", name: "Forbidden mapping", status: "active" })).rejects.toMatchObject({ name: "SequelizeForeignKeyConstraintError" });
+  const input = { id: randomUUID(), actorId: user.id, projectId: project.id, action: "redeploy", idempotencyKey: "db-concurrent-request", requestHash: "a".repeat(64), targetDeploymentId: "dep-live", commitSha: "b".repeat(40), status: "queued", requestId: "db-test", nextAttemptAt: new Date() };
+  const [one, two] = await Promise.all([repository.enqueue(input), repository.enqueue({ ...input, id: randomUUID() })]);
+  expect(one.op.id).toBe(two.op.id); expect([one.created, two.created].sort()).toEqual([false, true]);
+  expect(await models.OperationRequest.count()).toBe(1);
+  await expect(repository.enqueue({ ...input, id: randomUUID(), idempotencyKey: "second-key-for-project" })).rejects.toMatchObject({ code: "DEPLOYMENT_ALREADY_PENDING" });
+  const claims = await Promise.all([repository.claim(new Date()), repository.claim(new Date())]);
+  expect(claims.filter(Boolean)).toHaveLength(1);
+  const op = claims.find(Boolean);
+  expect(op.status).toBe("validating");
+  expect(await repository.dispatch(op, connectionId, new Date())).toBe(true);
+  expect(await repository.dispatch(op, connectionId, new Date())).toBe(false);
+  const deployment = { providerDeploymentId: "dep-new", status: "building", providerStatus: "build_in_progress", commitSha: input.commitSha, healthStatus: "not_checked", startedAt: new Date().toISOString(), finishedAt: null };
+  await repository.finish(op, { status: "accepted", nextAttemptAt: new Date() }, deployment, "deployment.provider_accepted");
+  const persisted = await repository.findOperation(user.id, op.id);
+  expect(persisted.providerReference).toBe("dep-new"); expect(persisted.deploymentId).toBeTruthy();
+  expect(await models.AuthAuditEvent.count({ where: { operationRequestId: op.id } })).toBe(3);
+  const refreshed = await repository.saveDeployment(project.id, { ...deployment, status: "live", providerStatus: "live" });
+  expect(refreshed.id).toBe(persisted.deploymentId);
+  expect(await models.Deployment.count({ where: { projectId: project.id } })).toBe(1);
+  // A new repository instance sees persisted claims and results after a process restart.
+  const restarted = createDeploymentRepository({ sequelize, models });
+  const reconciliation = await restarted.claim(new Date());
+  expect(reconciliation.status).toBe("accepted");
+  await restarted.finish(reconciliation, { status: "succeeded" }, { ...deployment, status: "live", providerStatus: "live" }, "deployment.completed");
+  await repository.enqueue({ ...input, id: randomUUID(), idempotencyKey: "simulate-dispatch-crash" });
+  const crashed = await repository.claim(new Date());
+  expect(await repository.dispatch(crashed, connectionId, new Date())).toBe(true);
+  await models.OperationRequest.update({ claimExpiresAt: new Date(0) }, { where: { id: crashed.id } });
+  expect(await restarted.claim(new Date())).toBeNull();
+  expect((await repository.findOperation(user.id, crashed.id)).status).toBe("unknown");
+  await expect(repository.enqueue({ ...input, id: randomUUID(), idempotencyKey: "cannot-retry-unknown" })).rejects.toMatchObject({ code: "DEPLOYMENT_ALREADY_PENDING" });
+  await repository.revokeConnection(user.id, connectionId, "db-test-revoke");
+  expect((await repository.findConnection(user.id, connectionId)).encryptedCredentials).toBeNull();
+  expect((await repository.findProject(user.id, project.id)).status).toBe("disconnected");
+}

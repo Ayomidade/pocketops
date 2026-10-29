@@ -16,7 +16,9 @@ export function createAuthController(service) {
 
     async callback(request, response) {
       const result = await service.handleCallback({
-        ...request.validated.query,
+        state: request.validated.query.state,
+        code: request.validated.query.code,
+        providerError: request.validated.query.error,
         requestId: request.id,
       });
       return response.redirect(302, result.redirectUrl);

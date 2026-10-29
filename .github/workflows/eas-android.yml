@@ -1,0 +1,107 @@
+name: Android APK and OTA update
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Keep publication order within a branch. GitHub may replace an older pending
+# run when several pushes arrive while another build is running.
+concurrency:
+  group: eas-android-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pocketops
+          POSTGRES_PASSWORD: pocketops
+          POSTGRES_DB: pocketops_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pocketops -d pocketops_test"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    env:
+      DATABASE_URL_TEST: postgres://pocketops:pocketops@127.0.0.1:5432/pocketops_test
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      UPDATE_BASE_SHA: ${{ github.event.before }}
+      CI: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.3'
+          cache: npm
+      - name: Check Expo authentication
+        run: |
+          test -n "$EXPO_TOKEN" || { echo 'Add the EXPO_TOKEN repository secret.'; exit 1; }
+      - run: npm ci
+      - name: Block vulnerable release dependencies
+        run: npm audit --audit-level=high --json > npm-audit.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-advisory-report
+          path: npm-audit.json
+      - run: npm exec --workspace=mobile -- expo install --check
+      - run: npm run lint
+      - run: npm test
+      - run: npm run api:contract:check
+      - run: node mobile/scripts/check-update-runtime.mjs
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Select branch-specific update channel
+        id: channel
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          node --input-type=module <<'JS'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const channel = process.env.GITHUB_REF_NAME === process.env.DEFAULT_BRANCH
+            ? 'preview'
+            : 'branch-' + createHash('sha256').update(process.env.GITHUB_REF).digest('hex').slice(0, 16);
+          const config = JSON.parse(fs.readFileSync('mobile/eas.json', 'utf8'));
+          config.build.preview.channel = channel;
+          fs.writeFileSync('mobile/eas.json', JSON.stringify(config, null, 2) + '\n');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `name=${channel}\n`);
+          JS
+      - name: Build installable APK (wait for completion)
+        working-directory: mobile
+        run: eas build --platform android --profile preview --non-interactive --wait --json > ../eas-build.json
+      - name: Save build result and download link
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-result-${{ github.sha }}
+          path: eas-build.json
+      - name: Add APK link to run summary
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const builds = JSON.parse(fs.readFileSync('eas-build.json', 'utf8'));
+          const build = builds.find(item => item.platform === 'ANDROID');
+          if (!build || build.status !== 'FINISHED' || !build.artifacts?.buildUrl) {
+            throw new Error('No completed Android APK artifact returned by EAS.');
+          }
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `Android APK: ${build.artifacts.buildUrl}\n\nInstall this APK once to enable OTA updates.\n`);
+          JS
+      - name: Prepare editor assets for update export
+        run: npm run editor:bundle -w mobile
+      - name: Publish compatible OTA update
+        working-directory: mobile
+        env:
+          UPDATE_CHANNEL: ${{ steps.channel.outputs.name }}
+        run: eas update --channel "$UPDATE_CHANNEL" --environment preview --platform android --message "$GITHUB_SHA" --non-interactive

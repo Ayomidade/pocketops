@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useFocusEffect } from "expo-router";
+import { Link, Redirect, useFocusEffect } from "expo-router";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { Pressable, Text, View } from "react-native";
@@ -27,6 +27,14 @@ function messageFor(error) {
 }
 
 export default function ConnectionsPage() {
+  const { status, message, restoreSession } = useAuth();
+  if (status === "starting") return <Screen title="GitHub connections"><RemoteState kind="loading" title="Restoring secure session..." /></Screen>;
+  if (status === "failed") return <Screen title="GitHub connections"><RemoteState kind="error" title="Unable to restore session" message={message} onRetry={() => void restoreSession()} /></Screen>;
+  if (status !== "authenticated") return <Redirect href="/(auth)/login" />;
+  return <AuthenticatedConnectionsPage />;
+}
+
+function AuthenticatedConnectionsPage() {
   const { authenticatedRequest } = useAuth();
   const githubApi = useMemo(
     () => createGitHubApi(authenticatedRequest),
@@ -163,8 +171,8 @@ export default function ConnectionsPage() {
       subtitle="Identity sign-in and repository permissions are separate. Only repositories you select here are exposed to PocketOps."
     >
       <InfoCard
-        title="Read-only access"
-        description="PocketOps requests repository contents and metadata read access only. Branch, commit, pull-request and deployment writes are not available in this milestone."
+        title="Repository permissions"
+        description="Browsing needs Contents and Metadata read access. The source editor additionally needs Contents and Pull requests write permissions. Identity sign-in alone grants neither."
         badge="GitHub App"
       />
 
@@ -183,7 +191,7 @@ export default function ConnectionsPage() {
         </View>
       ) : null}
       {notice ? (
-        <Text className="mt-4 text-mint" accessibilityRole="status">
+        <Text className="mt-4 text-accentHi" accessibilityRole="status">
           {notice}
         </Text>
       ) : null}
@@ -196,11 +204,11 @@ export default function ConnectionsPage() {
         disabled={connecting}
         onPress={() => void connect()}
       >
-        <Text className="font-semibold text-white">
+        <Text className="font-semibold text-textOnAccent">
           {connecting ? "Waiting for GitHub..." : "Connect GitHub App"}
         </Text>
       </Pressable>
-      <Text className="mt-3 text-sm leading-5 text-slate-400">
+      <Text className="mt-3 text-sm leading-5 text-textSecondary">
         GitHub will ask which account and repositories to grant. PocketOps
         checks both the app installation and your signed-in GitHub account
         before showing repository data.
@@ -218,7 +226,7 @@ export default function ConnectionsPage() {
         </View>
       ) : (
         <View className="mt-6">
-          <Text className="mb-2 text-lg font-semibold text-white">
+          <Text className="mb-2 text-lg font-semibold text-textPrimary">
             Connected accounts
           </Text>
           {installations.map((installation) => (
@@ -226,8 +234,8 @@ export default function ConnectionsPage() {
               key={installation.id}
               className={`mb-2 min-h-14 justify-center rounded-xl border px-4 ${
                 installation.id === installationId
-                  ? "border-mint bg-panel"
-                  : "border-slate-700 bg-panel"
+                  ? "border-accent bg-surface"
+                  : "border-border bg-surface"
               }`}
               accessibilityRole="button"
               accessibilityLabel={`Manage GitHub installation for ${installation.accountLogin}`}
@@ -236,10 +244,10 @@ export default function ConnectionsPage() {
               }}
               onPress={() => setInstallationId(installation.id)}
             >
-              <Text className="font-semibold text-white">
+              <Text className="font-semibold text-textPrimary">
                 {installation.accountLogin} ({installation.accountType})
               </Text>
-              <Text className="text-sm text-slate-400">
+              <Text className="text-sm text-textSecondary">
                 {installation.selectedRepositoryCount} selected of{" "}
                 {installation.repositoryCount} currently authorized
               </Text>
@@ -248,7 +256,7 @@ export default function ConnectionsPage() {
 
           {currentInstallation ? (
             <>
-              <Text className="mb-2 mt-4 text-lg font-semibold text-white">
+              <Text className="mb-2 mt-4 text-lg font-semibold text-textPrimary">
                 Select repositories
               </Text>
               {loadingRepositories ? (
@@ -270,7 +278,7 @@ export default function ConnectionsPage() {
                   return (
                     <Pressable
                       key={repository.githubRepositoryId}
-                      className="mb-2 min-h-14 flex-row items-center rounded-xl border border-slate-700 bg-panel px-4"
+                      className="mb-2 min-h-14 flex-row items-center rounded-xl border border-border bg-surface px-4"
                       accessibilityRole="checkbox"
                       accessibilityLabel={`Select ${repository.fullName}`}
                       accessibilityState={{ checked }}
@@ -278,14 +286,14 @@ export default function ConnectionsPage() {
                         toggleRepository(repository.githubRepositoryId)
                       }
                     >
-                      <Text className="mr-3 text-lg text-mint">
+                      <Text className="mr-3 text-lg text-accentHi">
                         {checked ? "[x]" : "[ ]"}
                       </Text>
                       <View className="flex-1">
-                        <Text className="font-semibold text-white">
+                        <Text className="font-semibold text-textPrimary">
                           {repository.fullName}
                         </Text>
-                        <Text className="text-sm text-slate-400">
+                        <Text className="text-sm text-textSecondary">
                           {repository.private ? "Private" : "Public"}
                           {repository.archived ? " · Archived" : ""}
                         </Text>
@@ -295,14 +303,14 @@ export default function ConnectionsPage() {
                 })
               )}
               <Pressable
-                className="mt-2 min-h-14 items-center justify-center rounded-xl border border-mint px-5"
+                className="mt-2 min-h-14 items-center justify-center rounded-xl border border-accent px-5"
                 accessibilityRole="button"
                 accessibilityLabel="Save selected repositories"
                 accessibilityState={{ disabled: saving || loadingRepositories }}
                 disabled={saving || loadingRepositories}
                 onPress={() => void saveSelection()}
               >
-                <Text className="font-semibold text-mint">
+                <Text className="font-semibold text-accentHi">
                   {saving
                     ? "Verifying and saving..."
                     : "Save repository selection"}
@@ -313,7 +321,7 @@ export default function ConnectionsPage() {
         </View>
       )}
       <Link
-        className="mt-6 text-center text-mint"
+        className="mt-6 text-center text-accentHi"
         href="/(tabs)/repositories"
         accessibilityRole="link"
       >
