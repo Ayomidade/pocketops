@@ -1,0 +1,474 @@
+import { useRef, useState } from "react";
+import { Alert, FlatList, View } from "react-native";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import * as Crypto from "expo-crypto";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "../auth/AuthProvider";
+import { useConnectivity } from "../../hooks/useConnectivity";
+import {
+  Action,
+  Copy,
+  Frame,
+  Input,
+  QueryState,
+  Rows,
+} from "../deployments/components";
+import { useDeploymentList, listItems } from "../deployments/queries";
+import { useIncidentApi, useIncidentPages, useIncidentQuery } from "./queries";
+import { registerNotifications } from "./notifications";
+const states = [
+  "open",
+  "investigating",
+  "mitigating",
+  "monitoring",
+  "resolved",
+];
+const severities = ["low", "medium", "high", "critical"];
+const next = {
+  open: ["investigating"],
+  investigating: ["mitigating", "monitoring"],
+  mitigating: ["investigating", "monitoring"],
+  monitoring: ["investigating"],
+  resolved: ["open"],
+};
+function Guard({ children }) {
+  const { status } = useAuth();
+  return status === "authenticated" ? (
+    children
+  ) : status === "starting" ? (
+    <Frame title="Restoring session" />
+  ) : (
+    <Redirect href="/(auth)/login" />
+  );
+}
+function Choices({ values, value, onChange, label }) {
+  return (
+    <View className="flex-row flex-wrap">
+      {values.map((v) => (
+        <Action
+          key={v}
+          label={`${label}: ${v || "all"}${value === v ? " (selected)" : ""}`}
+          onPress={() => onChange(v)}
+        />
+      ))}
+    </View>
+  );
+}
+function Failure({ error }) {
+  return error ? (
+    <Copy alert>{error.message || "Request failed. Refresh and retry."}</Copy>
+  ) : null;
+}
+export function IncidentsScreen() {
+  const router = useRouter();
+  const [status, setStatus] = useState(""),
+    [severity, setSeverity] = useState("");
+  const query = useIncidentPages("list", "", { status, severity });
+  return (
+    <Guard>
+      <Rows
+        query={query}
+        items={
+          query.isError || (query.isStale && query.isFetching)
+            ? []
+            : listItems(query)
+        }
+        empty="No incidents match these filters."
+        header={
+          <View>
+            <Copy>Incidents</Copy>
+            <Action
+              label="Report incident"
+              onPress={() => router.push("/incident/create")}
+            />
+            <Action
+              label="Notification preferences"
+              onPress={() => router.push("/incident/notifications")}
+            />
+            <Choices
+              label="Status"
+              values={["", ...states]}
+              value={status}
+              onChange={setStatus}
+            />
+            <Choices
+              label="Severity"
+              values={["", ...severities]}
+              value={severity}
+              onChange={setSeverity}
+            />
+          </View>
+        }
+        renderItem={({ item }) => (
+          <View className="m-3 rounded-xl bg-surface p-4">
+            <Copy>{item.title}</Copy>
+            <Copy>
+              {item.severity} · {item.status}
+            </Copy>
+            <Action
+              label={`Open incident ${item.title}`}
+              onPress={() =>
+                router.push({
+                  pathname: "/incident/[id]",
+                  params: { id: item.id },
+                })
+              }
+            />
+          </View>
+        )}
+      />
+    </Guard>
+  );
+}
+export function CreateIncidentScreen() {
+  const api = useIncidentApi(),
+    router = useRouter();
+  const client = useQueryClient();
+  const projects = useDeploymentList("projects");
+  const [projectId, setProjectId] = useState(""),
+    [title, setTitle] = useState(""),
+    [severity, setSeverity] = useState("medium"),
+    [error, setError] = useState(null),
+    [busy, setBusy] = useState(false);
+  const { isOffline } = useConnectivity();
+  const pending = useRef(null);
+  async function create() {
+    setBusy(true);
+    setError(null);
+    const body = { projectId, title: title.trim(), severity };
+    const hash = JSON.stringify(body);
+    if (pending.current?.hash !== hash)
+      pending.current = { hash, key: Crypto.randomUUID() };
+    try {
+      const result = await api.create(body, pending.current.key);
+      await client.invalidateQueries({ queryKey: ["incidents"] });
+      router.replace({
+        pathname: "/incident/[id]",
+        params: { id: result.data.id },
+      });
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Guard>
+      <Frame title="Report incident">
+        <Copy>
+          Select an authorized project. Do not include secrets or raw logs.
+        </Copy>
+        <Input
+          label="Incident title"
+          value={title}
+          onChangeText={setTitle}
+          maxLength={160}
+        />
+        <Choices
+          label="Severity"
+          values={severities}
+          value={severity}
+          onChange={setSeverity}
+        />
+        <QueryState query={projects} />
+        {!projects.isError &&
+          listItems(projects).map((p) => (
+            <Action
+              key={p.id}
+              label={`Project: ${p.name}${projectId === p.id ? " (selected)" : ""}`}
+              onPress={() => setProjectId(p.id)}
+            />
+          ))}
+        {projects.hasNextPage ? (
+          <Action
+            label="More projects"
+            onPress={() => projects.fetchNextPage()}
+          />
+        ) : null}
+        <Failure error={error} />
+        <Action
+          label={busy ? "Creating incident" : "Create incident"}
+          disabled={busy || isOffline || !title.trim() || !projectId}
+          onPress={create}
+        />
+      </Frame>
+    </Guard>
+  );
+}
+export function IncidentDetailScreen() {
+  const { id } = useLocalSearchParams();
+  const api = useIncidentApi(),
+    router = useRouter(),
+    client = useQueryClient();
+  const query = useIncidentQuery("detail", id),
+    timeline = useIncidentPages("timeline", id);
+  const { isOffline } = useConnectivity();
+  const [error, setError] = useState(null),
+    [busy, setBusy] = useState(false);
+  const incident = !query.isError && !isOffline ? query.data?.data : null;
+  async function update(values) {
+    setBusy(true);
+    setError(null);
+    try {
+      if (values === "resolve") await api.resolve(id, incident.version);
+      else await api.update(id, { version: incident.version, ...values });
+      await client.invalidateQueries({ queryKey: ["incidents"] });
+    } catch (e) {
+      setError(e);
+      void query.refetch();
+    } finally {
+      setBusy(false);
+    }
+  }
+  const header = (
+    <View>
+      <Copy>Incident timeline</Copy>
+      <QueryState query={query} />
+      {incident ? (
+        <>
+          <Copy>{incident.title}</Copy>
+          <Copy>
+            {incident.severity} · {incident.status}
+          </Copy>
+          <Copy>Application health: {incident.health.status}</Copy>
+          <Copy>{incident.health.policy}</Copy>
+          <Copy>{incident.correlation}</Copy>
+          <Copy>
+            Deployment completion is separate from application health
+            verification.
+          </Copy>
+          <Action
+            label="Inspect deployment history and runtime logs"
+            onPress={() =>
+              router.push({
+                pathname: "/project/[id]",
+                params: { id: incident.projectId },
+              })
+            }
+          />
+          <Action
+            label="Browse repository and create a fix PR"
+            onPress={() =>
+              router.push({
+                pathname: "/repository/[id]",
+                params: { id: incident.repositoryId },
+              })
+            }
+          />
+          <Action
+            label="Configure automated health checks"
+            onPress={() =>
+              router.push({
+                pathname: "/incident/monitor",
+                params: { projectId: incident.projectId },
+              })
+            }
+          />
+          {next[incident.status]?.map((s) => (
+            <Action
+              key={s}
+              label={`Move to ${s}`}
+              disabled={busy}
+              onPress={() => update({ status: s })}
+            />
+          ))}
+          <Choices
+            label="Severity"
+            values={severities}
+            value={incident.severity}
+            onChange={(severity) => {
+              if (!busy) void update({ severity });
+            }}
+          />
+          {incident.status === "monitoring" ? (
+            <Action
+              label="Resolve verified incident"
+              disabled={busy || incident.health.status !== "verified"}
+              onPress={() =>
+                Alert.alert(
+                  "Resolve incident?",
+                  "Confirm application recovery after reviewing the health observations.",
+                  [
+                    { text: "Cancel", style: "cancel" },
+                    { text: "Resolve", onPress: () => update("resolve") },
+                  ],
+                )
+              }
+            />
+          ) : null}
+        </>
+      ) : null}
+      <Failure error={error} />
+    </View>
+  );
+  return (
+    <Guard>
+      <Rows
+        query={timeline}
+        items={
+          isOffline || query.isError || timeline.isError
+            ? []
+            : listItems(timeline)
+        }
+        header={header}
+        empty="No timeline events available."
+        renderItem={({ item }) => (
+          <View className="m-3 bg-surface p-4">
+            <Copy>
+              {item.type} · {new Date(item.createdAt).toLocaleString()}
+            </Copy>
+            <Copy>
+              {item.actorId ? "Developer action" : "System observation"}
+            </Copy>
+            {item.metadata?.deploymentReference ? (
+              <Copy>
+                Suggested deployment: {item.metadata.deploymentReference}
+              </Copy>
+            ) : null}
+            {item.metadata?.status ? (
+              <Copy>Status: {item.metadata.status}</Copy>
+            ) : null}
+          </View>
+        )}
+      />
+    </Guard>
+  );
+}
+export function MonitorScreen() {
+  const { projectId } = useLocalSearchParams();
+  const api = useIncidentApi(),
+    client = useQueryClient();
+  const query = useIncidentQuery("health", projectId);
+  const [path, setPath] = useState("/health"),
+    [error, setError] = useState(null),
+    [busy, setBusy] = useState(false);
+  const { isOffline } = useConnectivity();
+  async function configure(enabled) {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.configure(projectId, { enabled, healthPath: path });
+      await client.invalidateQueries({ queryKey: ["incidents"] });
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Guard>
+      <Frame title="Automated monitoring">
+        <Copy>
+          Only the public Render web-service origin is allowed. Use a
+          lightweight read-only endpoint. Three healthy checks across at least
+          two minutes verify recovery. Unknown never means healthy.
+        </Copy>
+        <QueryState query={query} />
+        {!isOffline && !query.isError && query.data ? (
+          <Copy>
+            Monitoring: {query.data.data.enabled ? "enabled" : "disabled"} ·
+            health: {query.data.data.status} · configured path:{" "}
+            {query.data.data.healthPath}
+          </Copy>
+        ) : null}
+        <Input
+          label="Health-check path"
+          value={path}
+          onChangeText={setPath}
+          maxLength={256}
+        />
+        <Failure error={error} />
+        <Action
+          label="Enable monitoring and incident detection"
+          disabled={isOffline || busy}
+          onPress={() =>
+            Alert.alert(
+              "Enable monitoring?",
+              "PocketOps will periodically read this project’s deployment status and approved health endpoint. It will never deploy or resolve incidents automatically.",
+              [
+                { text: "Cancel", style: "cancel" },
+                { text: "Enable", onPress: () => configure(true) },
+              ],
+            )
+          }
+        />
+        <Action
+          label="Disable monitoring"
+          disabled={isOffline || busy}
+          onPress={() => configure(false)}
+        />
+      </Frame>
+    </Guard>
+  );
+}
+export function NotificationSettingsScreen() {
+  const api = useIncidentApi(),
+    client = useQueryClient();
+  const query = useIncidentQuery("preferences");
+  const devices = useIncidentQuery("devices");
+  const { isOffline } = useConnectivity();
+  const [error, setError] = useState(null),
+    [busy, setBusy] = useState(false);
+  async function change(enabled) {
+    setBusy(true);
+    setError(null);
+    try {
+      if (enabled) await registerNotifications(api);
+      await api.setPreferences(enabled);
+      await client.invalidateQueries({ queryKey: ["incidents"] });
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function revoke(id) {
+    try {
+      await api.revoke(id);
+      await devices.refetch();
+    } catch (e) {
+      setError(e);
+    }
+  }
+  return (
+    <Guard>
+      <Frame title="Incident notifications">
+        <Copy>
+          Push is best-effort. Open or refresh Incidents for authoritative
+          status. Alerts contain no titles, source code or logs. After signing
+          in again, enable notifications to bind this device to the new session.
+        </Copy>
+        <QueryState query={query} />
+        <Failure error={error} />
+        <Action
+          label="Enable notifications on this device"
+          disabled={busy || isOffline}
+          onPress={() => change(true)}
+        />
+        <Action
+          label="Disable all incident notifications"
+          disabled={busy || isOffline}
+          onPress={() => change(false)}
+        />
+        {!query.isError && query.data ? (
+          <Copy>
+            Account preference:{" "}
+            {query.data.data.enabled ? "enabled" : "disabled"}
+          </Copy>
+        ) : null}
+        <FlatList
+          data={devices.isError ? [] : devices.data?.data?.items || []}
+          scrollEnabled={false}
+          keyExtractor={(i) => i.id}
+          renderItem={({ item }) => (
+            <Action
+              label={`Revoke ${item.platform} device ${item.id.slice(0, 8)}`}
+              disabled={busy || isOffline}
+              onPress={() => revoke(item.id)}
+            />
+          )}
+        />
+      </Frame>
+    </Guard>
+  );
+}

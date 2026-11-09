@@ -1,3 +1,4 @@
+import { createIncidentRouter } from "./modules/incidents/routes.js";
 import { createDeploymentRouter } from "./modules/deployments/routes.js";
 import cors from "cors";
 import express from "express";
@@ -22,6 +23,7 @@ export function createApp({
   githubService = null,
   editorService = null,
   deploymentService = null,
+  incidentService = null,
   logger = createLogger(config),
   readyTimeoutMs = 1500,
 }) {
@@ -138,8 +140,12 @@ export function createApp({
     createGitHubWebhookRouter({ service: githubService }),
   );
 
-  app.use("/api/v1", createDeploymentRouter({ service: deploymentService, authService }));
+  app.use(
+    "/api/v1",
+    createDeploymentRouter({ service: deploymentService, authService }),
+  );
 
+  app.use("/api/v1", createIncidentRouter({ service: incidentService, authService }));
   app.use(notFound);
   app.use(errorHandler);
   return app;

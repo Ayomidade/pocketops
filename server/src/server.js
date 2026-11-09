@@ -1,3 +1,4 @@
+import { createIncidentRuntime } from "./modules/incidents/runtime.js";
 import { createDeploymentRuntime } from "./modules/deployments/runtime.js";
 import { pathToFileURL } from "node:url";
 import { createApp } from "./app.js";
@@ -45,13 +46,16 @@ export function startServer() {
           githubService,
         })
       : null;
+  const deploymentService = createDeploymentRuntime({ config, sequelize, models, githubService });
+  const incidentService = createIncidentRuntime({ config, sequelize, models, deployments: deploymentService });
   const app = createApp({
     config,
     sequelize,
     authService,
     githubService,
     editorService,
-    deploymentService: createDeploymentRuntime({ config, sequelize, models, githubService }),
+    deploymentService,
+    incidentService,
     logger,
   });
   const server = app.listen(config.port, "0.0.0.0", () => {
