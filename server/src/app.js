@@ -15,6 +15,7 @@ import {
   createGitHubRouter,
   createGitHubWebhookRouter,
 } from "./modules/github/routes.js";
+import { createRenderWebhookRouter } from "./modules/deployments/render-webhook-routes.js";
 
 export function createApp({
   config,
@@ -24,6 +25,7 @@ export function createApp({
   editorService = null,
   deploymentService = null,
   incidentService = null,
+  renderWebhookService = null,
   logger = createLogger(config),
   readyTimeoutMs = 1500,
 }) {
@@ -46,6 +48,10 @@ export function createApp({
   );
   app.use(
     "/api/v1/webhooks/github",
+    express.raw({ type: "application/json", limit: "1mb" }),
+  );
+  app.use(
+    "/api/v1/webhooks/render",
     express.raw({ type: "application/json", limit: "1mb" }),
   );
   // Escaped JSON text can expand control-heavy source files by up to 6x.
@@ -138,6 +144,10 @@ export function createApp({
   app.use(
     "/api/v1/webhooks/github",
     createGitHubWebhookRouter({ service: githubService }),
+  );
+  app.use(
+    "/api/v1/webhooks/render",
+    createRenderWebhookRouter({ service: renderWebhookService }),
   );
 
   app.use(

@@ -55,6 +55,7 @@ const environmentSchema = z
     PROVIDER_ENCRYPTION_KEYS: optionalEnvString,
     PROVIDER_ACTIVE_KEY_VERSION: optionalEnvString,
     EXPO_PUSH_ACCESS_TOKEN: optionalEnvString,
+    RENDER_WEBHOOK_SECRET: optionalEnvString,
     DEPLOYMENTS_ENABLED: z.enum(["true", "false"]).default("false"),
     LOG_LEVEL: z
       .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
@@ -370,6 +371,7 @@ export function loadConfig(source = process.env) {
       : {},
     providerActiveKeyVersion: config.PROVIDER_ACTIVE_KEY_VERSION || null,
     expoPushAccessToken: config.EXPO_PUSH_ACCESS_TOKEN || null,
+    renderWebhookSecret: config.RENDER_WEBHOOK_SECRET || null,
     deploymentsEnabled: config.DEPLOYMENTS_ENABLED === "true",
     port: config.PORT,
     databaseUrl: config.DATABASE_URL || null,

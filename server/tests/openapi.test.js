@@ -13,6 +13,7 @@ import {
   createGitHubRouter,
   createGitHubWebhookRouter,
 } from "../src/modules/github/routes.js";
+import { createRenderWebhookRouter } from "../src/modules/deployments/render-webhook-routes.js";
 
 const config = { nodeEnv: "test", corsOrigins: [], logLevel: "silent" };
 
@@ -60,6 +61,10 @@ describe("implemented OpenAPI contract", () => {
       ...routes(
         createGitHubWebhookRouter({ service: null }),
         "/webhooks/github",
+      ),
+      ...routes(
+        createRenderWebhookRouter({ service: null }),
+        "/webhooks/render",
       ),
     ];
     const documented = Object.entries(openapi.paths).flatMap(

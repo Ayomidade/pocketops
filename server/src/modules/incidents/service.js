@@ -99,6 +99,34 @@ export function createIncidentService({
         .digest("hex");
       return incidentDTO(await r.create({ ...input, requestHash }));
     },
+    async createAutomatic({
+      userId,
+      projectId,
+      title,
+      severity,
+      requestId,
+      metadata,
+    }) {
+      const incident = await r.create({
+        userId,
+        projectId,
+        title,
+        severity,
+        automatic: true,
+        idempotencyKey: `auto:${projectId}:${title}`,
+        requestHash: createHash("sha256")
+          .update(JSON.stringify([projectId, title, severity, "automatic"]))
+          .digest("hex"),
+      });
+      await r.event(
+        incident,
+        null,
+        "incident.created_automatically",
+        { source: "render_webhook", ...metadata },
+        requestId,
+      );
+      return incidentDTO(incident);
+    },
     async detail({ userId, id, requestId }) {
       const { i, project } = await access(userId, id, requestId);
       return {

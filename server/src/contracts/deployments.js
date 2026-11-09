@@ -71,6 +71,13 @@ export function registerDeploymentContract({ schemas, endpoint, parameter }) {
   Object.assign(schemas, {
     ProviderConnection: connection,
     ProviderConnections: list("ProviderConnection"),
+    RenderWebhookResponse: obj({
+      accepted: { type: "boolean" },
+      duplicate: { type: "boolean" },
+      ignored: { type: "boolean" },
+      incidentId: nullable,
+      reason: { type: "string", nullable: true },
+    }),
     RenderService: service,
     RenderServices: list("RenderService"),
     Project: project,
@@ -288,4 +295,13 @@ export function registerDeploymentContract({ schemas, endpoint, parameter }) {
     ref("DeploymentOperation"),
   );
   endpoint("/deployments/{id}", "get", "getDeployment", ref("Deployment"));
+  endpoint(
+    "/webhooks/render",
+    "post",
+    "receiveRenderWebhook",
+    ref("RenderWebhookResponse"),
+    {
+      status: 202,
+    },
+  );
 }
