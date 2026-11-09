@@ -120,7 +120,10 @@ function validGitRef(value) {
     !value.includes("..") &&
     !value.includes("//") &&
     !value.includes("@{") &&
-    ![...value].some((character) => character.codePointAt(0) <= 32 || character.codePointAt(0) === 127) &&
+    ![...value].some(
+      (character) =>
+        character.codePointAt(0) <= 32 || character.codePointAt(0) === 127,
+    ) &&
     !/[~^:?*\x5b\\]/.test(value) &&
     value
       .split("/")
@@ -532,7 +535,9 @@ export function createGitHubService({
       await repository.consumeDeniedLink(link.id, now);
       throw new AppError(
         400,
-        providerError === "access_denied" ? "GITHUB_AUTH_CANCELLED" : "GITHUB_AUTH_FAILED",
+        providerError === "access_denied"
+          ? "GITHUB_AUTH_CANCELLED"
+          : "GITHUB_AUTH_FAILED",
         "GitHub connection was not authorized",
       );
     }
@@ -544,7 +549,10 @@ export function createGitHubService({
         "GitHub authorization could not be completed",
       );
     }
-    const tokens = await adapter.exchangeUserCode(code, { codeVerifier: oauthPkce(state, config.githubAppClientSecret, "github-app").verifier });
+    const tokens = await adapter.exchangeUserCode(code, {
+      codeVerifier: oauthPkce(state, config.githubAppClientSecret, "github-app")
+        .verifier,
+    });
     const identity = await adapter.getAuthenticatedUser(tokens.accessToken);
     if (String(identity.id) !== String(link.githubUserId)) {
       await repository.consumeDeniedLink(link.id, now);
@@ -688,7 +696,10 @@ export function createGitHubService({
       );
       authorizationUrl.searchParams.set("state", state);
       authorizationUrl.searchParams.set("code_challenge_method", "S256");
-      authorizationUrl.searchParams.set("code_challenge", oauthPkce(state, config.githubAppClientSecret, "github-app").challenge);
+      authorizationUrl.searchParams.set(
+        "code_challenge",
+        oauthPkce(state, config.githubAppClientSecret, "github-app").challenge,
+      );
       authorizationUrl.searchParams.set("scope", "offline_access");
       return { authorizationUrl: authorizationUrl.toString() };
     },
@@ -1049,7 +1060,11 @@ export function createGitHubService({
         !gitShaPattern.test(baseSha) ||
         branch === baseBranch
       ) {
-        throw new AppError(422, "INVALID_GIT_REF", "Branch details are invalid.");
+        throw new AppError(
+          422,
+          "INVALID_GIT_REF",
+          "Branch details are invalid.",
+        );
       }
       const context = await editorRepositoryContext({
         userId,
@@ -1098,7 +1113,11 @@ export function createGitHubService({
         !gitShaPattern.test(expectedSha) ||
         Buffer.byteLength(content, "utf8") > maximumFileBytes
       ) {
-        throw new AppError(422, "INVALID_FILE_CHANGE", "File change is invalid.");
+        throw new AppError(
+          422,
+          "INVALID_FILE_CHANGE",
+          "File change is invalid.",
+        );
       }
       const safePath = decodePath(path);
       const context = await editorRepositoryContext({
@@ -1205,7 +1224,11 @@ export function createGitHubService({
       requestId,
     }) {
       if (!validGitRef(head) || !validGitRef(base) || head === base) {
-        throw new AppError(422, "INVALID_GIT_REF", "Pull request branches are invalid.");
+        throw new AppError(
+          422,
+          "INVALID_GIT_REF",
+          "Pull request branches are invalid.",
+        );
       }
       const context = await editorRepositoryContext({
         userId,

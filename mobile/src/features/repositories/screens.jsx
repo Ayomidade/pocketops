@@ -10,7 +10,13 @@ import {
 import { useAuth } from "../auth/AuthProvider";
 import { useSourceVisible } from "./RepositoryProvider";
 import { useConnectivity } from "../../hooks/useConnectivity";
-import { denied, flattenPages, repositoryRoute, singleParam, sortDirectoryEntries } from "./model.js";
+import {
+  denied,
+  flattenPages,
+  repositoryRoute,
+  singleParam,
+  sortDirectoryEntries,
+} from "./model.js";
 import {
   useBranches,
   useDirectory,
@@ -214,7 +220,10 @@ export function DirectoryScreen() {
       return () => subscription.remove();
     }, [path, router]),
   );
-  const directoryEntries = useMemo(() => sortDirectoryEntries(tree.data?.data), [tree.data]);
+  const directoryEntries = useMemo(
+    () => sortDirectoryEntries(tree.data?.data),
+    [tree.data],
+  );
   if (!authenticated) return <Redirect href="/(auth)/login" />;
   const error = repo.error || tree.error;
   const hidden = denied(error);
@@ -269,7 +278,10 @@ export function DirectoryScreen() {
         }}
       />
       {branchNotice ? (
-        <Text accessibilityLiveRegion="polite" className="px-5 pb-3 text-accentHi">
+        <Text
+          accessibilityLiveRegion="polite"
+          className="px-5 pb-3 text-accentHi"
+        >
           Branch changed. Contents may differ; returned to root.
         </Text>
       ) : null}
@@ -320,7 +332,9 @@ export function DirectoryScreen() {
             />
           )}
           ListEmptyComponent={
-            <Text className="p-5 text-textSecondary">This directory is empty.</Text>
+            <Text className="p-5 text-textSecondary">
+              This directory is empty.
+            </Text>
           }
           ListFooterComponent={
             tree.data.meta?.directoryLimitReached ? (
@@ -427,7 +441,8 @@ function VisibleFileScreen() {
           {file.data.data.editable && !file.data.data.binary ? (
             <View className="border-t border-border p-5">
               <Text className="mb-3 text-sm text-textSecondary">
-                Editing creates a new fix branch and requires confirmation before committing.
+                Editing creates a new fix branch and requires confirmation
+                before committing.
               </Text>
               <Action
                 label="Edit on a fix branch"

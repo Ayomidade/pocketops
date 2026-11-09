@@ -6,9 +6,11 @@ export function encodeUtf8(value) {
     throw new Error("Text contains an invalid Unicode sequence");
   }
   const bytes = [];
-  for (let index = 0; index < percentEncoded.length; ) {
+  for (let index = 0; index < percentEncoded.length;) {
     if (percentEncoded[index] === "%") {
-      bytes.push(Number.parseInt(percentEncoded.slice(index + 1, index + 3), 16));
+      bytes.push(
+        Number.parseInt(percentEncoded.slice(index + 1, index + 3), 16),
+      );
       index += 3;
     } else {
       bytes.push(percentEncoded.charCodeAt(index));
@@ -28,7 +30,8 @@ export function decodeUtf8(bytes) {
   }
 }
 
-const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const alphabet =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 export function encodeBase64(bytes) {
   let output = "";
@@ -71,4 +74,3 @@ export function decodeBase64(value) {
   }
   return bytes;
 }
-

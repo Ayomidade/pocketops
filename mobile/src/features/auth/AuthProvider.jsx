@@ -26,41 +26,54 @@ export function AuthProvider({ children }) {
   });
   const previousUserId = useRef(null);
   const lifecycle = useRef(null);
-  if (!lifecycle.current) lifecycle.current = createAuthLifecycle({
-    storage: SecureStore,
-    request: apiRequest,
-    randomBytes: Crypto.getRandomBytesAsync,
-    createRedirect: () => Linking.createURL("auth/callback"),
-    openSession: WebBrowser.openAuthSessionAsync,
-    dismissBrowser: WebBrowser.dismissBrowser,
-    onChange: setAuth,
-  });
-  const { restoreSession, beginGithubLogin, cancelGithubLogin, completeCallbackUrl, logout } = lifecycle.current;
-  useEffect(() => { void restoreSession(); }, [restoreSession]);
+  if (!lifecycle.current)
+    lifecycle.current = createAuthLifecycle({
+      storage: SecureStore,
+      request: apiRequest,
+      randomBytes: Crypto.getRandomBytesAsync,
+      createRedirect: () => Linking.createURL("auth/callback"),
+      openSession: WebBrowser.openAuthSessionAsync,
+      dismissBrowser: WebBrowser.dismissBrowser,
+      onChange: setAuth,
+    });
+  const {
+    restoreSession,
+    beginGithubLogin,
+    cancelGithubLogin,
+    completeCallbackUrl,
+    logout,
+  } = lifecycle.current;
+  useEffect(() => {
+    void restoreSession();
+  }, [restoreSession]);
 
   useEffect(() => {
     if (auth.status === "authenticated" && auth.user?.id) {
       if (previousUserId.current && previousUserId.current !== auth.user.id) {
         const previous = previousUserId.current;
-        void import("../editor/draft-storage.js").then(({ editorDraftStore }) =>
-          editorDraftStore.clearUser(previous),
-        ).catch(() => {});
+        void import("../editor/draft-storage.js")
+          .then(({ editorDraftStore }) => editorDraftStore.clearUser(previous))
+          .catch(() => {});
       }
       previousUserId.current = auth.user.id;
       return;
     }
-    if (["signed_out", "expired"].includes(auth.status) && previousUserId.current) {
+    if (
+      ["signed_out", "expired"].includes(auth.status) &&
+      previousUserId.current
+    ) {
       const previous = previousUserId.current;
       previousUserId.current = null;
-      void import("../editor/draft-storage.js").then(({ editorDraftStore }) =>
-        editorDraftStore.clearUser(previous),
-      ).catch(() => {});
+      void import("../editor/draft-storage.js")
+        .then(({ editorDraftStore }) => editorDraftStore.clearUser(previous))
+        .catch(() => {});
     }
   }, [auth.status, auth.user?.id]);
 
   useEffect(() => {
     const subscription = Linking.addEventListener("url", ({ url }) => {
-      if (lifecycle.current.hasPendingLogin()) void completeCallbackUrl(url).catch(() => {});
+      if (lifecycle.current.hasPendingLogin())
+        void completeCallbackUrl(url).catch(() => {});
     });
     return () => subscription.remove();
   }, [completeCallbackUrl]);

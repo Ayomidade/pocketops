@@ -17,7 +17,9 @@ const idempotencyKey = "1a340bbc-183a-40ee-a3b9-56f11d4831d0";
 function appFor(editorService) {
   return createApp({
     config,
-    authService: { authenticateToken: vi.fn(async () => ({ user, session: {} })) },
+    authService: {
+      authenticateToken: vi.fn(async () => ({ user, session: {} })),
+    },
     editorService,
   });
 }
@@ -88,7 +90,9 @@ describe("editor write API", () => {
       listPullRequests: vi.fn(async () => []),
     };
     const response = await request(appFor(service))
-      .get(`/api/v1/github/repositories/${repositoryId}/pull-requests?head=fix%2Ftask`)
+      .get(
+        `/api/v1/github/repositories/${repositoryId}/pull-requests?head=fix%2Ftask`,
+      )
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
     expect(response.body.data).toEqual([]);

@@ -1,5 +1,10 @@
 import { gcm } from "@noble/ciphers/aes.js";
-import { decodeBase64, decodeUtf8, encodeBase64, encodeUtf8 } from "./encoding.js";
+import {
+  decodeBase64,
+  decodeUtf8,
+  encodeBase64,
+  encodeUtf8,
+} from "./encoding.js";
 
 const maxDraftBytes = 512 * 1024;
 const maxDraftsPerUser = 5;
@@ -15,7 +20,8 @@ export function createEditorDraftStore({
 }) {
   const indexKey = (userHash) => `pocketops.editor.drafts.${userHash}`;
   const encryptionKey = (userHash) => `pocketops.editor.key.${userHash}`;
-  const fileUri = (userHash, draftId) => `${directoryUri}${userHash}/${draftId}.enc`;
+  const fileUri = (userHash, draftId) =>
+    `${directoryUri}${userHash}/${draftId}.enc`;
 
   async function userHash(userId) {
     if (typeof userId !== "string" || !userId) {
@@ -52,7 +58,9 @@ export function createEditorDraftStore({
   }
 
   async function deleteByHash(hashValue, draftId) {
-    await fileStore.deleteAsync(fileUri(hashValue, draftId), { idempotent: true });
+    await fileStore.deleteAsync(fileUri(hashValue, draftId), {
+      idempotent: true,
+    });
   }
 
   async function decryptDraft(hashValue, draftId) {
@@ -70,13 +78,20 @@ export function createEditorDraftStore({
       encodeUtf8(draft.content).length > maxDraftBytes ||
       !Number.isFinite(draft.expiresAt) ||
       draft.expiresAt <= now()
-    ) throw new Error("Draft expired or is invalid");
+    )
+      throw new Error("Draft expired or is invalid");
     return draft;
   }
 
   async function removeIndexEntry(hashValue, draftId) {
-    const index = (await readIndex(hashValue)).filter((item) => item.id !== draftId);
-    if (index.length) await secureStore.setItemAsync(indexKey(hashValue), JSON.stringify(index));
+    const index = (await readIndex(hashValue)).filter(
+      (item) => item.id !== draftId,
+    );
+    if (index.length)
+      await secureStore.setItemAsync(
+        indexKey(hashValue),
+        JSON.stringify(index),
+      );
     else {
       await secureStore.deleteItemAsync(indexKey(hashValue));
       await secureStore.deleteItemAsync(encryptionKey(hashValue));
@@ -163,7 +178,8 @@ export function createEditorDraftStore({
       for (const entry of index) {
         try {
           const draft = await decryptDraft(hashValue, entry.id);
-          if (draft.repositoryId === repositoryId && draft.path === path) return draft;
+          if (draft.repositoryId === repositoryId && draft.path === path)
+            return draft;
         } catch {
           await deleteByHash(hashValue, entry.id);
           await removeIndexEntry(hashValue, entry.id);

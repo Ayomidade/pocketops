@@ -80,5 +80,13 @@ test("holds protected tabs until session restoration has resolved", () => {
 
 test("rejects duplicate, mixed, unexpected and fragment-bearing identity callbacks", () => {
   const base = "pocketops://auth/callback";
-  for (const query of [`?handoff=${"h".repeat(43)}&handoff=${"h".repeat(43)}`, "?error=access_denied&error=oauth_failed", `?handoff=${"h".repeat(43)}&error=`, "?handoff=&error=access_denied", `?handoff=${"h".repeat(43)}&token=forged`, `?handoff=${"h".repeat(43)}#fragment`]) assert.throws(() => parseAuthCallback(base + query, base));
+  for (const query of [
+    `?handoff=${"h".repeat(43)}&handoff=${"h".repeat(43)}`,
+    "?error=access_denied&error=oauth_failed",
+    `?handoff=${"h".repeat(43)}&error=`,
+    "?handoff=&error=access_denied",
+    `?handoff=${"h".repeat(43)}&token=forged`,
+    `?handoff=${"h".repeat(43)}#fragment`,
+  ])
+    assert.throws(() => parseAuthCallback(base + query, base));
 });

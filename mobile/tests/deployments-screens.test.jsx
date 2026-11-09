@@ -51,10 +51,18 @@ jest.mock("expo-crypto", () => ({
   randomUUID: () => "00000000-0000-4000-8000-000000000001",
 }));
 jest.mock("@tanstack/react-query", () => ({
-  useQueryClient: () => ({ invalidateQueries: jest.fn(), cancelQueries: jest.fn(), removeQueries: jest.fn() }),
+  useQueryClient: () => ({
+    invalidateQueries: jest.fn(),
+    cancelQueries: jest.fn(),
+    removeQueries: jest.fn(),
+  }),
 }));
 jest.mock("../src/features/auth/AuthProvider", () => ({
-  useAuth: () => ({ status: "authenticated", user: { id: "user-1" }, authenticatedRequest: jest.fn() }),
+  useAuth: () => ({
+    status: "authenticated",
+    user: { id: "user-1" },
+    authenticatedRequest: jest.fn(),
+  }),
 }));
 jest.mock("../src/hooks/useConnectivity", () => ({
   useConnectivity: () => ({ isOffline: mockOffline }),
@@ -63,13 +71,19 @@ jest.mock("../src/features/repositories/RepositoryProvider", () => ({
   useSourceVisible: () => true,
 }));
 jest.mock("../src/features/repositories/queries", () => ({
-  useRepositoryList: () => ({ isPending: false, isError: false, data: { pages: [] } }),
+  useRepositoryList: () => ({
+    isPending: false,
+    isError: false,
+    data: { pages: [] },
+  }),
 }));
 jest.mock("../src/features/deployments/queries", () => ({
   useDeploymentApi: () => mockApi,
   useDeploymentList: (kind) => mockListQueries[kind] || mockEmptyListQuery,
-  useDeploymentDetail: (kind) => mockDetailQueries[kind] || mockEmptyDetailQuery,
-  listItems: (query) => query.data?.pages?.flatMap((page) => page.data.items) || [],
+  useDeploymentDetail: (kind) =>
+    mockDetailQueries[kind] || mockEmptyDetailQuery,
+  listItems: (query) =>
+    query.data?.pages?.flatMap((page) => page.data.items) || [],
 }));
 
 function confirmAlert(buttonLabel) {
@@ -80,7 +94,10 @@ function confirmAlert(buttonLabel) {
 }
 
 function listQuery(items) {
-  return { ...mockEmptyListQuery, data: { pages: [{ data: { items, nextCursor: null } }] } };
+  return {
+    ...mockEmptyListQuery,
+    data: { pages: [{ data: { items, nextCursor: null } }] },
+  };
 }
 
 const project = {
@@ -108,8 +125,12 @@ describe("deployment screens", () => {
     mockListQueries = {};
     mockDetailQueries = {};
     mockAlert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
-    mockApi.connect.mockResolvedValue({ data: { id: "conn-1", displayName: "Staging", status: "active" } });
-    mockApi.redeploy.mockResolvedValue({ data: { operationId: "op-1", status: "queued" } });
+    mockApi.connect.mockResolvedValue({
+      data: { id: "conn-1", displayName: "Staging", status: "active" },
+    });
+    mockApi.redeploy.mockResolvedValue({
+      data: { operationId: "op-1", status: "queued" },
+    });
   });
 
   afterEach(() => mockAlert.mockRestore());
@@ -117,29 +138,62 @@ describe("deployment screens", () => {
   it("connects Render without echoing or retaining the API key in the form", async () => {
     mockListQueries.connections = listQuery([]);
     const screen = render(<RenderConnectionsScreen />);
-    expect(screen.getByLabelText("Connect Render").props.accessibilityState.disabled).toBe(true);
+    expect(
+      screen.getByLabelText("Connect Render").props.accessibilityState.disabled,
+    ).toBe(true);
     fireEvent.changeText(screen.getByLabelText("Connection name"), "Staging");
-    fireEvent.changeText(screen.getByLabelText("Render API key"), "rnd_secret_value");
-    expect(screen.getByLabelText("Connect Render").props.accessibilityState.disabled).toBe(false);
+    fireEvent.changeText(
+      screen.getByLabelText("Render API key"),
+      "rnd_secret_value",
+    );
+    expect(
+      screen.getByLabelText("Connect Render").props.accessibilityState.disabled,
+    ).toBe(false);
     fireEvent.press(screen.getByLabelText("Connect Render"));
-    await waitFor(() => expect(mockApi.connect).toHaveBeenCalledWith({ apiKey: "rnd_secret_value", displayName: "Staging" }));
-    await waitFor(() => expect(screen.getByLabelText("Render API key").props.value).toBe(""));
+    await waitFor(() =>
+      expect(mockApi.connect).toHaveBeenCalledWith({
+        apiKey: "rnd_secret_value",
+        displayName: "Staging",
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText("Render API key").props.value).toBe(""),
+    );
     expect(screen.queryByText(/rnd_secret_value/)).toBeNull();
   });
 
   it("maps a project list and disables opening a disconnected project", async () => {
     mockListQueries.projects = listQuery([
-      { id: "project-1", name: "Staging API", providerServiceId: "srv-abc123", status: "active" },
-      { id: "project-2", name: "Old API", providerServiceId: "srv-gone", status: "disconnected" },
+      {
+        id: "project-1",
+        name: "Staging API",
+        providerServiceId: "srv-abc123",
+        status: "active",
+      },
+      {
+        id: "project-2",
+        name: "Old API",
+        providerServiceId: "srv-gone",
+        status: "disconnected",
+      },
     ]);
     const screen = render(<DeploymentsScreen />);
     expect(screen.getByText("Staging API")).toBeTruthy();
-    expect(screen.getByLabelText("Open project Staging API").props.accessibilityState.disabled).toBe(false);
-    expect(screen.getByLabelText("Open project Old API").props.accessibilityState.disabled).toBe(true);
+    expect(
+      screen.getByLabelText("Open project Staging API").props.accessibilityState
+        .disabled,
+    ).toBe(false);
+    expect(
+      screen.getByLabelText("Open project Old API").props.accessibilityState
+        .disabled,
+    ).toBe(true);
   });
 
   it("requires a second exact confirmation before requesting a redeploy", async () => {
-    mockDetailQueries.project = { ...mockEmptyDetailQuery, data: { data: project } };
+    mockDetailQueries.project = {
+      ...mockEmptyDetailQuery,
+      data: { data: project },
+    };
     const screen = render(<RedeployScreen />);
     fireEvent.press(screen.getByLabelText("Continue to confirmation"));
     fireEvent.press(await screen.findByLabelText("Confirm exact redeployment"));
@@ -151,21 +205,40 @@ describe("deployment screens", () => {
     expect(body).toEqual({
       action: "redeploy",
       confirmation: "DEPLOY",
-      target: { serviceId: "srv-abc123", deploymentId: "dep-live", commitSha: sha },
+      target: {
+        serviceId: "srv-abc123",
+        deploymentId: "dep-live",
+        commitSha: sha,
+      },
     });
     expect(typeof idempotencyKey).toBe("string");
-    expect(mockRouter.replace).toHaveBeenCalledWith({ pathname: "/operation/[id]", params: { id: "op-1" } });
+    expect(mockRouter.replace).toHaveBeenCalledWith({
+      pathname: "/operation/[id]",
+      params: { id: "op-1" },
+    });
   });
 
   it("disables redeploy and does not simulate rollback when capabilities are false", async () => {
     mockDetailQueries.project = {
       ...mockEmptyDetailQuery,
-      data: { data: { ...project, capabilities: { ...project.capabilities, canRedeploy: false } } },
+      data: {
+        data: {
+          ...project,
+          capabilities: { ...project.capabilities, canRedeploy: false },
+        },
+      },
     };
     const screen = render(<ProjectScreen />);
-    expect(screen.getByText("Rollback and promotion are unavailable.")).toBeTruthy();
-    expect(screen.getByText("Health verification is unavailable in this milestone.")).toBeTruthy();
-    expect(screen.getByLabelText("Review redeployment").props.accessibilityState.disabled).toBe(true);
+    expect(
+      screen.getByText("Rollback and promotion are unavailable."),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Health verification is unavailable in this milestone."),
+    ).toBeTruthy();
+    expect(
+      screen.getByLabelText("Review redeployment").props.accessibilityState
+        .disabled,
+    ).toBe(true);
   });
 
   it("shows that a queued operation is not deployment success", async () => {
@@ -185,7 +258,11 @@ describe("deployment screens", () => {
     };
     const screen = render(<OperationScreen />);
     expect(await screen.findByText("Request status: queued")).toBeTruthy();
-    expect(screen.getByText("Queued, requested and provider-accepted states do not mean deployment success.")).toBeTruthy();
+    expect(
+      screen.getByText(
+        "Queued, requested and provider-accepted states do not mean deployment success.",
+      ),
+    ).toBeTruthy();
     expect(screen.getByText("Application health: Not checked")).toBeTruthy();
   });
 
@@ -205,7 +282,9 @@ describe("deployment screens", () => {
       },
     };
     const screen = render(<OperationScreen />);
-    expect(await screen.findByText(/will not be automatically retriggered/)).toBeTruthy();
+    expect(
+      await screen.findByText(/will not be automatically retriggered/),
+    ).toBeTruthy();
     expect(screen.getByText("PROVIDER_OUTCOME_UNKNOWN")).toBeTruthy();
   });
 });

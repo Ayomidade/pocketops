@@ -65,12 +65,15 @@ export function denied(error) {
   return [401, 403, 404].includes(error?.status);
 }
 
-
-const filenameOrder = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+const filenameOrder = new Intl.Collator(undefined, {
+  numeric: true,
+  sensitivity: "base",
+});
 
 export function sortDirectoryEntries(entries = []) {
   return [...entries].sort((left, right) => {
-    const foldersFirst = Number(right.type === "dir") - Number(left.type === "dir");
+    const foldersFirst =
+      Number(right.type === "dir") - Number(left.type === "dir");
     if (foldersFirst) return foldersFirst;
     const byName = filenameOrder.compare(left.name, right.name);
     if (byName) return byName;

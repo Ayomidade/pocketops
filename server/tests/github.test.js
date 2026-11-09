@@ -326,7 +326,10 @@ describe("GitHub App identity and installation authorization", () => {
         commitMessage: "Fix issue",
         requestId: "protected-branch-check",
       }),
-    ).rejects.toMatchObject({ status: 403, code: "PROTECTED_BRANCH_WRITE_BLOCKED" });
+    ).rejects.toMatchObject({
+      status: 403,
+      code: "PROTECTED_BRANCH_WRITE_BLOCKED",
+    });
     expect(adapter.getFile).not.toHaveBeenCalled();
     expect(adapter.updateFile).not.toHaveBeenCalled();
   });
@@ -848,13 +851,27 @@ describe("GitHub repository access and webhook safety", () => {
 });
 
 it("uses a domain-separated S256 verifier for GitHub App user authorization", async () => {
-  const repository = makeRepository(); const adapter = makeAdapter();
-  const service = createGitHubService({ repository, adapter, config, clock: () => now, credentialGenerator: () => "s".repeat(43) });
-  const result = await service.startInstallation({ user: { id: "pocket-user", githubUserId: "12345" } });
+  const repository = makeRepository();
+  const adapter = makeAdapter();
+  const service = createGitHubService({
+    repository,
+    adapter,
+    config,
+    clock: () => now,
+    credentialGenerator: () => "s".repeat(43),
+  });
+  const result = await service.startInstallation({
+    user: { id: "pocket-user", githubUserId: "12345" },
+  });
   const authorize = new URL(result.authorizationUrl);
-  await service.handleOAuthCallback({ state: "s".repeat(43), code: "test-code" });
+  await service.handleOAuthCallback({
+    state: "s".repeat(43),
+    code: "test-code",
+  });
   const verifier = adapter.exchangeUserCode.mock.calls[0][1].codeVerifier;
-  expect(createHash("sha256").update(verifier).digest("base64url")).toBe(authorize.searchParams.get("code_challenge"));
+  expect(createHash("sha256").update(verifier).digest("base64url")).toBe(
+    authorize.searchParams.get("code_challenge"),
+  );
   expect(authorize.searchParams.get("code_challenge_method")).toBe("S256");
   expect(result.authorizationUrl).not.toContain(verifier);
 });

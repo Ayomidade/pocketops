@@ -27,7 +27,11 @@ export function createGitHubController(service) {
 
     async oauthCallback(request, response) {
       try {
-        const url = await service.handleOAuthCallback({ state: request.validated.query.state, code: request.validated.query.code, providerError: request.validated.query.error });
+        const url = await service.handleOAuthCallback({
+          state: request.validated.query.state,
+          code: request.validated.query.code,
+          providerError: request.validated.query.error,
+        });
         return response.redirect(302, url);
       } catch (error) {
         if (error instanceof AppError) {

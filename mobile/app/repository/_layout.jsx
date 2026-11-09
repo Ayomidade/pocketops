@@ -18,5 +18,13 @@ export default function RepositoryLayout() {
         />
       </View>
     );
-  return <Stack screenOptions={{ headerShown: false, statusBarHidden: true, navigationBarHidden: true }} />;
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        statusBarHidden: true,
+        navigationBarHidden: true,
+      }}
+    />
+  );
 }

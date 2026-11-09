@@ -145,10 +145,13 @@ describe("repository screen integration with mocked API", () => {
       jest.advanceTimersByTime(350);
     });
     jest.useRealTimers();
-    await waitFor(() =>
-      expect(
-        mockRequest.mock.calls.some(([path]) => path.includes("search=worker")),
-      ).toBe(true),
+    await waitFor(
+      () =>
+        expect(
+          mockRequest.mock.calls.some(([path]) =>
+            path.includes("search=worker"),
+          ),
+        ).toBe(true),
       { timeout: 10000 },
     );
     list.unmount();

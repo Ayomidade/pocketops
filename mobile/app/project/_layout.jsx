@@ -1,2 +1,12 @@
 import { Stack } from "expo-router";
-export default function ProjectLayout() { return <Stack screenOptions={{ headerShown: false, statusBarHidden: true, navigationBarHidden: true }} />; }
+export default function ProjectLayout() {
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        statusBarHidden: true,
+        navigationBarHidden: true,
+      }}
+    />
+  );
+}

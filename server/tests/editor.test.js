@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { AppError } from "../src/errors/app-error.js";
-import { createEditorService, validGitRef } from "../src/modules/editor/service.js";
+import {
+  createEditorService,
+  validGitRef,
+} from "../src/modules/editor/service.js";
 
 const userId = "user-id";
 const repositoryId = "repository-id";
@@ -40,15 +43,16 @@ function fixtures(overrides = {}) {
       audits.push({ action: input.action, metadata: input.metadata });
       return operation;
     }),
-    findFixBranch: vi.fn(async ({ actorUserId, repositoryId, branchName }) =>
-      operations.find(
-        (item) =>
-          item.actorUserId === actorUserId &&
-          item.repositoryId === repositoryId &&
-          item.operationType === "branch" &&
-          item.branchName === branchName &&
-          item.status === "succeeded",
-      ) || null,
+    findFixBranch: vi.fn(
+      async ({ actorUserId, repositoryId, branchName }) =>
+        operations.find(
+          (item) =>
+            item.actorUserId === actorUserId &&
+            item.repositoryId === repositoryId &&
+            item.operationType === "branch" &&
+            item.branchName === branchName &&
+            item.status === "succeeded",
+        ) || null,
     ),
     operations,
     audits,
@@ -60,7 +64,10 @@ function fixtures(overrides = {}) {
       baseSha: input.baseSha,
       commitSha: sha,
     })),
-    commitFixFile: vi.fn(async () => ({ contentSha: "b".repeat(40), commitSha: "c".repeat(40) })),
+    commitFixFile: vi.fn(async () => ({
+      contentSha: "b".repeat(40),
+      commitSha: "c".repeat(40),
+    })),
     listFixPullRequests: vi.fn(async () => []),
     createFixPullRequest: vi.fn(async (input) => ({
       number: 12,
@@ -93,7 +100,14 @@ async function createBranch(service, overrides = {}) {
 describe("GitHub editor workflow", () => {
   it("validates Git refs without rejecting slash branches", () => {
     expect(validGitRef("fix/mobile-recovery")).toBe(true);
-    for (const ref of ["../main", "bad..name", "bad~name", "refs/heads/.hidden", "trailing.", "bad.lock"]) {
+    for (const ref of [
+      "../main",
+      "bad..name",
+      "bad~name",
+      "refs/heads/.hidden",
+      "trailing.",
+      "bad.lock",
+    ]) {
       expect(validGitRef(ref)).toBe(false);
     }
   });
@@ -102,7 +116,10 @@ describe("GitHub editor workflow", () => {
     const { service, githubService, repository } = fixtures();
     const first = await createBranch(service);
     const replay = await createBranch(service);
-    expect(first).toMatchObject({ branch: "fix/mobile-recovery", baseBranch: "main" });
+    expect(first).toMatchObject({
+      branch: "fix/mobile-recovery",
+      baseBranch: "main",
+    });
     expect(replay).toEqual(first);
     expect(githubService.createFixBranch).toHaveBeenCalledTimes(1);
     expect(repository.audits).toHaveLength(1);
@@ -120,7 +137,11 @@ describe("GitHub editor workflow", () => {
   it("returns a durable 409 when the fix branch already exists upstream", async () => {
     const { service, githubService, repository } = fixtures({
       createFixBranch: vi.fn(async () => {
-        throw new AppError(409, "BRANCH_ALREADY_EXISTS", "Branch already exists");
+        throw new AppError(
+          409,
+          "BRANCH_ALREADY_EXISTS",
+          "Branch already exists",
+        );
       }),
     });
     await expect(createBranch(service)).rejects.toMatchObject({
@@ -160,7 +181,9 @@ describe("GitHub editor workflow", () => {
       code: "FILE_VERSION_CONFLICT",
     });
     expect(githubService.commitFixFile).toHaveBeenCalledTimes(1);
-    const operation = repository.operations.find((item) => item.operationType === "commit");
+    const operation = repository.operations.find(
+      (item) => item.operationType === "commit",
+    );
     expect(operation.status).toBe("failed");
     expect(operation.contentSha).not.toContain("updated source");
     expect(repository.audits.at(-1).metadata).not.toHaveProperty("content");
@@ -224,7 +247,11 @@ describe("GitHub editor workflow", () => {
       body: "",
       draft: false,
     });
-    expect(result).toMatchObject({ number: 12, duplicate: true, state: "open" });
+    expect(result).toMatchObject({
+      number: 12,
+      duplicate: true,
+      state: "open",
+    });
     expect(githubService.createFixPullRequest).not.toHaveBeenCalled();
   });
 
@@ -242,6 +269,8 @@ describe("GitHub editor workflow", () => {
         commitMessage: "Large update",
       }),
     ).rejects.toMatchObject({ status: 422, code: "FILE_TOO_LARGE" });
-    expect(repository.operations.filter((item) => item.operationType === "commit")).toHaveLength(0);
+    expect(
+      repository.operations.filter((item) => item.operationType === "commit"),
+    ).toHaveLength(0);
   });
 });

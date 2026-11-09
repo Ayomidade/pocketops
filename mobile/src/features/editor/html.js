@@ -1,6 +1,11 @@
 export const editorOrigin = "https://editor.pocketops.invalid";
 
-export function createEditorHtml({ sessionId, bootRequestId, nonce, codeMirrorBundle }) {
+export function createEditorHtml({
+  sessionId,
+  bootRequestId,
+  nonce,
+  codeMirrorBundle,
+}) {
   const session = JSON.stringify({ sessionId, bootRequestId });
   return `<!doctype html>
 <html lang="en">

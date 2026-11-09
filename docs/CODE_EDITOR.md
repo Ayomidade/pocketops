@@ -12,13 +12,13 @@ Before editing, a developer must create a new `fix/`, `bugfix/`, `chore/` or `do
 
 All routes require a valid PocketOps session and a currently selected repository accessible through the user's active GitHub App installation:
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| GET | `/api/v1/github/repositories/{id}/branches/metadata?branch=...` | Live branch commit SHA/protection metadata |
-| POST | `/api/v1/github/repositories/{id}/branches` | Create a fix branch from an explicit base branch and SHA |
-| PUT | `/api/v1/github/repositories/{id}/file` | Commit one existing UTF-8 file with expected blob SHA |
-| GET | `/api/v1/github/repositories/{id}/pull-requests?head=...&base=...` | List PRs for the user's tracked branch pair |
-| POST | `/api/v1/github/repositories/{id}/pull-requests` | Open a PR from the tracked fix branch into its recorded base |
+| Method | Path                                                               | Purpose                                                      |
+| ------ | ------------------------------------------------------------------ | ------------------------------------------------------------ |
+| GET    | `/api/v1/github/repositories/{id}/branches/metadata?branch=...`    | Live branch commit SHA/protection metadata                   |
+| POST   | `/api/v1/github/repositories/{id}/branches`                        | Create a fix branch from an explicit base branch and SHA     |
+| PUT    | `/api/v1/github/repositories/{id}/file`                            | Commit one existing UTF-8 file with expected blob SHA        |
+| GET    | `/api/v1/github/repositories/{id}/pull-requests?head=...&base=...` | List PRs for the user's tracked branch pair                  |
+| POST   | `/api/v1/github/repositories/{id}/pull-requests`                   | Open a PR from the tracked fix branch into its recorded base |
 
 Mutations require an `Idempotency-Key` (16–100 characters), strict Zod request validation and a per-process 20/minute rate limit. The provider-backed GETs (branch metadata, pull-request list) share a per-process 60/minute read limit. Pull-request bodies are capped at 4,000 characters, matching the mobile input limit. A database unique constraint scopes idempotency to actor/key; reusing a key with a different fingerprint returns 409. Operation states include pending, succeeded, failed and uncertain. A timeout/ambiguous provider result cannot be blindly replayed. `005-create-code-changes.js` stores metadata and links safe audit events; file content is not persisted by the server. The global JSON parser permits up to 4 MiB to handle worst-case JSON escaping while endpoint file content remains capped at 512 KiB.
 

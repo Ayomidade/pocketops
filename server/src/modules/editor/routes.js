@@ -60,7 +60,10 @@ export function createEditorRouter({ service, authService }) {
     handler(request, response) {
       return response.status(429).json({
         success: false,
-        error: { code: "EDITOR_RATE_LIMITED", message: "Too many editor requests" },
+        error: {
+          code: "EDITOR_RATE_LIMITED",
+          message: "Too many editor requests",
+        },
         meta: { requestId: request.id },
       });
     },
@@ -73,7 +76,10 @@ export function createEditorRouter({ service, authService }) {
     handler(request, response) {
       return response.status(429).json({
         success: false,
-        error: { code: "EDITOR_RATE_LIMITED", message: "Too many editor requests" },
+        error: {
+          code: "EDITOR_RATE_LIMITED",
+          message: "Too many editor requests",
+        },
         meta: { requestId: request.id },
       });
     },
@@ -100,7 +106,9 @@ export function createEditorRouter({ service, authService }) {
     validate(repositoryParams, "params"),
     validate(branchBody),
     validate(idempotencyHeaders, "headers"),
-    asyncHandler((request, response) => controller.createBranch(request, response)),
+    asyncHandler((request, response) =>
+      controller.createBranch(request, response),
+    ),
   );
   router.put(
     "/repositories/:repositoryId/file",
@@ -110,7 +118,9 @@ export function createEditorRouter({ service, authService }) {
     validate(repositoryParams, "params"),
     validate(commitBody),
     validate(idempotencyHeaders, "headers"),
-    asyncHandler((request, response) => controller.commitFile(request, response)),
+    asyncHandler((request, response) =>
+      controller.commitFile(request, response),
+    ),
   );
   router.get(
     "/repositories/:repositoryId/pull-requests",
@@ -119,7 +129,9 @@ export function createEditorRouter({ service, authService }) {
     authenticate,
     validate(repositoryParams, "params"),
     validate(pullRequestQuery, "query"),
-    asyncHandler((request, response) => controller.listPullRequests(request, response)),
+    asyncHandler((request, response) =>
+      controller.listPullRequests(request, response),
+    ),
   );
   router.post(
     "/repositories/:repositoryId/pull-requests",
@@ -129,7 +141,9 @@ export function createEditorRouter({ service, authService }) {
     validate(repositoryParams, "params"),
     validate(pullRequestBody),
     validate(idempotencyHeaders, "headers"),
-    asyncHandler((request, response) => controller.createPullRequest(request, response)),
+    asyncHandler((request, response) =>
+      controller.createPullRequest(request, response),
+    ),
   );
   return router;
 }

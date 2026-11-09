@@ -221,7 +221,6 @@ Trees API traversal, commit timestamps, source persistence/offline edits, WebVie
 branch/commit/PR writes, Render/deployments, incidents, notifications and Redis workers.
 Remote execution remains excluded from MVP. Stop here before editor implementation.
 
-
 Directory ordering uses folders first, then case-insensitive natural filename order
 (`file2` before `file10`), matching the default VS Code explorer convention. Sorting
 copies the current directory result and does not mutate the TanStack Query cache.

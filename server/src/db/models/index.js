@@ -1,3 +1,4 @@
+import { defineIncidentModels } from "../../modules/incidents/models.js";
 import { DataTypes } from "sequelize";
 import { defineDeploymentModels } from "../../modules/deployments/models.js";
 
@@ -282,7 +283,11 @@ export function defineModels(sequelize) {
   const AuthAuditEvent = sequelize.define(
     "AuthAuditEvent",
     {
-      operationRequestId: { type: DataTypes.UUID, field: "operation_request_id", allowNull: true },
+      operationRequestId: {
+        type: DataTypes.UUID,
+        field: "operation_request_id",
+        allowNull: true,
+      },
       id: {
         type: DataTypes.UUID,
         defaultValue: DataTypes.UUIDV4,
@@ -766,6 +771,7 @@ export function defineModels(sequelize) {
   });
   return {
     ...defineDeploymentModels(sequelize),
+    ...defineIncidentModels(sequelize),
     User,
     Session,
     CodeChange,

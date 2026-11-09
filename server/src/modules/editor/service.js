@@ -23,7 +23,10 @@ export function validGitRef(value) {
     value.includes("..") ||
     value.includes("//") ||
     value.includes("@{") ||
-    [...value].some((character) => character.codePointAt(0) <= 32 || character.codePointAt(0) === 127) ||
+    [...value].some(
+      (character) =>
+        character.codePointAt(0) <= 32 || character.codePointAt(0) === 127,
+    ) ||
     /[~^:?*\x5b\\]/.test(value)
   ) {
     return false;
@@ -108,7 +111,11 @@ function replay(operation, requestFingerprint) {
   );
 }
 
-export function createEditorService({ repository, githubService, clock = () => new Date() }) {
+export function createEditorService({
+  repository,
+  githubService,
+  clock = () => new Date(),
+}) {
   async function perform({
     userId,
     repositoryId,
@@ -173,7 +180,8 @@ export function createEditorService({ repository, githubService, clock = () => n
           errorCode: failure.code,
         },
         values: {
-          errorCode: status === "uncertain" ? "OPERATION_OUTCOME_UNKNOWN" : failure.code,
+          errorCode:
+            status === "uncertain" ? "OPERATION_OUTCOME_UNKNOWN" : failure.code,
           errorStatus: status === "uncertain" ? 409 : failure.status,
           errorMessage:
             status === "uncertain"
@@ -199,7 +207,11 @@ export function createEditorService({ repository, githubService, clock = () => n
         !validGitRef(input.baseBranch) ||
         !shaPattern.test(input.baseSha)
       ) {
-        throw new AppError(422, "INVALID_GIT_REF", "Branch details are invalid.");
+        throw new AppError(
+          422,
+          "INVALID_GIT_REF",
+          "Branch details are invalid.",
+        );
       }
       if (input.branch === input.baseBranch) {
         throw new AppError(
@@ -268,7 +280,9 @@ export function createEditorService({ repository, githubService, clock = () => n
       ) {
         throw new AppError(
           422,
-          contentBytes > maximumFileBytes ? "FILE_TOO_LARGE" : "INVALID_FILE_CHANGE",
+          contentBytes > maximumFileBytes
+            ? "FILE_TOO_LARGE"
+            : "INVALID_FILE_CHANGE",
           contentBytes > maximumFileBytes
             ? "Files larger than 512 KiB cannot be committed."
             : "File change details are invalid.",
@@ -402,7 +416,8 @@ export function createEditorService({ repository, githubService, clock = () => n
           });
           const match = existing.find(
             (pullRequest) =>
-              pullRequest.head === input.head && pullRequest.base === input.base,
+              pullRequest.head === input.head &&
+              pullRequest.base === input.base,
           );
           if (match) {
             return {

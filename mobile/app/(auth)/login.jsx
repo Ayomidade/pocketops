@@ -67,7 +67,9 @@ export default function LoginPage() {
           accessibilityLabel="Retry restoring your session"
           onPress={() => void restoreSession()}
         >
-          <Text className="text-textPrimary font-semibold">Retry connection</Text>
+          <Text className="text-textPrimary font-semibold">
+            Retry connection
+          </Text>
         </Pressable>
       ) : null}
       <Pressable

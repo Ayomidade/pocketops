@@ -28,8 +28,23 @@ function messageFor(error) {
 
 export default function ConnectionsPage() {
   const { status, message, restoreSession } = useAuth();
-  if (status === "starting") return <Screen title="GitHub connections"><RemoteState kind="loading" title="Restoring secure session..." /></Screen>;
-  if (status === "failed") return <Screen title="GitHub connections"><RemoteState kind="error" title="Unable to restore session" message={message} onRetry={() => void restoreSession()} /></Screen>;
+  if (status === "starting")
+    return (
+      <Screen title="GitHub connections">
+        <RemoteState kind="loading" title="Restoring secure session..." />
+      </Screen>
+    );
+  if (status === "failed")
+    return (
+      <Screen title="GitHub connections">
+        <RemoteState
+          kind="error"
+          title="Unable to restore session"
+          message={message}
+          onRetry={() => void restoreSession()}
+        />
+      </Screen>
+    );
   if (status !== "authenticated") return <Redirect href="/(auth)/login" />;
   return <AuthenticatedConnectionsPage />;
 }

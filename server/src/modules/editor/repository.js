@@ -66,7 +66,11 @@ export function createEditorRepository({ sequelize, models }) {
             codeChangeId: operation.id,
             action,
             requestId,
-            metadata: { operationType: operation.operationType, status, ...metadata },
+            metadata: {
+              operationType: operation.operationType,
+              status,
+              ...metadata,
+            },
           },
           { transaction },
         );

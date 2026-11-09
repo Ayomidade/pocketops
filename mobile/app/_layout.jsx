@@ -1,3 +1,4 @@
+import { NotificationBridge } from "../src/features/incidents/NotificationBridge";
 import "../global.css";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -8,10 +9,15 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <RepositoryProvider>
+        <NotificationBridge />
         <StatusBar style="light" hidden />
         <Stack
           initialRouteName="(tabs)"
-          screenOptions={{ headerShown: false, statusBarHidden: true, navigationBarHidden: true }}
+          screenOptions={{
+            headerShown: false,
+            statusBarHidden: true,
+            navigationBarHidden: true,
+          }}
         />
       </RepositoryProvider>
     </AuthProvider>

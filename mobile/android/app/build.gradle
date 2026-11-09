@@ -180,3 +180,8 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Firebase configuration is supplied by the operator as an EAS file variable.
+if (file("google-services.json").exists()) {
+    apply plugin: "com.google.gms.google-services"
+}

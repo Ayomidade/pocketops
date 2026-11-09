@@ -1,3 +1,4 @@
+import { createIncidentRouter } from "../src/modules/incidents/routes.js";
 import { createDeploymentRouter } from "../src/modules/deployments/routes.js";
 import { readFile } from "node:fs/promises";
 import Ajv from "ajv";
@@ -40,7 +41,11 @@ describe("implemented OpenAPI contract", () => {
     );
     expect(artifact).toBe(`${JSON.stringify(openapi, null, 2)}\n`);
     const expected = [
-      ...routes(createDeploymentRouter({ service: null, authService: null }), ""),
+      ...routes(createIncidentRouter({ service: null, authService: null }), ""),
+      ...routes(
+        createDeploymentRouter({ service: null, authService: null }),
+        "",
+      ),
       "get /health",
       "get /ready",
       ...routes(createAuthRouter({ service: null }), "/auth"),
@@ -117,7 +122,9 @@ describe("implemented OpenAPI contract", () => {
     expect(openapi.paths["/webhooks/github"].post.responses).toHaveProperty(
       "202",
     );
-    expect(openapi.paths["/projects"].get.security).toEqual([{ PocketOpsSession: [] }]);
-    expect(openapi.paths).not.toHaveProperty("/incidents");
+    expect(openapi.paths["/projects"].get.security).toEqual([
+      { PocketOpsSession: [] },
+    ]);
+    expect(openapi.paths["/incidents"].get.security).toEqual([{ PocketOpsSession: [] }]);
   });
 });

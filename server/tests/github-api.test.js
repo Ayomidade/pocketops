@@ -44,7 +44,11 @@ function makeServices(overrides = {}) {
     listTree: vi.fn(async () => ({ data: [], nextCursor: null })),
     getFile: vi.fn(async () => ({ path: "README.md", content: "hi" })),
     listBranches: vi.fn(async () => ({ data: [], nextCursor: null })),
-    getEditorBranch: vi.fn(async () => ({ name: "main", commitSha: "a".repeat(40), protected: true })),
+    getEditorBranch: vi.fn(async () => ({
+      name: "main",
+      commitSha: "a".repeat(40),
+      protected: true,
+    })),
     acceptWebhook: vi.fn(async () => ({ accepted: true, duplicate: false })),
     ...overrides,
   };
@@ -56,19 +60,26 @@ function makeServices(overrides = {}) {
 }
 
 describe("GitHub integration API", () => {
-  it.each(["install", "update"])("maps GitHub %s callback fields to the installation service", async (action) => {
-    const { app, githubService } = makeServices();
-    const state = "s".repeat(43);
-    const response = await request(app)
-      .get("/api/v1/github/installations/callback")
-      .query({ state, installation_id: "123456", setup_action: action })
-      .expect(302);
-    expect(githubService.handleInstallationCallback).toHaveBeenCalledWith({
-      state, installationId: "123456", setupAction: action,
-      requestId: expect.any(String),
-    });
-    expect(response.headers.location).toBe("pocketops://github/callback?status=connected");
-  });
+  it.each(["install", "update"])(
+    "maps GitHub %s callback fields to the installation service",
+    async (action) => {
+      const { app, githubService } = makeServices();
+      const state = "s".repeat(43);
+      const response = await request(app)
+        .get("/api/v1/github/installations/callback")
+        .query({ state, installation_id: "123456", setup_action: action })
+        .expect(302);
+      expect(githubService.handleInstallationCallback).toHaveBeenCalledWith({
+        state,
+        installationId: "123456",
+        setupAction: action,
+        requestId: expect.any(String),
+      });
+      expect(response.headers.location).toBe(
+        "pocketops://github/callback?status=connected",
+      );
+    },
+  );
 
   it.each([
     ["oauthCallback", "handleOAuthCallback"],
@@ -112,7 +123,9 @@ describe("GitHub integration API", () => {
   it("returns selected branch metadata only after session and repository authorization", async () => {
     const { app, githubService } = makeServices();
     const response = await request(app)
-      .get("/api/v1/github/repositories/11111111-1111-4111-8111-111111111111/branches/metadata?branch=fix%2Ftask")
+      .get(
+        "/api/v1/github/repositories/11111111-1111-4111-8111-111111111111/branches/metadata?branch=fix%2Ftask",
+      )
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
     expect(response.body.data.commitSha).toHaveLength(40);
@@ -120,7 +133,9 @@ describe("GitHub integration API", () => {
       expect.objectContaining({ userId: user.id, branch: "fix/task" }),
     );
     await request(app)
-      .get("/api/v1/github/repositories/11111111-1111-4111-8111-111111111111/branches/metadata?branch=bad%20ref")
+      .get(
+        "/api/v1/github/repositories/11111111-1111-4111-8111-111111111111/branches/metadata?branch=bad%20ref",
+      )
       .set("Authorization", `Bearer ${token}`)
       .expect(422);
   });
@@ -238,6 +253,14 @@ describe("GitHub integration API", () => {
 
 it("forwards GitHub App denial correctly instead of treating it as a missing code", async () => {
   const { app, githubService } = makeServices();
-  await request(app).get(`/api/v1/github/oauth/callback?state=${"s".repeat(43)}&error=access_denied`).expect(302);
-  expect(githubService.handleOAuthCallback).toHaveBeenCalledWith({ state: "s".repeat(43), code: undefined, providerError: "access_denied" });
+  await request(app)
+    .get(
+      `/api/v1/github/oauth/callback?state=${"s".repeat(43)}&error=access_denied`,
+    )
+    .expect(302);
+  expect(githubService.handleOAuthCallback).toHaveBeenCalledWith({
+    state: "s".repeat(43),
+    code: undefined,
+    providerError: "access_denied",
+  });
 });

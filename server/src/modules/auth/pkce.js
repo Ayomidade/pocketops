@@ -8,5 +8,8 @@ export function oauthPkce(state, clientSecret, purpose) {
     .update(`pocketops:pkce:v1:${purpose}:`)
     .update(state)
     .digest("base64url");
-  return { verifier, challenge: createHash("sha256").update(verifier).digest("base64url") };
+  return {
+    verifier,
+    challenge: createHash("sha256").update(verifier).digest("base64url"),
+  };
 }

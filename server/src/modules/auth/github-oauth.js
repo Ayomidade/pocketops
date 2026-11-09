@@ -39,7 +39,12 @@ export function createGitHubOAuthClient({
           signal: AbortSignal.timeout(timeoutMs),
         });
         tokenResponse = await readJson(response);
-        if (!response.ok || tokenResponse.error || typeof tokenResponse.access_token !== "string" || !tokenResponse.access_token) {
+        if (
+          !response.ok ||
+          tokenResponse.error ||
+          typeof tokenResponse.access_token !== "string" ||
+          !tokenResponse.access_token
+        ) {
           throw new Error("Token exchange failed");
         }
       } catch {

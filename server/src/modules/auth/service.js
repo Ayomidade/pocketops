@@ -103,7 +103,10 @@ export function createAuthService({
       url.searchParams.set("scope", "read:user");
       url.searchParams.set("state", state);
       url.searchParams.set("code_challenge_method", "S256");
-      url.searchParams.set("code_challenge", oauthPkce(state, config.githubOAuthClientSecret, "identity").challenge);
+      url.searchParams.set(
+        "code_challenge",
+        oauthPkce(state, config.githubOAuthClientSecret, "identity").challenge,
+      );
       return url.toString();
     },
 
@@ -134,7 +137,9 @@ export function createAuthService({
         return {
           redirectUrl: this.buildMobileRedirect(
             transaction.redirectUri,
-            providerError === "access_denied" ? "access_denied" : "oauth_failed",
+            providerError === "access_denied"
+              ? "access_denied"
+              : "oauth_failed",
           ),
         };
       }
@@ -153,7 +158,13 @@ export function createAuthService({
 
       let profile;
       try {
-        profile = await githubOAuthClient.getIdentity(code, { codeVerifier: oauthPkce(state, config.githubOAuthClientSecret, "identity").verifier });
+        profile = await githubOAuthClient.getIdentity(code, {
+          codeVerifier: oauthPkce(
+            state,
+            config.githubOAuthClientSecret,
+            "identity",
+          ).verifier,
+        });
       } catch {
         await repository.recordAuthEvent({
           action: "oauth_provider_failed",

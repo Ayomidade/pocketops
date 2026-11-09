@@ -51,17 +51,17 @@ Other modifications already present from the Render task are preserved and are n
 
 ## Executed validation and acceptance
 
-| Check | Actual result |
-| --- | --- |
-| `DATABASE_URL_TEST=… npm test` using the isolated PostgreSQL test database | PASS: 119 server tests, 41 mobile Node tests and 56 native UI tests; zero skipped. |
-| Final `npm test -w mobile` after adding the crash-window ordering regression | PASS: 42 Node tests and 56 native UI tests. |
-| `npm run lint` | PASS, both workspaces. |
-| `npm run api:contract:check` | PASS; no API response-schema change or stale artifact. |
-| `git diff --check` | PASS. |
-| `npm run export -w mobile -- --platform android --output-dir /tmp/pocketops-auth-fixes-final` | PASS: 1,454 modules, approximately 4.82 MB Android JavaScript/Hermes output. Not a native build or device test. |
-| Configured development PostgreSQL/settings and local API checks | PASS: DB reachable, all migrations present, native/backend callback alignment, local health 200, unauthenticated auth 401/no-store. No settings or application data changed. |
-| Public callback health | FAIL: configured hostname does not resolve (`ENOTFOUND`); replacement HTTPS origin needed. |
-| Live GitHub approval and physical Android/iOS sign-in/out | NOT RUN: public callback DNS blocker; interactive provider/device verification is still required. |
+| Check                                                                                         | Actual result                                                                                                                                                                |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL_TEST=… npm test` using the isolated PostgreSQL test database                    | PASS: 119 server tests, 41 mobile Node tests and 56 native UI tests; zero skipped.                                                                                           |
+| Final `npm test -w mobile` after adding the crash-window ordering regression                  | PASS: 42 Node tests and 56 native UI tests.                                                                                                                                  |
+| `npm run lint`                                                                                | PASS, both workspaces.                                                                                                                                                       |
+| `npm run api:contract:check`                                                                  | PASS; no API response-schema change or stale artifact.                                                                                                                       |
+| `git diff --check`                                                                            | PASS.                                                                                                                                                                        |
+| `npm run export -w mobile -- --platform android --output-dir /tmp/pocketops-auth-fixes-final` | PASS: 1,454 modules, approximately 4.82 MB Android JavaScript/Hermes output. Not a native build or device test.                                                              |
+| Configured development PostgreSQL/settings and local API checks                               | PASS: DB reachable, all migrations present, native/backend callback alignment, local health 200, unauthenticated auth 401/no-store. No settings or application data changed. |
+| Public callback health                                                                        | FAIL: configured hostname does not resolve (`ENOTFOUND`); replacement HTTPS origin needed.                                                                                   |
+| Live GitHub approval and physical Android/iOS sign-in/out                                     | NOT RUN: public callback DNS blocker; interactive provider/device verification is still required.                                                                            |
 
 A nonfatal existing React Native `SafeAreaView` deprecation warning is emitted from the shared `Screen` component by the new native authentication tests. It is not a sign-in failure and no warnings were suppressed.
 

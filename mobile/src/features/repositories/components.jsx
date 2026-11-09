@@ -25,7 +25,15 @@ export function Action({ label, onPress, disabled = false, caution = false }) {
       onPress={onPress}
       className={`min-h-12 justify-center rounded-xl border px-4 py-3 ${caution ? "border-warning bg-warning/10" : "border-border"}`}
     >
-      <Text className={disabled ? "text-textMutedReadable" : caution ? "font-semibold text-warning" : "font-semibold text-accentHi"}>
+      <Text
+        className={
+          disabled
+            ? "text-textMutedReadable"
+            : caution
+              ? "font-semibold text-warning"
+              : "font-semibold text-accentHi"
+        }
+      >
         {label}
       </Text>
     </Pressable>
@@ -80,7 +88,9 @@ export function RetryState({ error, onRetry }) {
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
     >
-      <Text className="text-lg font-semibold text-textPrimary">Unable to load</Text>
+      <Text className="text-lg font-semibold text-textPrimary">
+        Unable to load
+      </Text>
       <Text className="leading-6 text-textSecondary">{readError(error)}</Text>
       <Action label="Retry" onPress={onRetry} />
     </View>
@@ -356,7 +366,10 @@ export function FilePreview({ file }) {
       }
       renderItem={({ item, index }) => (
         <View className="flex-row px-3 py-1">
-          <Text accessible={false} className="w-12 text-right text-textMutedReadable">
+          <Text
+            accessible={false}
+            className="w-12 text-right text-textMutedReadable"
+          >
             {index + 1}{" "}
           </Text>
           <Text

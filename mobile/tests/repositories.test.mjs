@@ -97,11 +97,27 @@ test("editor write calls stay on authenticated GitHub routes and include idempot
   const calls = [];
   const api = createGitHubApi(async (...args) => calls.push(args));
   await api.getBranch("repo-id", "feature/fix");
-  await api.createFixBranch("repo-id", { branch: "fix/task" }, "idempotency-key-123");
-  await api.commitFixFile("repo-id", { branch: "fix/task", content: "safe" }, "idempotency-key-456");
-  await api.createPullRequest("repo-id", { head: "fix/task", base: "main" }, "idempotency-key-789");
+  await api.createFixBranch(
+    "repo-id",
+    { branch: "fix/task" },
+    "idempotency-key-123",
+  );
+  await api.commitFixFile(
+    "repo-id",
+    { branch: "fix/task", content: "safe" },
+    "idempotency-key-456",
+  );
+  await api.createPullRequest(
+    "repo-id",
+    { head: "fix/task", base: "main" },
+    "idempotency-key-789",
+  );
   assert.match(calls[0][0], /branches\/metadata\?branch=feature%2Ffix/);
-  for (const [index, key] of [[1, "idempotency-key-123"], [2, "idempotency-key-456"], [3, "idempotency-key-789"]]) {
+  for (const [index, key] of [
+    [1, "idempotency-key-123"],
+    [2, "idempotency-key-456"],
+    [3, "idempotency-key-789"],
+  ]) {
     assert.equal(calls[index][1].headers["Idempotency-Key"], key);
     assert.equal(calls[index][1].method, index === 2 ? "PUT" : "POST");
   }
@@ -194,25 +210,39 @@ test("known-denied Render responses erase deployment and log caches before they 
     const projectKey = ["deployments", "project", "project-id"];
     const logsKey = ["deployments", "logs", "project-id", "{}"];
     client.setQueryData(projectKey, { data: { name: "Private service" } });
-    client.setQueryData(logsKey, { data: { items: [{ message: "Private log" }] } });
-    await assert.rejects(client.fetchQuery({ queryKey: projectKey, queryFn: async () => { throw Object.assign(new Error("Access denied"), { status }); }, retry: false }));
+    client.setQueryData(logsKey, {
+      data: { items: [{ message: "Private log" }] },
+    });
+    await assert.rejects(
+      client.fetchQuery({
+        queryKey: projectKey,
+        queryFn: async () => {
+          throw Object.assign(new Error("Access denied"), { status });
+        },
+        retry: false,
+      }),
+    );
     assert.equal(client.getQueryData(projectKey), undefined);
     assert.equal(client.getQueryData(logsKey), undefined);
     await disposeRepositoryClient(client);
   }
 });
 
-
 test("directory order places folders first with natural case-insensitive filenames without changing cached data", () => {
   const entries = [
-    { name: "file10.js", type: "file" }, { name: "Zoo", type: "dir" },
-    { name: "file2.js", type: "file" }, { name: ".github", type: "dir" },
-    { name: "alpha.js", type: "file" }, { name: "src", type: "dir" },
+    { name: "file10.js", type: "file" },
+    { name: "Zoo", type: "dir" },
+    { name: "file2.js", type: "file" },
+    { name: ".github", type: "dir" },
+    { name: "alpha.js", type: "file" },
+    { name: "src", type: "dir" },
     { name: "Alpha.js", type: "file" },
   ].map(Object.freeze);
   Object.freeze(entries);
-  assert.deepEqual(sortDirectoryEntries(entries).map((item) => item.name),
-    [".github", "src", "Zoo", "Alpha.js", "alpha.js", "file2.js", "file10.js"]);
+  assert.deepEqual(
+    sortDirectoryEntries(entries).map((item) => item.name),
+    [".github", "src", "Zoo", "Alpha.js", "alpha.js", "file2.js", "file10.js"],
+  );
   assert.equal(entries[0].name, "file10.js");
   assert.deepEqual(sortDirectoryEntries(), []);
 });

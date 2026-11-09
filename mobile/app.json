@@ -13,7 +13,8 @@
     "newArchEnabled": true,
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": false
@@ -35,7 +36,7 @@
       }
     },
     "owner": "ayomight",
-    "runtimeVersion": "0.1.0-updates.2",
+    "runtimeVersion": "0.1.0-incidents.1",
     "updates": {
       "url": "https://u.expo.dev/b7077a14-20cb-47b6-8f9b-fa7b2425e95b",
       "enabled": true

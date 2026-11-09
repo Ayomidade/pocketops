@@ -38,7 +38,11 @@ function pagedResponse(data, page) {
   };
 }
 
-function makeOctokit({ requestImplementation, restOverrides = {}, restRootOverrides = {} } = {}) {
+function makeOctokit({
+  requestImplementation,
+  restOverrides = {},
+  restRootOverrides = {},
+} = {}) {
   return {
     request: requestImplementation || vi.fn(async () => ({ data: [] })),
     rest: {
@@ -68,8 +72,12 @@ function makeOctokit({ requestImplementation, restOverrides = {}, restRootOverri
         ...restOverrides,
       },
       git: {
-        createRef: vi.fn(async ({ ref, sha }) => ({ data: { ref, object: { sha } } })),
-        getRef: vi.fn(async () => ({ data: { object: { sha: "a".repeat(40) } } })),
+        createRef: vi.fn(async ({ ref, sha }) => ({
+          data: { ref, object: { sha } },
+        })),
+        getRef: vi.fn(async () => ({
+          data: { object: { sha: "a".repeat(40) } },
+        })),
         ...restRootOverrides.git,
       },
       pulls: {
@@ -88,7 +96,9 @@ function makeOctokit({ requestImplementation, restOverrides = {}, restRootOverri
         ...restRootOverrides.pulls,
       },
       ...Object.fromEntries(
-        Object.entries(restRootOverrides).filter(([key]) => !["git", "pulls"].includes(key)),
+        Object.entries(restRootOverrides).filter(
+          ([key]) => !["git", "pulls"].includes(key),
+        ),
       ),
     },
   };
@@ -128,7 +138,9 @@ describe("GitHub App adapter", () => {
     });
 
     await expect(
-      adapter.exchangeUserCode("one-time-code", { codeVerifier: "v".repeat(43) }),
+      adapter.exchangeUserCode("one-time-code", {
+        codeVerifier: "v".repeat(43),
+      }),
     ).resolves.toMatchObject({
       accessToken: "access-1",
       refreshToken: "refresh-1",
@@ -396,13 +408,21 @@ describe("GitHub App adapter", () => {
       AppClass: MockApp,
       OctokitClass: class {},
     });
-    expect(await adapter.getBranch("987", "PocketOrg", "repo", "fix/task")).toEqual({
+    expect(
+      await adapter.getBranch("987", "PocketOrg", "repo", "fix/task"),
+    ).toEqual({
       name: "fix/task",
       commitSha: "a".repeat(40),
       protected: true,
     });
     expect(
-      await adapter.createBranch("987", "PocketOrg", "repo", "fix/task", "a".repeat(40)),
+      await adapter.createBranch(
+        "987",
+        "PocketOrg",
+        "repo",
+        "fix/task",
+        "a".repeat(40),
+      ),
     ).toEqual({ ref: "refs/heads/fix/task", sha: "a".repeat(40) });
     expect(
       await adapter.updateFile("987", "PocketOrg", "repo", {
@@ -452,7 +472,13 @@ describe("GitHub App adapter", () => {
     }
     const adapter = createGitHubAppAdapter({ config, AppClass: MockApp });
     await expect(
-      adapter.createBranch("987", "PocketOrg", "repo", "fix/task", "a".repeat(40)),
+      adapter.createBranch(
+        "987",
+        "PocketOrg",
+        "repo",
+        "fix/task",
+        "a".repeat(40),
+      ),
     ).rejects.toMatchObject({ status: 409, code: "BRANCH_ALREADY_EXISTS" });
     await expect(
       adapter.updateFile("987", "PocketOrg", "repo", {
@@ -494,7 +520,6 @@ describe("GitHub App adapter", () => {
   });
 });
 
-
 it("uses REST-enabled real installation clients for repository details, trees and branches", async () => {
   const { privateKey } = generateKeyPairSync("rsa", {
     modulusLength: 2048,
@@ -503,28 +528,58 @@ it("uses REST-enabled real installation clients for repository details, trees an
   });
   const paths = [];
   const mockFetch = vi.fn(async (input) => {
-    const path = new URL(typeof input === "string" ? input : input.url).pathname;
+    const path = new URL(typeof input === "string" ? input : input.url)
+      .pathname;
     paths.push(path);
     let body;
     if (path === "/app/installations/123/access_tokens") {
-      body = { token: "fixture-installation-token", expires_at: new Date(Date.now() + 3600000).toISOString() };
+      body = {
+        token: "fixture-installation-token",
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+      };
     } else if (path === "/repos/PocketOrg/repo-1") {
       body = repository(1);
-    } else if (["/repos/PocketOrg/repo-1/contents", "/repos/PocketOrg/repo-1/contents/"].includes(path)) {
-      body = [{ name: "README.md", path: "README.md", type: "file", sha: "a".repeat(40), size: 5 }];
+    } else if (
+      [
+        "/repos/PocketOrg/repo-1/contents",
+        "/repos/PocketOrg/repo-1/contents/",
+      ].includes(path)
+    ) {
+      body = [
+        {
+          name: "README.md",
+          path: "README.md",
+          type: "file",
+          sha: "a".repeat(40),
+          size: 5,
+        },
+      ];
     } else if (path === "/repos/PocketOrg/repo-1/branches") {
-      body = [{ name: "main", commit: { sha: "b".repeat(40) }, protected: true }];
+      body = [
+        { name: "main", commit: { sha: "b".repeat(40) }, protected: true },
+      ];
     } else {
       throw new Error("Unexpected fixture request path");
     }
-    return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
   });
   const adapter = createGitHubAppAdapter({
     config: { ...config, githubAppPrivateKey: privateKey },
-    OctokitClass: Octokit.defaults({ request: { fetch: mockFetch }, log: { debug() {}, info() {}, warn() {}, error() {} } }),
+    OctokitClass: Octokit.defaults({
+      request: { fetch: mockFetch },
+      log: { debug() {}, info() {}, warn() {}, error() {} },
+    }),
   });
-  expect((await adapter.getRepository("123", "PocketOrg", "repo-1")).full_name).toBe("PocketOrg/repo-1");
-  expect((await adapter.listDirectory("123", "PocketOrg", "repo-1", "", "main")).entries[0].path).toBe("README.md");
+  expect(
+    (await adapter.getRepository("123", "PocketOrg", "repo-1")).full_name,
+  ).toBe("PocketOrg/repo-1");
+  expect(
+    (await adapter.listDirectory("123", "PocketOrg", "repo-1", "", "main"))
+      .entries[0].path,
+  ).toBe("README.md");
   await adapter.listBranches("123", "PocketOrg", "repo-1");
   expect(paths).toContain("/repos/PocketOrg/repo-1/branches");
 });

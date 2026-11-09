@@ -6,9 +6,13 @@ export function createRepositoryClient() {
   client = new QueryClient({
     queryCache: new QueryCache({
       onError(error, failed) {
-        if (failed.queryKey[0] === "deployments" && [401, 403, 404, 409].includes(error?.status)) {
+        if (
+          ["deployments", "incidents"].includes(failed.queryKey[0]) &&
+          [401, 403, 404, 409].includes(error?.status)
+        ) {
           failed.setState({ data: undefined, dataUpdatedAt: 0 });
-          const related = (q) => q !== failed && q.queryKey[0] === "deployments";
+          const related = (q) =>
+            q !== failed && ["deployments", "incidents"].includes(q.queryKey[0]);
           void client.cancelQueries({ predicate: related });
           client.removeQueries({ predicate: related });
           return;

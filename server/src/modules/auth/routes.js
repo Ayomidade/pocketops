@@ -49,7 +49,10 @@ function limited(windowMs, limit, code) {
 
 export function createAuthRouter({ service }) {
   const router = Router();
-  router.use((_request, response, next) => { response.set("Cache-Control", "no-store"); next(); });
+  router.use((_request, response, next) => {
+    response.set("Cache-Control", "no-store");
+    next();
+  });
   const controller = service ? createAuthController(service) : null;
   const oauthStartLimit = limited(15 * 60_000, 10, "AUTH_RATE_LIMITED");
   const oauthCallbackLimit = limited(15 * 60_000, 30, "AUTH_RATE_LIMITED");

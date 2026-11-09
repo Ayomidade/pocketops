@@ -1,3 +1,4 @@
+import { registerIncidentContract } from "./incidents.js";
 import { registerDeploymentContract } from "./deployments.js";
 // The public contract covers implemented v1 endpoints only. Regenerate with npm run api:contract.
 const string = { type: "string" };
@@ -384,7 +385,16 @@ endpoint(
   "get",
   "repositoryBranchMetadata",
   ref("Branch"),
-  { parameters: [parameter("branch", "query", { type: "string", minLength: 1, maxLength: 255 }, true)] },
+  {
+    parameters: [
+      parameter(
+        "branch",
+        "query",
+        { type: "string", minLength: 1, maxLength: 255 },
+        true,
+      ),
+    ],
+  },
 );
 endpoint(
   "/github/repositories/{repositoryId}/branches",
@@ -410,7 +420,10 @@ endpoint(
     body: object({
       branch: { type: "string", minLength: 1, maxLength: 255 },
       baseBranch: { type: "string", minLength: 1, maxLength: 255 },
-      baseSha: { type: "string", pattern: "^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$" },
+      baseSha: {
+        type: "string",
+        pattern: "^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$",
+      },
     }),
   },
 );
@@ -425,7 +438,10 @@ endpoint(
       branch: { type: "string", minLength: 1, maxLength: 255 },
       path: { type: "string", minLength: 1, maxLength: 1024 },
       content: { type: "string", maxLength: 524288 },
-      expectedSha: { type: "string", pattern: "^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$" },
+      expectedSha: {
+        type: "string",
+        pattern: "^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$",
+      },
       commitMessage: { type: "string", minLength: 1, maxLength: 200 },
     }),
   },
@@ -437,9 +453,22 @@ endpoint(
   array(ref("PullRequest")),
   {
     parameters: [
-      parameter("head", "query", { type: "string", minLength: 1, maxLength: 255 }, true),
-      parameter("base", "query", { type: "string", minLength: 1, maxLength: 255 }),
-      parameter("state", "query", { type: "string", enum: ["open", "closed", "all"], default: "open" }),
+      parameter(
+        "head",
+        "query",
+        { type: "string", minLength: 1, maxLength: 255 },
+        true,
+      ),
+      parameter("base", "query", {
+        type: "string",
+        minLength: 1,
+        maxLength: 255,
+      }),
+      parameter("state", "query", {
+        type: "string",
+        enum: ["open", "closed", "all"],
+        default: "open",
+      }),
     ],
   },
 );
@@ -451,13 +480,16 @@ endpoint(
   {
     status: 201,
     parameters: [idempotencyKey],
-    body: object({
-      head: { type: "string", minLength: 1, maxLength: 255 },
-      base: { type: "string", minLength: 1, maxLength: 255 },
-      title: { type: "string", minLength: 1, maxLength: 200 },
-      body: { type: "string", maxLength: 4000 },
-      draft: boolean,
-    }, ["head", "base", "title"]),
+    body: object(
+      {
+        head: { type: "string", minLength: 1, maxLength: 255 },
+        base: { type: "string", minLength: 1, maxLength: 255 },
+        title: { type: "string", minLength: 1, maxLength: 200 },
+        body: { type: "string", maxLength: 4000 },
+        draft: boolean,
+      },
+      ["head", "base", "title"],
+    ),
   },
 );
 endpoint("/webhooks/github", "post", "githubWebhook", ref("WebhookAccepted"), {
@@ -472,6 +504,7 @@ endpoint("/webhooks/github", "post", "githubWebhook", ref("WebhookAccepted"), {
 });
 
 registerDeploymentContract({ schemas, endpoint, parameter });
+registerIncidentContract({ schemas, endpoint, parameter });
 
 export const openapi = {
   openapi: "3.0.3",

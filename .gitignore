@@ -26,3 +26,7 @@ credentials.json
 *.mobileprovision
 *.apk
 *.aab
+
+# Firebase client configuration is supplied per environment at build time.
+google-services.json
+GoogleService-Info.plist

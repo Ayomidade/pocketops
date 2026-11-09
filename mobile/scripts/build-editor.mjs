@@ -19,5 +19,8 @@ const result = await build({
   minify: true,
   legalComments: "inline",
 });
-await writeFile(destination, `export default ${JSON.stringify(result.outputFiles[0].text)};\n`);
+await writeFile(
+  destination,
+  `export default ${JSON.stringify(result.outputFiles[0].text)};\n`,
+);
 console.info("Generated the local CodeMirror editor bundle");

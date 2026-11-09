@@ -27,7 +27,9 @@ export function parseAuthCallback(callbackUrl, redirectUri) {
     callback.username ||
     callback.password ||
     callback.hash ||
-    [...callback.searchParams.keys()].some((key) => !["handoff", "error"].includes(key)) ||
+    [...callback.searchParams.keys()].some(
+      (key) => !["handoff", "error"].includes(key),
+    ) ||
     callback.searchParams.getAll("handoff").length > 1 ||
     callback.searchParams.getAll("error").length > 1
   ) {
@@ -36,7 +38,11 @@ export function parseAuthCallback(callbackUrl, redirectUri) {
 
   const handoffCode = callback.searchParams.get("handoff");
   const error = callback.searchParams.get("error");
-  if (handoffCode && /^[A-Za-z0-9_-]{43}$/.test(handoffCode) && !callback.searchParams.has("error")) {
+  if (
+    handoffCode &&
+    /^[A-Za-z0-9_-]{43}$/.test(handoffCode) &&
+    !callback.searchParams.has("error")
+  ) {
     return { handoffCode, error: null };
   }
   if (
