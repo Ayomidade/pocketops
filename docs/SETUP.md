@@ -4,7 +4,7 @@
 
 ## 1. What is included today
 
-The monorepo contains an Expo/React Native navigation shell, NativeWind configuration, Express server, identity authentication, GitHub App repository APIs, guarded source editing, Render deployment connections/operations, reversible migrations, webhook processing, a deployment worker process and API/mobile tests. Notifications and incident workflows remain unimplemented. Physical-device launch, live provider setup and runtime styling still require local verification.
+The monorepo contains an Expo/React Native navigation shell, NativeWind configuration, Express server, identity authentication, GitHub App repository APIs, guarded source editing, Render deployment connections/operations, reversible migrations, webhook processing, a deployment worker process and API/mobile tests. Notifications and incident workflows are implemented (migration `007-create-incidents`, push device/preference routes, mobile incident screens). Physical-device launch, live provider setup and runtime styling still require local verification.
 
 ## 2. Prerequisites
 
@@ -226,7 +226,6 @@ For identity sign-in and GitHub App callback fixes, session race coverage and cu
 
 If GitHub cannot return to the API, check DNS and `/api/v1/health` at `API_PUBLIC_URL` from outside the development machine. A healthy LAN API does not prove that an expired development tunnel hostname still resolves. A replacement origin requires updating both the server canonical OAuth callback and the registered GitHub OAuth App callback.
 
-
 ## Android APK through EAS (no USB required)
 
 The `mobile/eas.json` `preview` profile builds a standalone, internally distributed
@@ -273,7 +272,6 @@ References: [Expo monorepo builds](https://docs.expo.dev/build-reference/build-w
 [build hooks](https://docs.expo.dev/build-reference/npm-hooks/), and
 [internal distribution](https://docs.expo.dev/build/internal-distribution/).
 
-
 ### GitHub installation return and local tunnels
 
 The installation callback maps GitHub's `installation_id` and `setup_action`
@@ -288,7 +286,6 @@ loopback peers are trusted; arbitrary remote forwarded headers are not trusted.
 Do not use unrestricted proxy trust or disable rate-limit validation. Other proxy
 topologies require an explicitly reviewed trusted-address configuration. Ensure the
 proxy controls forwarded headers; processes on the trusted host can supply them.
-
 
 Repository details, directory contents and branch reads require the REST-enabled
 Octokit constructor supplied to the GitHub App client. The adapter now shares that

@@ -32,7 +32,7 @@ flowchart TD
 
 **Worker:** retryable and scheduled work, reconciliation, notifications, health verification. The deployment worker is a separate process entrypoint (`server/src/jobs/deployment-worker.js`, `npm run worker:deployments`) with constrained provider credentials; GitHub webhook processing currently runs in the API process. Do not assume worker tasks are exactly-once: design for at-least-once delivery, and never re-dispatch a deployment request whose provider outcome is ambiguous.
 
-**PostgreSQL:** source of truth for users, sessions, OAuth transactions, authentication audit events, GitHub App installation links/memberships, repository catalog/selections and webhook deliveries, plus Render provider connections, projects, deployment records and durable deployment operation requests. Incident and notification state remain planned.
+**PostgreSQL:** source of truth for users, sessions, OAuth transactions, authentication audit events, GitHub App installation links/memberships, repository catalog/selections and webhook deliveries, plus Render provider connections, projects, deployment records and durable deployment operation requests. Incident, notification, health-monitor and push-device state are persisted via migration `007-create-incidents`.
 
 **Redis:** target queue transport, currently deferred. The deployment worker leases durable PostgreSQL operations directly; Redis/BullMQ is not installed or required. See the explicit transport decision in [DEPLOYMENTS.md](DEPLOYMENTS.md).
 

@@ -52,6 +52,8 @@ Build a runnable, testable native mobile app and backend first. Add GitHub ident
 
 **Backend:** incidents, timeline, event correlation, verified webhooks where supported, approved health checks, push token registration/preferences. **Mobile:** native incident list/detail, project context, notification deep links, resolution controls. **Exit:** simulated failure creates actionable incident; deploy success is separate from verified health; notification fallback works.
 
+**Implementation status (2026-11):** backend incidents module (service, routes, controller, repository, models, policy, health-adapter, push-adapter, runtime), migration `007-create-incidents`, OpenAPI contract registration, router mounted in `app.js` and runtime wired in `server.js` are implemented with 26 server tests. Mobile incident screens (create, detail, monitor, notifications, layout), incidents feature (api, queries, screens, NotificationBridge, notifications), and mobile tests are implemented. A `NotificationBridge` cleanup guard bug (`AppState.addEventListener` may return `undefined`) was found and fixed during verification. Physical-device sign-in, staging recovery drill, and live Render acceptance remain NOT RUN; see [BETA_HARDENING.md](BETA_HARDENING.md).
+
 ### Milestone 7 — Hardening and private beta (weeks 10–12+)
 
 **Tasks:** full authorization regression, threat model review, offline/reconnect tests, background job failure drills, monitoring, backup/restore, staging rollout, device performance, accessibility, 10–15 developer pilot. **Exit:** complete phone-only recovery demonstration and documented operational runbook.
@@ -110,7 +112,6 @@ Use feature flags and staged access. Begin with internal test accounts, then a h
 
 Record: milestone, shipped functionality, automated checks, physical-device checks, known bugs, security blockers, upstream API issues, decisions and next week's acceptance criteria. Treat the roadmap as adaptive rather than a fixed deadline promise.
 
-
 ## Validation update — 2026-10-28
 
 The operator has now confirmed installed Android APK identity sign-in, GitHub App
@@ -119,5 +120,4 @@ that this environment has no configured GitHub App are historical. Opening a
 repository exposed an Octokit client wiring defect, now fixed with a real-library,
 mocked-HTTP regression test; successful live nested browsing/file preview is still
 awaiting confirmation. Live editing/commit/PR and Render deployment checks remain
-outstanding. Incident workflows, health verification and push notifications remain
-planned, followed by hardening and the phone-only recovery drill.
+outstanding. Incident workflows, health verification and push notifications are implemented; physical-device and live-provider verification remain outstanding, followed by hardening and the phone-only recovery drill.

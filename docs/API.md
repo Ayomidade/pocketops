@@ -10,7 +10,7 @@ route coverage and real response envelopes. Endpoints described below that are
 not yet implemented (section 7) remain planned and are intentionally absent from
 the generated contract.
 
-> Implemented: liveness/readiness, identity/session endpoints, GitHub App repository reads, the guarded editor APIs in section 5, and the Render provider-connection, project, deployment, log and operation endpoints in sections 5–6. Editor writes require server configuration and explicit GitHub App write permissions; deployment reads require a provider encryption key ring and GitHub App configuration; new redeploy requests additionally require `DEPLOYMENTS_ENABLED=true`, and redeploy processing requires the separate `npm run worker:deployments` process. Incidents, notifications, health verification and Render webhooks remain planned and are intentionally absent from the generated contract.
+> Implemented: liveness/readiness, identity/session endpoints, GitHub App repository reads, the guarded editor APIs in section 5, and the Render provider-connection, project, deployment, log and operation endpoints in sections 5–6. Editor writes require server configuration and explicit GitHub App write permissions; deployment reads require a provider encryption key ring and GitHub App configuration; new redeploy requests additionally require `DEPLOYMENTS_ENABLED=true`, and redeploy processing requires the separate `npm run worker:deployments` process. Render webhooks remain planned and are intentionally absent from the generated contract; incidents, notifications, and health verification endpoints are implemented and covered by the contract.
 
 ## 1. Conventions
 
@@ -182,12 +182,12 @@ Validate provider service belongs to connection and repository is currently auth
 
 ## 6. Deployments and logs
 
-| Method | Path                        | Purpose                                       |
-| ------ | --------------------------- | --------------------------------------------- |
-| GET    | `/projects/:id/deployments` | Recent deployments; `cursor,limit`            |
-| GET    | `/projects/:id/logs`        | `from,to,limit,cursor,level` bounded logs     |
-| POST   | `/projects/:id/deployments` | Request explicitly confirmed supported action |
-| GET    | `/deployments/:id`          | Deployment status and provider mapping        |
+| Method | Path                        | Purpose                                                                  |
+| ------ | --------------------------- | ------------------------------------------------------------------------ |
+| GET    | `/projects/:id/deployments` | Recent deployments; `cursor,limit`                                       |
+| GET    | `/projects/:id/logs`        | `from,to,limit,cursor,level` bounded logs                                |
+| POST   | `/projects/:id/deployments` | Request explicitly confirmed supported action                            |
+| GET    | `/deployments/:id`          | Deployment status and provider mapping                                   |
 | GET    | `/operations/:id`           | Async operation status; health is always `not_checked` in this milestone |
 
 **Redeploy request:**
@@ -242,14 +242,14 @@ The target must name the exact service, the current live deployment and its comm
 
 **Verified Render API operations** (base `https://api.render.com/v1`, used only server-side by the Render adapter):
 
-| Render operation                                   | PocketOps use                          |
-| -------------------------------------------------- | -------------------------------------- |
-| `GET /services`                                    | List services for project mapping      |
-| `GET /services/{id}`                               | Validate service and capabilities      |
-| `GET /services/{id}/deploys`                       | Deployment history                     |
-| `GET /services/{id}/deploys/{id}`                  | Deployment status reconciliation       |
-| `POST /services/{id}/deploys` (`{commitId}`)       | Confirmed redeploy of a known commit   |
-| `GET /logs` (owner/resource/time bounded)          | Bounded runtime logs                   |
+| Render operation                             | PocketOps use                        |
+| -------------------------------------------- | ------------------------------------ |
+| `GET /services`                              | List services for project mapping    |
+| `GET /services/{id}`                         | Validate service and capabilities    |
+| `GET /services/{id}/deploys`                 | Deployment history                   |
+| `GET /services/{id}/deploys/{id}`            | Deployment status reconciliation     |
+| `POST /services/{id}/deploys` (`{commitId}`) | Confirmed redeploy of a known commit |
+| `GET /logs` (owner/resource/time bounded)    | Bounded runtime logs                 |
 
 Rollback, promotion and health verification are not offered. These endpoints were verified against mocked contract fixtures in automated tests; a live Render account has not been exercised in this environment.
 

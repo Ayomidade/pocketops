@@ -1,6 +1,6 @@
 # PocketOps — manual Render deployments
 
-Implementation and local validation: 2026-10-28. Live Render and physical-device acceptance are **NOT RUN**. This milestone stops at manual operations and deployment status; incidents, notifications and independent health checks remain future work.
+Implementation and local validation: 2026-10-28. Live Render and physical-device acceptance are **NOT RUN**. This milestone stops at manual operations and deployment status; incidents, notifications, and independent health checks are implemented (migration `007-create-incidents`); live Render acceptance and physical-device verification remain outstanding.
 
 ## Inventory and decisions
 
@@ -93,19 +93,28 @@ No new runtime dependency is needed for this milestone; crypto uses Node's authe
 
 ## Final executed checks
 
-| Command/check | Actual result |
-| --- | --- |
-| `DATABASE_URL_TEST=… npm test` (dedicated `pocketops_render_milestone_test` database) | PASS: 115 server tests, 27 mobile Node tests, 53 native UI tests; zero skipped. Includes apply/all-rollback and durable/concurrent PostgreSQL checks. |
-| `npm run lint` | PASS for server and mobile. |
-| `npm run api:contract:check` | PASS; generated OpenAPI artifact is current. |
-| `git diff --check` | PASS. |
-| `npm ls --depth=0` | PASS; no new runtime dependency added for Render. |
-| `npm exec --workspace=mobile -- expo install --check` | Local dependency-map validation passes; network disabled, so online compatibility metadata was not checked. |
-| `npm run export -w mobile -- --platform android --output-dir /tmp/pocketops-render-final-export` | PASS: 1,453 modules, Android Hermes/JavaScript bundle approximately 4.81 MB. This is not an APK/native build. |
-| Live Render validation/deploy/revocation | NOT RUN: isolated account/service/key not configured; no real deploy triggered. |
-| Android physical-device UI/performance and native compilation; iOS native build/runtime | NOT RUN for this milestone: device/staging prerequisites absent; no device or Xcode verification claimed. |
-| Fresh online advisory audit and clean reinstall | NOT RUN in this continuation; earlier dependency advisories remain a separate gate. No clean-audit claim. |
+| Command/check                                                                                    | Actual result                                                                                                                                         |
+| ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL_TEST=… npm test` (dedicated `pocketops_render_milestone_test` database)            | PASS: 115 server tests, 27 mobile Node tests, 53 native UI tests; zero skipped. Includes apply/all-rollback and durable/concurrent PostgreSQL checks. |
+| `npm run lint`                                                                                   | PASS for server and mobile.                                                                                                                           |
+| `npm run api:contract:check`                                                                     | PASS; generated OpenAPI artifact is current.                                                                                                          |
+| `git diff --check`                                                                               | PASS.                                                                                                                                                 |
+| `npm ls --depth=0`                                                                               | PASS; no new runtime dependency added for Render.                                                                                                     |
+| `npm exec --workspace=mobile -- expo install --check`                                            | Local dependency-map validation passes; network disabled, so online compatibility metadata was not checked.                                           |
+| `npm run export -w mobile -- --platform android --output-dir /tmp/pocketops-render-final-export` | PASS: 1,453 modules, Android Hermes/JavaScript bundle approximately 4.81 MB. This is not an APK/native build.                                         |
+| Live Render validation/deploy/revocation                                                         | NOT RUN: isolated account/service/key not configured; no real deploy triggered.                                                                       |
+| Android physical-device UI/performance and native compilation; iOS native build/runtime          | NOT RUN for this milestone: device/staging prerequisites absent; no device or Xcode verification claimed.                                             |
+| Fresh online advisory audit and clean reinstall                                                  | NOT RUN in this continuation; earlier dependency advisories remain a separate gate. No clean-audit claim.                                             |
 
 The full root suite completed without the earlier asynchronous `act` warning. The new UI integration fixture uses controlled timers for deferred list/query notifications; assertions still verify actual requests, confirmations and rendered states.
 
 Acceptance against automated implementation: connect/map/history/logs **PASS**; confirmed idempotent audited redeploy **PASS**; encrypted backend credential handling and metadata-only responses **PASS**; requested/deployed/health distinction **PASS**; unsupported operations unavailable **PASS**. Live provider and physical-device acceptance for these remains **NOT RUN**. Reconnect/rebind and audited operator resolution of unknown outcomes remain explicit operational gaps, not simulated app features.
+
+### Log-window validation
+
+The API accepts ordered log windows of at most one hour and rejects end times
+more than one minute ahead of its clock. Mobile initial load and refresh derive
+both timestamps from a single clock reading, avoiding a one-hour-plus-milliseconds
+request. If `INVALID_LOG_WINDOW` persists after updating the app, verify automatic
+date/time on the phone and clock synchronization on the API host. These are
+service runtime logs, not deployment build logs.

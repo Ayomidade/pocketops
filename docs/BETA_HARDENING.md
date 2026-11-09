@@ -6,22 +6,22 @@
 
 Implemented: native navigation; bound GitHub identity OAuth and session lifecycle; GitHub App installation/selection and live resource authorization; native repository browsing; isolated local CodeMirror editor with branch/commit/PR confirmations; Render encrypted connections, mapping, bounded logs/history and durable confirmed deployment requests; six reversible migrations; PostgreSQL queues; API/mobile tests and Android build configuration.
 
-Not implemented: incident/timeline APIs, safe application-health checks, Expo push/device preferences, incident ingestion, automated account deletion or logout-all. Provider deployment `live` is not verified application health. These omissions block the requested complete incident recovery drill; adding them would violate this milestone's no-feature-expansion scope.
+Not implemented: automated incident ingestion, automated account deletion, logout-all. Provider deployment `live` is not verified application health. Incident/timeline APIs, health checks, and Expo push device/preference infrastructure are implemented; live staging and physical-device verification remain outstanding and block the complete incident recovery drill.
 
 The older PRD mentions Redis/BullMQ; the latest architecture and actual services use PostgreSQL leased queues. Preserve the working implementation; Redis recovery is N/A. API documentation previously described writes as absent inside its older read-only section even though later sections and routes implement guarded writes; that sentence is corrected. Earlier unconfigured-provider notes are historical: the owner reports phone sign-in and repository visibility, but those reports do not prove Render, editor or incident staging flows.
 
 ## Security review and test map
 
-| Boundary | Evidence reviewed | Limit |
-| --- | --- | --- |
-| OAuth/deep links/session replay | Auth service/PKCE, auth API and lifecycle tests; one-use handoff plus initiating-app secret; SecureStore and hashed server sessions | Real callback interception, OS process termination and multi-device logout drill NOT RUN |
-| Horizontal authorization | GitHub selected-repository intersection and live access checks; deployment owner/project context; editor branch ownership; service/API tests for cross-user IDs and revoked permissions | Not a full independent penetration test; incident endpoints do not exist |
-| Unauthenticated access | Added table-driven regression across installation/repository/editor/provider/project/deployment/operation entry points | Does not replace per-route cross-user/live-provider testing |
-| Editor isolation | Local CSP HTML, navigation allowlist, file-access disabled, version/session/request correlation and byte limits; existing malformed/replayed-message and draft tests | Native WebView crash/OS exploit testing NOT RUN |
-| Webhook/queue | HMAC raw body, normalized payloads, delivery dedupe; persistent concurrency/lease tests; no replay of uncertain deployment dispatch | Real provider delivery and staged worker termination NOT RUN |
-| Logs/secrets | Allowlisted DTOs, encrypted provider records, omitted query strings, pattern redaction; added OSC/CSI/bidi sanitization tests | Arbitrary application secrets may evade redaction; ingress/crash collector settings must be audited |
-| SSRF | Render adapter uses fixed HTTPS origin, rejects redirects; no arbitrary health-check URL endpoint | Health-check SSRF/DNS rebinding tests NOT RUN because feature is absent; do not claim protection for an unimplemented fetcher |
-| Resource limits | API/write rate limits, one active deployment per project, bounded provider pages/response bytes, source/log caps | Distributed per-account quotas/load tests remain open; IP limits are process-local |
+| Boundary                        | Evidence reviewed                                                                                                                                                                       | Limit                                                                                                                         |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| OAuth/deep links/session replay | Auth service/PKCE, auth API and lifecycle tests; one-use handoff plus initiating-app secret; SecureStore and hashed server sessions                                                     | Real callback interception, OS process termination and multi-device logout drill NOT RUN                                      |
+| Horizontal authorization        | GitHub selected-repository intersection and live access checks; deployment owner/project context; editor branch ownership; service/API tests for cross-user IDs and revoked permissions | Not a full independent penetration test; incident endpoint cross-user/live tests NOT RUN                                                      |
+| Unauthenticated access          | Added table-driven regression across installation/repository/editor/provider/project/deployment/operation entry points                                                                  | Does not replace per-route cross-user/live-provider testing                                                                   |
+| Editor isolation                | Local CSP HTML, navigation allowlist, file-access disabled, version/session/request correlation and byte limits; existing malformed/replayed-message and draft tests                    | Native WebView crash/OS exploit testing NOT RUN                                                                               |
+| Webhook/queue                   | HMAC raw body, normalized payloads, delivery dedupe; persistent concurrency/lease tests; no replay of uncertain deployment dispatch                                                     | Real provider delivery and staged worker termination NOT RUN                                                                  |
+| Logs/secrets                    | Allowlisted DTOs, encrypted provider records, omitted query strings, pattern redaction; added OSC/CSI/bidi sanitization tests                                                           | Arbitrary application secrets may evade redaction; ingress/crash collector settings must be audited                           |
+| SSRF                            | Render adapter uses fixed HTTPS origin, rejects redirects; no arbitrary health-check URL endpoint                                                                                       | Health-check SSRF/DNS rebinding tests NOT RUN; do not claim protection for unverified fetcher |
+| Resource limits                 | API/write rate limits, one active deployment per project, bounded provider pages/response bytes, source/log caps                                                                        | Distributed per-account quotas/load tests remain open; IP limits are process-local                                            |
 
 No credentials were printed or copied into artifacts by this review. That statement is not a historical repository/app-bundle secret-scan certification.
 
@@ -37,21 +37,21 @@ No new migrations, HTTP endpoints, environment variables or mobile features. Exi
 
 ## Evidence
 
-| Check | Actual outcome |
-| --- | --- |
-| `npm test` after Zod upgrade | PASS: 126 server tests, one DB test skipped; 45 mobile Node and 56 UI tests |
-| `DATABASE_URL_TEST=… npm test` after queue instrumentation | PASS: 128 server tests including all six migration reversals/constraints and durable concurrency fixtures; 45 mobile Node, 56 UI tests |
-| `npm run lint` | PASS for server and mobile |
-| `npm run api:contract:check` | PASS: generated contract current and valid |
-| `expo install --check` | PASS online on retry; initial restricted run used the local dependency map |
-| Android `npm run export -w mobile -- --platform android --output-dir /tmp/pocketops-beta-export` | PASS, Android JavaScript bundle; native compilation NOT RUN |
-| `npm run test -w server -- tests/hardening.test.js` | PASS: all 19 added regressions after correcting disabled-module test fixtures |
-| `git diff --check` | PASS |
-| Online `npm audit --audit-level=high` | FAIL: 23 entries — 19 low, 3 moderate, 1 high; down from five high entries before remediation |
-| Local synthetic dump/restore | PASS: backup 2026-10-29T07:33:43.101Z; verified 07:33:45.638Z; restore + verification 2264ms; one fake user, six migrations, user unique index, empty queue queries |
-| Staging backup/PITR/key recovery and rollback | NOT RUN: no staging environment |
-| Real Android performance/accessibility/offline and signed RC build | NOT RUN: no connected test device/build performed in this review |
-| Phone-only incident recovery, health verification and push delivery | NOT RUN: staging absent and prerequisite features unimplemented |
+| Check                                                                                            | Actual outcome                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test` after Zod upgrade                                                                     | PASS: 126 server tests, one DB test skipped; 45 mobile Node and 56 UI tests                                                                                         |
+| `DATABASE_URL_TEST=… npm test` after queue instrumentation                                       | PASS: 128 server tests including all six migration reversals/constraints and durable concurrency fixtures; 45 mobile Node, 56 UI tests                              |
+| `npm run lint`                                                                                   | PASS for server and mobile                                                                                                                                          |
+| `npm run api:contract:check`                                                                     | PASS: generated contract current and valid                                                                                                                          |
+| `expo install --check`                                                                           | PASS online on retry; initial restricted run used the local dependency map                                                                                          |
+| Android `npm run export -w mobile -- --platform android --output-dir /tmp/pocketops-beta-export` | PASS, Android JavaScript bundle; native compilation NOT RUN                                                                                                         |
+| `npm run test -w server -- tests/hardening.test.js`                                              | PASS: all 19 added regressions after correcting disabled-module test fixtures                                                                                       |
+| `git diff --check`                                                                               | PASS                                                                                                                                                                |
+| Online `npm audit --audit-level=high`                                                            | FAIL: 23 entries — 19 low, 3 moderate, 1 high; down from five high entries before remediation                                                                       |
+| Local synthetic dump/restore                                                                     | PASS: backup 2026-10-29T07:33:43.101Z; verified 07:33:45.638Z; restore + verification 2264ms; one fake user, six migrations, user unique index, empty queue queries |
+| Staging backup/PITR/key recovery and rollback                                                    | NOT RUN: no staging environment                                                                                                                                     |
+| Real Android performance/accessibility/offline and signed RC build                               | NOT RUN: no connected test device/build performed in this review                                                                                                    |
+| Phone-only incident recovery, health verification and push delivery                              | NOT RUN: staging absent; features implemented but not live-verified                                                                                                     |
 
 Synthetic restore evidence is in `/tmp/pocketops-restore-GanJlT/evidence.json` on the review host, with a mode-0600 synthetic dump. Source/restore databases have unique `_test` names and remain for inspection. This tiny smoke test does not establish staging RPO/RTO, encrypted-key recovery or queue replay safety after a real disaster.
 
@@ -59,30 +59,30 @@ Synthetic restore evidence is in `/tmp/pocketops-restore-GanJlT/evidence.json` o
 
 Role owners below must be assigned to named people before invitations. No high-risk exception has been accepted.
 
-| ID | Priority / owner | Risk and closure evidence |
-| --- | --- | --- |
-| B01 | High / dependency maintainer | `image-size` <=2.0.2 has parser denial-of-service advisories; Metro uses its legacy path-string API. Patched 2.x changes that API. Upgrade compatible Expo/Metro or validate a narrowly scoped upstream patch; do not blindly override or suppress the gate. See [advisory](https://github.com/advisories/GHSA-w3rx-r6r6-pgpr). |
-| B02 | Release blocker / product owner | Incident/health/push prerequisites missing; full P0 recovery workflow cannot pass. Complete separate milestone and staging drill. |
-| B03 | High operational / infrastructure owner | No staging restore, verified off-host backups, dashboard/alert destination or rollback evidence. Provision isolation and prove restoration/alert delivery before beta. |
-| B04 | Release blocker / privacy owner | Account deletion/support contact and retention implementation are not validated. Approve privacy notice and test deletion without resurrecting access from backups. |
-| B05 | Medium / security owner | GitHub single-key rotation, revoke-all sessions and deep-link/device edge cases need staged drill; custom schemes can be claimed by another app, though completion secret binds auth handoff. |
-| B06 | Medium / mobile owner | Physical-device performance, WebView lifecycle and Android/iOS native compilation evidence missing for this candidate. |
-| B07 | Medium / dependency maintainer | Three moderate advisory entries trace to decode-uri-component/query-string/Expo Router; low entries largely deepmerge chains. Patched decoder changes module format; evaluate compatible upgrade, keep visible. |
-| B08 | Medium / API owner | Process-local request limits and no global account queue quota/load evidence. One active request per project limits duplicate dispatch, not all abuse. |
-| B09 | Medium / operations owner | Source/log redaction is best effort; ingress and collector retention/access controls need separate validation. |
+| ID  | Priority / owner                        | Risk and closure evidence                                                                                                                                                                                                                                                                                                       |
+| --- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B01 | High / dependency maintainer            | `image-size` <=2.0.2 has parser denial-of-service advisories; Metro uses its legacy path-string API. Patched 2.x changes that API. Upgrade compatible Expo/Metro or validate a narrowly scoped upstream patch; do not blindly override or suppress the gate. See [advisory](https://github.com/advisories/GHSA-w3rx-r6r6-pgpr). |
+| B02 | Release blocker / product owner         | Incident/health/push prerequisites missing; full P0 recovery workflow cannot pass. Complete separate milestone and staging drill.                                                                                                                                                                                               |
+| B03 | High operational / infrastructure owner | No staging restore, verified off-host backups, dashboard/alert destination or rollback evidence. Provision isolation and prove restoration/alert delivery before beta.                                                                                                                                                          |
+| B04 | Release blocker / privacy owner         | Account deletion/support contact and retention implementation are not validated. Approve privacy notice and test deletion without resurrecting access from backups.                                                                                                                                                             |
+| B05 | Medium / security owner                 | GitHub single-key rotation, revoke-all sessions and deep-link/device edge cases need staged drill; custom schemes can be claimed by another app, though completion secret binds auth handoff.                                                                                                                                   |
+| B06 | Medium / mobile owner                   | Physical-device performance, WebView lifecycle and Android/iOS native compilation evidence missing for this candidate.                                                                                                                                                                                                          |
+| B07 | Medium / dependency maintainer          | Three moderate advisory entries trace to decode-uri-component/query-string/Expo Router; low entries largely deepmerge chains. Patched decoder changes module format; evaluate compatible upgrade, keep visible.                                                                                                                 |
+| B08 | Medium / API owner                      | Process-local request limits and no global account queue quota/load evidence. One active request per project limits duplicate dispatch, not all abuse.                                                                                                                                                                          |
+| B09 | Medium / operations owner               | Source/log redaction is best effort; ingress and collector retention/access controls need separate validation.                                                                                                                                                                                                                  |
 
 ## Acceptance status
 
-| Requested beta exit criterion | Status |
-| --- | --- |
-| Complete timestamped phone-only staging recovery drill | FAIL — NOT RUN; missing staging and prerequisite features |
-| No unresolved high/critical findings and all P0 verified | FAIL — B01/B03 and unverified gates remain |
-| No duplicate deploys under idempotency/retry; revoked users denied | PASS in automated mocks and disposable PostgreSQL tests; live staging NOT RUN |
-| Onboarding/time-to-failure/PR/recovery/error/notification metrics reported | FAIL — instrumentation/schema documented; no consented cohort or notification implementation |
-| Actual staging restore and rollback confirmed | FAIL — local synthetic restore PASS, staging/rollback NOT RUN |
-| Security review/results/risk register/runbooks/onboarding/privacy draft | PASS as repository artifacts; operator setup and policy approval outstanding |
-| Signed release candidate verified | FAIL — NOT RUN |
-| Explicit approval before public release | PASS as a release requirement; no release requested or performed |
+| Requested beta exit criterion                                              | Status                                                                                       |
+| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Complete timestamped phone-only staging recovery drill                     | FAIL — NOT RUN; missing staging and prerequisite features                                    |
+| No unresolved high/critical findings and all P0 verified                   | FAIL — B01/B03 and unverified gates remain                                                   |
+| No duplicate deploys under idempotency/retry; revoked users denied         | PASS in automated mocks and disposable PostgreSQL tests; live staging NOT RUN                |
+| Onboarding/time-to-failure/PR/recovery/error/notification metrics reported | FAIL — instrumentation/schema documented; no consented cohort; notification delivery not live-verified |
+| Actual staging restore and rollback confirmed                              | FAIL — local synthetic restore PASS, staging/rollback NOT RUN                                |
+| Security review/results/risk register/runbooks/onboarding/privacy draft    | PASS as repository artifacts; operator setup and policy approval outstanding                 |
+| Signed release candidate verified                                          | FAIL — NOT RUN                                                                               |
+| Explicit approval before public release                                    | PASS as a release requirement; no release requested or performed                             |
 
 Use [BETA_RUNBOOK.md](BETA_RUNBOOK.md) for environment isolation, dashboard/alert configuration, restore/rollback and opt-in 10–15 developer onboarding. Remain NO-GO until blockers close with evidence; do not label this milestone complete.
 
