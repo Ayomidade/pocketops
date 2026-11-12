@@ -11,7 +11,9 @@ const environmentSchema = z
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
-    TRUST_PROXY: z.enum(["false", "loopback"]).default("false"),
+    // "loopback" for a tunnel on this host (e.g. cloudflared).
+    // "1" when exactly one hosted proxy sits in front of the API (e.g. Render).
+    TRUST_PROXY: z.enum(["false", "loopback", "1"]).default("false"),
     PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     DATABASE_URL: z.string().trim().optional(),
     DATABASE_SSL: z.enum(["true", "false"]).default("false"),
@@ -337,6 +339,12 @@ const environmentSchema = z
     }
   });
 
+function resolveTrustProxy(setting) {
+  if (setting === "loopback") return "loopback";
+  if (setting === "1") return 1;
+  return false;
+}
+
 export function loadConfig(source = process.env) {
   const result = environmentSchema.safeParse(source);
   if (!result.success) {
@@ -361,7 +369,7 @@ export function loadConfig(source = process.env) {
   ];
   return {
     nodeEnv: config.NODE_ENV,
-    trustProxy: config.TRUST_PROXY === "loopback" ? "loopback" : false,
+    trustProxy: resolveTrustProxy(config.TRUST_PROXY),
     providerEncryptionKeys: config.PROVIDER_ENCRYPTION_KEYS
       ? Object.fromEntries(
           Object.entries(JSON.parse(config.PROVIDER_ENCRYPTION_KEYS)).map(
