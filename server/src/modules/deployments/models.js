@@ -58,5 +58,7 @@ export function defineDeploymentModels(sequelize) {
     claimToken: { type: T.UUID, field: "claim_token" },
     claimExpiresAt: date("claim_expires_at"),
   });
+  Project.hasMany(Deployment, { foreignKey: "projectId", as: "deployments" });
+  Deployment.belongsTo(Project, { foreignKey: "projectId", as: "project" });
   return { ProviderConnection, Project, Deployment, OperationRequest };
 }

@@ -20,14 +20,22 @@ const mockNotifications = {
   AndroidImportance: { DEFAULT: 3 },
 };
 jest.mock("expo-notifications", () => ({
-  getLastNotificationResponseAsync: (...args) => mockNotifications.getLastNotificationResponseAsync(...args),
-  clearLastNotificationResponseAsync: (...args) => mockNotifications.clearLastNotificationResponseAsync(...args),
-  addNotificationResponseReceivedListener: (...args) => mockNotifications.addNotificationResponseReceivedListener(...args),
-  addNotificationReceivedListener: (...args) => mockNotifications.addNotificationReceivedListener(...args),
-  getPermissionsAsync: (...args) => mockNotifications.getPermissionsAsync(...args),
-  requestPermissionsAsync: (...args) => mockNotifications.requestPermissionsAsync(...args),
-  setNotificationChannelAsync: (...args) => mockNotifications.setNotificationChannelAsync(...args),
-  getExpoPushTokenAsync: (...args) => mockNotifications.getExpoPushTokenAsync(...args),
+  getLastNotificationResponseAsync: (...args) =>
+    mockNotifications.getLastNotificationResponseAsync(...args),
+  clearLastNotificationResponseAsync: (...args) =>
+    mockNotifications.clearLastNotificationResponseAsync(...args),
+  addNotificationResponseReceivedListener: (...args) =>
+    mockNotifications.addNotificationResponseReceivedListener(...args),
+  addNotificationReceivedListener: (...args) =>
+    mockNotifications.addNotificationReceivedListener(...args),
+  getPermissionsAsync: (...args) =>
+    mockNotifications.getPermissionsAsync(...args),
+  requestPermissionsAsync: (...args) =>
+    mockNotifications.requestPermissionsAsync(...args),
+  setNotificationChannelAsync: (...args) =>
+    mockNotifications.setNotificationChannelAsync(...args),
+  getExpoPushTokenAsync: (...args) =>
+    mockNotifications.getExpoPushTokenAsync(...args),
   AndroidImportance: { DEFAULT: 3 },
 }));
 jest.mock("expo-constants", () => ({
@@ -46,6 +54,9 @@ const response = {
 };
 beforeEach(() => {
   jest.clearAllMocks();
+  jest
+    .spyOn(AppState, "addEventListener")
+    .mockReturnValue({ remove: jest.fn() });
   mockStatus = "authenticated";
   mockNotifications.getLastNotificationResponseAsync.mockResolvedValue(
     response,
@@ -79,7 +90,6 @@ it("recovers a notification tap after process termination and refreshes on foreg
   });
   await act(async () => spy.mock.calls[0][1]("active"));
   expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ["incidents"] });
-  spy.mockRestore();
 });
 it("does not navigate to an incident while signed out", async () => {
   mockStatus = "signed_out";

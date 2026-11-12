@@ -81,6 +81,51 @@ export function createIncidentRepository({ sequelize, models: m }) {
     return p;
   }
   return {
+    async queueProviderEvent({ eventId, serviceId, observedAt, receivedAt }) {
+      return sequelize.transaction(async (transaction) => {
+        const projects = await m.Project.findAll({
+          where: { providerServiceId: serviceId, status: "active" },
+          limit: 101,
+          transaction,
+        });
+        if (projects.length > 100)
+          throw new AppError(
+            503,
+            "RECONCILIATION_BUSY",
+            "Periodic reconciliation will process this service.",
+          );
+        let scheduled = false,
+          duplicate = false;
+        for (const project of projects) {
+          const monitor = await M.findOne({
+            where: { id: project.id, enabled: true },
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          });
+          // Historical/out-of-order events cannot enable monitors or recreate old failures.
+          if (!monitor || observedAt < monitor.createdAt) continue;
+          const [, created] = await O.findOrCreate({
+            where: {
+              projectId: project.id,
+              eventKey: `render_event:${eventId}`,
+            },
+            defaults: { id: randomUUID(), observedAt },
+            transaction,
+          });
+          if (!created) {
+            duplicate = true;
+            continue;
+          }
+          await monitor.update({ nextAttemptAt: receivedAt }, { transaction });
+          scheduled = true;
+        }
+        return {
+          accepted: true,
+          duplicate: duplicate && !scheduled,
+          ignored: !scheduled && !duplicate,
+        };
+      });
+    },
     find: (userId, id) => I.findOne({ where: { id, userId } }),
     list: (userId, { limit, cursor, status, severity }) =>
       I.findAll({
@@ -260,10 +305,26 @@ export function createIncidentRepository({ sequelize, models: m }) {
         return row;
       });
     },
-    health: (id, limit = 3) =>
+    health: (id, limit = 3, cursor) =>
       H.findAll({
-        where: { projectId: id },
-        order: [["checkedAt", "DESC"]],
+        where: {
+          projectId: id,
+          ...(cursor
+            ? {
+                [Op.or]: [
+                  { checkedAt: { [Op.lt]: new Date(cursor.time) } },
+                  {
+                    checkedAt: new Date(cursor.time),
+                    id: { [Op.lt]: cursor.id },
+                  },
+                ],
+              }
+            : {}),
+        },
+        order: [
+          ["checkedAt", "DESC"],
+          ["id", "DESC"],
+        ],
         limit,
       }),
     claimMonitor(now) {
@@ -342,7 +403,7 @@ export function createIncidentRepository({ sequelize, models: m }) {
           transaction,
           lock: transaction.LOCK.UPDATE,
         });
-        if (key) {
+        if (key && (!incident || failed)) {
           const [seen, created] = await O.findOrCreate({
             where: { projectId: monitor.id, eventKey: key },
             defaults: { id: randomUUID(), observedAt: observation.at },
@@ -404,6 +465,8 @@ export function createIncidentRepository({ sequelize, models: m }) {
               })
             : [];
         for (const incident of active) {
+          if (new Date(rows[2].checkedAt) < new Date(incident.createdAt))
+            continue;
           const key = `verified:${incident.id}:${observation.health.deploymentReference || "none"}`;
           const [, created] = await O.findOrCreate({
             where: { projectId: monitor.id, eventKey: key },
@@ -428,6 +491,14 @@ export function createIncidentRepository({ sequelize, models: m }) {
           },
           { transaction },
         );
+        // Derived probe history is short lived; timeline references retain no response body.
+        await H.destroy({
+          where: {
+            projectId: monitor.id,
+            checkedAt: { [Op.lt]: new Date(+observation.at - 7 * 86400000) },
+          },
+          transaction,
+        });
       });
     },
     preferences: async (userId) => {
@@ -437,9 +508,20 @@ export function createIncidentRepository({ sequelize, models: m }) {
       });
       return { enabled: p.enabled };
     },
-    async setPreferences(userId, enabled) {
-      await P.upsert({ id: userId, enabled });
-      return { enabled };
+    async setPreferences(userId, enabled, requestId = randomUUID()) {
+      return sequelize.transaction(async (transaction) => {
+        await P.upsert({ id: userId, enabled }, { transaction });
+        await m.AuthAuditEvent.create(
+          {
+            actorUserId: userId,
+            action: "incident.notification_preference",
+            requestId,
+            metadata: { enabled },
+          },
+          { transaction },
+        );
+        return { enabled };
+      });
     },
     devices: (userId) =>
       D.findAll({ where: { userId, enabled: true }, limit: 10 }),
@@ -458,31 +540,58 @@ export function createIncidentRepository({ sequelize, models: m }) {
             "DEVICE_ALREADY_REGISTERED",
             "Remove the existing device registration before changing accounts.",
           );
+        if (!prior?.enabled && (await D.count({ where: { userId: input.userId, enabled: true }, transaction })) >= 10)
+          fail("DEVICE_LIMIT", "Remove an old device before registering another.");
         if (prior) {
+          if (prior.id !== input.id)
+            fail(
+              "DEVICE_REGISTRATION_CHANGED",
+              "Device registration changed. Retry registration.",
+            );
           await prior.update({ ...input, id: prior.id }, { transaction });
+          await m.AuthAuditEvent.create(
+            {
+              actorUserId: input.userId,
+              action: "incident.device_registered",
+              requestId: input.requestId || randomUUID(),
+              metadata: { deviceId: prior.id },
+            },
+            { transaction },
+          );
           return prior;
         }
-        if (
-          (await D.count({
-            where: { userId: input.userId, enabled: true },
-            transaction,
-          })) >= 10
-        )
-          fail(
-            "DEVICE_LIMIT",
-            "Remove an old device before registering another.",
-          );
-        return D.create(input, { transaction });
+        const device = await D.create(input, { transaction });
+        await m.AuthAuditEvent.create(
+          {
+            actorUserId: input.userId,
+            action: "incident.device_registered",
+            requestId: input.requestId || randomUUID(),
+            metadata: { deviceId: device.id },
+          },
+          { transaction },
+        );
+        return device;
       });
     },
-    async revoke(userId, id) {
-      const [count] = await D.update(
-        { enabled: false, encryptedCredentials: null },
-        { where: { id, userId } },
-      );
-      if (!count)
-        throw new AppError(404, "DEVICE_NOT_FOUND", "Device not found.");
-      return { revoked: true };
+    async revoke(userId, id, requestId = randomUUID()) {
+      return sequelize.transaction(async (transaction) => {
+        const [count] = await D.update(
+          { enabled: false, encryptedCredentials: null },
+          { where: { id, userId }, transaction },
+        );
+        if (!count)
+          throw new AppError(404, "DEVICE_NOT_FOUND", "Device not found.");
+        await m.AuthAuditEvent.create(
+          {
+            actorUserId: userId,
+            action: "incident.device_revoked",
+            requestId,
+            metadata: { deviceId: id },
+          },
+          { transaction },
+        );
+        return { revoked: true };
+      });
     },
     findDeviceByHash: (tokenHash) => D.findOne({ where: { tokenHash } }),
     claimNotification(now) {

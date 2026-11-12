@@ -186,3 +186,7 @@ For each migration: up/down tests on disposable PostgreSQL, unique/FK checks, da
 See [Security](SECURITY.md), [API](API.md), [Architecture](ARCHITECTURE.md).
 
 Migration 006 concurrency, lease, retention and rollback verification are recorded in [DEPLOYMENTS.md](DEPLOYMENTS.md).
+
+## Implemented incident persistence (007)
+
+`007-create-incidents.js` adds `incidents`, `incident_events`, `project_monitors`, `health_checks`, `incident_observations`, `notification_preferences`, `push_devices`, `notification_deliveries`. Composite project/user foreign keys enforce ownership; unique active automatic incident and event/device delivery constraints prevent duplicates. Monitor and notification claims use row locks and fenced leases. Health history is short lived; no response body, source or raw logs are stored. Up/down commands and retention limits: [INCIDENTS.md](INCIDENTS.md).

@@ -52,7 +52,7 @@ export function createApp({
   );
   app.use(
     "/api/v1/webhooks/render",
-    express.raw({ type: "application/json", limit: "1mb" }),
+    express.raw({ type: "application/json", limit: "64kb" }),
   );
   // Escaped JSON text can expand control-heavy source files by up to 6x.
   app.use(express.json({ limit: "4mb" }));

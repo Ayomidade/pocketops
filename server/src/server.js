@@ -8,7 +8,7 @@ import { createDatabase } from "./config/database.js";
 import { createLogger } from "./logging/logger.js";
 import { defineModels } from "./db/models/index.js";
 import { createAuthRepository } from "./modules/auth/repository.js";
-import { createDeploymentRepository } from "./modules/deployments/repository.js";
+import { createIncidentRepository } from "./modules/incidents/repository.js";
 import { createGitHubOAuthClient } from "./modules/auth/github-oauth.js";
 import { createAuthService } from "./modules/auth/service.js";
 import { createGitHubAppAdapter } from "./modules/github/adapter.js";
@@ -48,13 +48,25 @@ export function startServer() {
           githubService,
         })
       : null;
-  const deploymentService = createDeploymentRuntime({ config, sequelize, models, githubService });
-  const incidentService = createIncidentRuntime({ config, sequelize, models, deployments: deploymentService });
-  const renderWebhookService = createRenderWebhookService({
-    repository: createDeploymentRepository({ sequelize, models }),
-    incidentService,
-    secret: config.renderWebhookSecret,
+  const deploymentService = createDeploymentRuntime({
+    config,
+    sequelize,
+    models,
+    githubService,
   });
+  const incidentService = createIncidentRuntime({
+    config,
+    sequelize,
+    models,
+    deployments: deploymentService,
+  });
+  const renderWebhookService =
+    incidentService && config.renderWebhookSecret
+      ? createRenderWebhookService({
+          repository: createIncidentRepository({ sequelize, models }),
+          secret: config.renderWebhookSecret,
+        })
+      : null;
   const app = createApp({
     config,
     sequelize,

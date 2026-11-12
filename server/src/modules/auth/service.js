@@ -277,6 +277,37 @@ export function createAuthService({
       return { loggedOut: true };
     },
 
+    async revokeAllSessions({ sessionId, userId, requestId }) {
+      // Revokes all other active sessions; keeps the current one so the caller
+      // can still receive the success response and transition gracefully.
+      const count = await repository.revokeAllSessions({
+        userId,
+        exceptSessionId: sessionId,
+        requestId,
+        now: clock(),
+      });
+      return { revokedCount: count };
+    },
+
+    async deleteAccount({ sessionId, userId, requestId, confirmation }) {
+      if (confirmation !== "DELETE MY ACCOUNT") {
+        throw authError(
+          422,
+          "INVALID_CONFIRMATION",
+          "Provide the exact confirmation phrase to delete your account.",
+        );
+      }
+      const deleted = await repository.deleteAccount({
+        userId,
+        requestId,
+        now: clock(),
+      });
+      if (!deleted) {
+        throw authError(404, "ACCOUNT_NOT_FOUND", "Account not found.");
+      }
+      return { deleted: true };
+    },
+
     async cleanup() {
       const now = clock();
       return repository.cleanupExpired(

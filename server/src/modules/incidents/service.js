@@ -84,7 +84,11 @@ export function createIncidentService({
           await authorize(userId, i.projectId, requestId);
           visible.push(i);
         } catch (e) {
-          if (![403, 404, 409].includes(e.status)) throw e;
+          // Only swallow authorization/not-found denials. Any other error
+          // (e.g. database failure) must propagate so the caller is not
+          // given a silently truncated result that looks complete.
+          if (e instanceof AppError && [403, 404].includes(e.status)) continue;
+          throw e;
         }
       }
       return {
@@ -98,34 +102,6 @@ export function createIncidentService({
         .update(JSON.stringify([input.projectId, input.title, input.severity]))
         .digest("hex");
       return incidentDTO(await r.create({ ...input, requestHash }));
-    },
-    async createAutomatic({
-      userId,
-      projectId,
-      title,
-      severity,
-      requestId,
-      metadata,
-    }) {
-      const incident = await r.create({
-        userId,
-        projectId,
-        title,
-        severity,
-        automatic: true,
-        idempotencyKey: `auto:${projectId}:${title}`,
-        requestHash: createHash("sha256")
-          .update(JSON.stringify([projectId, title, severity, "automatic"]))
-          .digest("hex"),
-      });
-      await r.event(
-        incident,
-        null,
-        "incident.created_automatically",
-        { source: "render_webhook", ...metadata },
-        requestId,
-      );
-      return incidentDTO(incident);
     },
     async detail({ userId, id, requestId }) {
       const { i, project } = await access(userId, id, requestId);
@@ -184,10 +160,12 @@ export function createIncidentService({
         healthPath: monitor?.healthPath || "/health",
       };
     },
-    async healthChecks({ userId, id, requestId, limit }) {
+    async healthChecks({ userId, id, requestId, limit, cursor }) {
       await authorize(userId, id, requestId);
-      return {
-        items: (await r.health(id, limit)).map((h) => ({
+      return page(
+        await r.health(id, limit + 1, cursor),
+        limit,
+        (h) => ({
           id: h.id,
           status: h.status,
           code: h.code,
@@ -196,8 +174,12 @@ export function createIncidentService({
           origin: h.origin || null,
           path: h.path,
           deploymentReference: h.deploymentReference || null,
-        })),
-      };
+        }),
+        (h) =>
+          Buffer.from(JSON.stringify({ id: h.id, time: h.checkedAt })).toString(
+            "base64url",
+          ),
+      );
     },
     async configure(input) {
       const ctx = await deployments.incidentContext({
@@ -220,11 +202,12 @@ export function createIncidentService({
       };
     },
     preferences: ({ userId }) => r.preferences(userId),
-    setPreferences: ({ userId, enabled }) => r.setPreferences(userId, enabled),
+    setPreferences: ({ userId, enabled, requestId }) =>
+      r.setPreferences(userId, enabled, requestId),
     async devices({ userId }) {
       return { items: (await r.devices(userId)).map(deviceDTO) };
     },
-    async register({ userId, sessionId, token, platform }) {
+    async register({ userId, sessionId, token, platform, requestId }) {
       const tokenHash = createHash("sha256").update(token).digest("hex");
       const prior = await r.findDeviceByHash(tokenHash);
       if (prior && prior.userId !== userId)
@@ -237,6 +220,7 @@ export function createIncidentService({
       return deviceDTO(
         await r.register({
           id,
+          requestId,
           userId,
           sessionId,
           tokenHash,
@@ -246,7 +230,7 @@ export function createIncidentService({
         }),
       );
     },
-    revoke: ({ userId, id }) => r.revoke(userId, id),
+    revoke: ({ userId, id, requestId }) => r.revoke(userId, id, requestId),
     async processMonitor() {
       const monitor = await r.claimMonitor(clock());
       if (!monitor) return false;

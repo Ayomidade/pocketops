@@ -110,3 +110,7 @@ Earlier uncommitted work was preserved. This pass touched only:
 - `README.md`
 
 Additional commands executed: `npm install zod@^4.6.7 -w server --ignore-scripts` and `npm update node-forge --ignore-scripts` succeeded; registry/package inspection confirmed no patched 1.x image-size release and Metro's use of a path-string input that 2.x no longer supports. Final queue-health SQL was also exercised against the isolated restored PostgreSQL database. The first unauthenticated-route test run returned six expected module-disabled 503 responses because its fixture omitted provider services; enabling test services corrected the fixture, with all 19 tests passing. No application authentication bypass was observed in that failure.
+
+## Milestone 07 acceptance update — 2026-11-09
+
+Incident implementation is available for combined testing; this does not change the beta NO-GO. See [INCIDENTS.md](INCIDENTS.md) and [validation evidence](MILESTONE_07_VALIDATION.md). New APK/FCM, live webhook/health behavior, notification delivery and the phone-only staging recovery drill remain NOT RUN. Dependency advisories and the existing release gates still apply.

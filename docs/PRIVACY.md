@@ -19,3 +19,7 @@ Before invitations, the beta owner must supply the operator identity/contact, ju
 Do not place private source, raw logs or credentials in feedback/screenshots. No analytics SDK or crash-report service is introduced here. Operational hosting and provider services have their own access and retention controls.
 
 Withdrawal procedure to validate: authenticate the request through the existing account/support relationship; revoke sessions, disconnect provider credentials, remove memberships/selections and personal profile according to foreign-key dependencies; preserve only legally justified security evidence with a documented basis. Record completion without secrets. Backups age out under approved retention and must not reintroduce deleted/revoked access after restore. Until the procedure is implemented/tested, do not promise immediate or automated account deletion.
+
+## Incident data
+
+Incident titles, severity/state, actor/timestamp timeline and reference metadata are stored server-side. Push tokens are encrypted, session-bound and erased on registration revocation; payloads contain generic wording and incident/event IDs only. Probe bodies are never stored; history older than seven days is pruned when active monitoring runs, and configuration changes invalidate it. Disabled monitors and incident/audit/dedup/delivery records need operator retention/deletion handling; do not delete dedup history while replay is possible. No automatic account-deletion claim is made.

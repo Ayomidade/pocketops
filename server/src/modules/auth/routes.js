@@ -25,6 +25,9 @@ const exchangeSchema = z.object({
 const rotateSchema = z.object({
   replacementToken: z.string().regex(/^(?:[A-Za-z0-9_-]{43}|[a-f0-9]{64})$/i),
 });
+const deleteAccountSchema = z.object({
+  confirmation: z.string().max(50),
+});
 
 function asyncHandler(handler) {
   return (request, response, next) =>
@@ -126,6 +129,25 @@ export function createAuthRouter({ service }) {
     sessionLimit,
     authenticate,
     asyncHandler((request, response) => controller.logout(request, response)),
+  );
+  router.post(
+    "/sessions/revoke-all",
+    requireService,
+    sessionLimit,
+    authenticate,
+    asyncHandler((request, response) =>
+      controller.revokeAllSessions(request, response),
+    ),
+  );
+  router.delete(
+    "/account",
+    requireService,
+    sessionLimit,
+    authenticate,
+    validate(deleteAccountSchema),
+    asyncHandler((request, response) =>
+      controller.deleteAccount(request, response),
+    ),
   );
 
   return router;

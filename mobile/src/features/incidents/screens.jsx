@@ -59,6 +59,12 @@ function Failure({ error }) {
     <Copy alert>{error.message || "Request failed. Refresh and retry."}</Copy>
   ) : null;
 }
+function LoadState({ query }) {
+  const { isOffline } = useConnectivity();
+  return query.isPending || query.isError || isOffline ? (
+    <QueryState query={query} />
+  ) : null;
+}
 export function IncidentsScreen() {
   const router = useRouter();
   const [status, setStatus] = useState(""),
@@ -170,7 +176,15 @@ export function CreateIncidentScreen() {
           value={severity}
           onChange={setSeverity}
         />
-        <QueryState query={projects} />
+        <LoadState query={projects} />
+        {!projects.isPending &&
+        !projects.isError &&
+        listItems(projects).length === 0 ? (
+          <Copy>
+            No projects available. Connect Render and map an authorized
+            repository first.
+          </Copy>
+        ) : null}
         {!projects.isError &&
           listItems(projects).map((p) => (
             <Action
@@ -223,7 +237,7 @@ export function IncidentDetailScreen() {
   const header = (
     <View>
       <Copy>Incident timeline</Copy>
-      <QueryState query={query} />
+      <LoadState query={query} />
       {incident ? (
         <>
           <Copy>{incident.title}</Copy>
@@ -363,7 +377,7 @@ export function MonitorScreen() {
           lightweight read-only endpoint. Three healthy checks across at least
           two minutes verify recovery. Unknown never means healthy.
         </Copy>
-        <QueryState query={query} />
+        <LoadState query={query} />
         {!isOffline && !query.isError && query.data ? (
           <Copy>
             Monitoring: {query.data.data.enabled ? "enabled" : "disabled"} ·
@@ -438,7 +452,7 @@ export function NotificationSettingsScreen() {
           status. Alerts contain no titles, source code or logs. After signing
           in again, enable notifications to bind this device to the new session.
         </Copy>
-        <QueryState query={query} />
+        <LoadState query={query} />
         <Failure error={error} />
         <Action
           label="Enable notifications on this device"

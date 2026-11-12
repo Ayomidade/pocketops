@@ -10,9 +10,6 @@ export function createDeploymentRepository({ sequelize, models }) {
     Deployment,
     OperationRequest: Operation,
     AuthAuditEvent: Audit,
-    WebhookDelivery,
-    Incident,
-    IncidentObservation,
   } = models;
   const audit = (values, transaction) => Audit.create(values, { transaction });
   const operationAudit = (op, action, transaction) =>
@@ -103,54 +100,6 @@ export function createDeploymentRepository({ sequelize, models }) {
         order: [["id", "ASC"]],
         limit: limit + 1,
       }),
-    findProjectByServiceId: (providerServiceId) =>
-      Project.findOne({ where: { providerServiceId } }),
-    async upsertRenderWebhookDelivery({
-      deliveryId,
-      eventType,
-      payload,
-      receivedAt,
-      ignored = false,
-    }) {
-      const [, created] = await WebhookDelivery.findOrCreate({
-        where: { deliveryId },
-        defaults: {
-          id: randomUUID(),
-          deliveryId,
-          eventType,
-          payload,
-          status: ignored ? "ignored" : "pending",
-          attemptCount: 0,
-          receivedAt,
-          nextAttemptAt: receivedAt,
-          createdAt: receivedAt,
-          updatedAt: receivedAt,
-        },
-      });
-      return { duplicate: !created, ignored };
-    },
-    async findOpenAutomaticIncident(projectId) {
-      return Incident.findOne({
-        where: {
-          projectId,
-          automatic: true,
-          status: { [Op.ne]: "resolved" },
-        },
-      });
-    },
-    async recordIncidentObservation({ projectId, eventKey, observedAt }) {
-      await IncidentObservation.findOrCreate({
-        where: { projectId, eventKey },
-        defaults: {
-          id: randomUUID(),
-          projectId,
-          eventKey,
-          observedAt,
-          createdAt: observedAt,
-          updatedAt: observedAt,
-        },
-      });
-    },
     async createProject(values, requestId) {
       try {
         return await sequelize.transaction(async (transaction) => {
@@ -217,7 +166,21 @@ export function createDeploymentRepository({ sequelize, models }) {
         return project;
       });
     },
-    findDeployment: (id) => Deployment.findByPk(id),
+    findDeployment: (id, userId) =>
+      userId
+        ? Deployment.findOne({
+            where: { id },
+            include: [
+              {
+                model: Project,
+                as: "project",
+                where: { userId },
+                attributes: [],
+                required: true,
+              },
+            ],
+          })
+        : Deployment.findByPk(id),
     async saveDeployment(projectId, values) {
       const [record] = await Deployment.findOrCreate({
         where: { projectId, providerDeploymentId: values.providerDeploymentId },

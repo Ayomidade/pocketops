@@ -10,7 +10,7 @@ route coverage and real response envelopes. Endpoints described below that are
 not yet implemented (section 7) remain planned and are intentionally absent from
 the generated contract.
 
-> Implemented: liveness/readiness, identity/session endpoints, GitHub App repository reads, the guarded editor APIs in section 5, and the Render provider-connection, project, deployment, log and operation endpoints in sections 5–6. Editor writes require server configuration and explicit GitHub App write permissions; deployment reads require a provider encryption key ring and GitHub App configuration; new redeploy requests additionally require `DEPLOYMENTS_ENABLED=true`, and redeploy processing requires the separate `npm run worker:deployments` process. Render webhooks remain planned and are intentionally absent from the generated contract; incidents, notifications, and health verification endpoints are implemented and covered by the contract.
+> Implemented: liveness/readiness, identity/session endpoints, GitHub App repository reads, the guarded editor APIs in section 5, and the Render provider-connection, project, deployment, log and operation endpoints in sections 5–6. Editor writes require server configuration and explicit GitHub App write permissions; deployment reads require a provider encryption key ring and GitHub App configuration; new redeploy requests additionally require `DEPLOYMENTS_ENABLED=true`, and redeploy processing requires the separate `npm run worker:deployments` process. Optional signed Render webhook reconciliation is implemented; incidents, notifications, and health verification endpoints are implemented and covered by the contract.
 
 ## 1. Conventions
 
@@ -178,7 +178,7 @@ The API repository IDs are PocketOps UUIDs. All routes require the authenticated
 }
 ```
 
-Validate provider service belongs to connection and repository is currently authorized. Credentials are submitted only over TLS and immediately encrypted; never echo them in response or logs. `PATCH /projects/:id` accepts only `name` in this milestone (health-check configuration is planned with incident work). The `providerServiceId` must match Render's `srv-…` identifier format.
+Validate provider service belongs to connection and repository is currently authorized. Credentials are submitted only over TLS and immediately encrypted; never echo them in response or logs. `PATCH /projects/:id` accepts only `name` in this milestone (health checks use the separate incident monitoring endpoints). The `providerServiceId` must match Render's `srv-…` identifier format.
 
 ## 6. Deployments and logs
 
@@ -255,36 +255,22 @@ Rollback, promotion and health verification are not offered. These endpoints wer
 
 ## 7. Incidents, health and notifications
 
-> Planned for the incident milestone; none of these endpoints exist yet and none appear in the generated contract.
+Implemented under `/api/v1`; all resource routes require a PocketOps session and live project authorization. See [INCIDENTS.md](INCIDENTS.md) for states, monitoring and setup.
 
-| Method    | Path                         | Purpose                                   |
-| --------- | ---------------------------- | ----------------------------------------- |
-| GET       | `/incidents`                 | Filter `projectId,status,severity,cursor` |
-| POST      | `/incidents`                 | Create incident                           |
-| GET       | `/incidents/:id`             | Detail                                    |
-| PATCH     | `/incidents/:id`             | Title/severity/status updates             |
-| POST      | `/incidents/:id/resolve`     | Resolve with note                         |
-| GET       | `/incidents/:id/timeline`    | Chronological events                      |
-| GET       | `/projects/:id/health`       | Last verified health result               |
-| POST      | `/projects/:id/health/check` | Queue approved health check               |
-| POST      | `/devices/push`              | Register/update device push token         |
-| DELETE    | `/devices/push/:id`          | Disable token                             |
-| GET/PATCH | `/notification-preferences`  | View/update preferences                   |
-| GET       | `/audit-events`              | Authorized audit history                  |
-| POST      | `/webhooks/render`           | Verified supported provider events        |
+| Method | Path | Contract |
+| --- | --- | --- |
+| GET/POST | `/incidents` | List status/severity/cursor/limit; create projectId/title/severity with Idempotency-Key |
+| GET/PATCH | `/incidents/:id` | Detail; update status/severity with version |
+| POST | `/incidents/:id/resolve` | version and confirmation `RESOLVE`; fresh health required |
+| GET | `/incidents/:id/timeline` | Chronological cursor/limit pages |
+| GET | `/projects/:id/health-status` | Verification status and monitor configuration |
+| GET/POST | `/projects/:id/health-checks` | Cursor/limit history; configure enabled/healthPath with confirmation `MONITOR`, returns 202 scheduled |
+| GET/POST | `/devices/push-tokens` | Metadata list; register token/platform bound to current session |
+| DELETE | `/devices/push-tokens/:id` | Revoke own registration and erase ciphertext |
+| GET/PATCH | `/notification-preferences` | Account enabled boolean |
+| POST | `/webhooks/render` | Optional signed Standard Webhooks hint; schedules authorized reconciliation, 202 is not recovery |
 
-**Incident create example:**
-
-```json
-{
-  "projectId": "uuid",
-  "title": "Payment requests returning 500",
-  "description": "Detected after deploy",
-  "severity": "high"
-}
-```
-
-**Resolve example:** `{ "note": "Healthy after deployment verification" }`. Resolution records an event; health verification and human resolution are separate concepts.
+Incident create accepts only `projectId`, `title` (1–160 characters, no controls), `severity`. Version conflicts, invalid transitions and unverified resolution return 409. Timeline and health cursors encode timestamp/ID; opaque to the client. Generic `/audit-events` remains unavailable. Render signatures use `webhook-id`, `webhook-timestamp`, `webhook-signature`; no PocketOps bearer session is used for this endpoint. Webhook bodies are capped at 64 KiB and raw bodies are never persisted. The generated contract includes the implemented endpoints.
 
 ## 8. Security and authorization matrix
 

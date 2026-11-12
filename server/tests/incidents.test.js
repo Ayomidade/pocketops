@@ -230,9 +230,10 @@ describe("incident security boundaries", () => {
       ["get", "/devices/push-tokens"],
       ["post", "/devices/push-tokens"],
       ["delete", `/devices/push-tokens/${id}`],
-    ])
-      await request(app)[method]("/api/v1" + path)
-        .expect(401);
+    ]) {
+      const client = request(app);
+      await client[method]("/api/v1" + path).expect(401);
+    }
     for (const path of [
       "/incidents?limit=200",
       "/incidents?severity=urgent",
@@ -248,5 +249,56 @@ describe("incident security boundaries", () => {
       .send({ projectId: id, title: "test", severity: "high" })
       .expect(422);
     expect(service.create).not.toHaveBeenCalled();
+  });
+  it.each([
+    [{ status: "error", retryable: true, code: "RATE_LIMITED" }, 1, "pending"],
+    [{ status: "error", retryable: true, code: "RATE_LIMITED" }, 5, "failed"],
+    [{ status: "error", ambiguous: true }, 1, "unknown"],
+    [{ status: "ok", id: "receipt-ticket" }, 1, "receipt"],
+  ])(
+    "bounds push retries and never equates acceptance with delivery: %j",
+    async (result, attempts, expected) => {
+      const row = {
+        id: "delivery",
+        eventId: "event",
+        status: "pending",
+        attempts,
+      };
+      const repository = {
+        claimNotification: async () => row,
+        notificationContext: async () => ({
+          allowed: true,
+          device: { userId: "user" },
+          incident: { id, projectId: "project" },
+        }),
+        markSending: async () => [1],
+        finishNotification: vi.fn(),
+      };
+      const service = createIncidentService({
+        repository,
+        deployments: { incidentContext: async () => ({}) },
+        vault: { open: () => "fixture-token" },
+        push: { send: async () => result },
+      });
+      await service.processNotification();
+      expect(repository.finishNotification).toHaveBeenCalledWith(
+        row,
+        expect.objectContaining({ status: expected }),
+      );
+    },
+  );
+  it("cancels dispatch for expired sessions or disabled preferences before opening the token", async () => {
+    const repository = {
+      claimNotification: async () => ({ id: "delivery" }),
+      notificationContext: async () => ({ allowed: false }),
+      finishNotification: vi.fn(),
+    };
+    const vault = { open: vi.fn() };
+    await createIncidentService({ repository, vault }).processNotification();
+    expect(vault.open).not.toHaveBeenCalled();
+    expect(repository.finishNotification).toHaveBeenCalledWith(
+      expect.anything(),
+      { status: "canceled" },
+    );
   });
 });

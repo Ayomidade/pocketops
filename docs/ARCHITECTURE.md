@@ -189,3 +189,7 @@ Add Workspace Orchestrator, isolated ephemeral containers/VMs, filesystem and te
 See [PRD](PRD.md), [Security](SECURITY.md), [Database](DATABASE.md), [API](API.md).
 
 Deployment behavior, failure semantics and manual gates: [DEPLOYMENTS.md](DEPLOYMENTS.md).
+
+## Incident implementation boundary
+
+Prompt 07 uses the existing modular monolith and PostgreSQL leased worker, not a new Redis service. Optional signed Render events schedule the same monitor pipeline as periodic polling; live provider authorization precedes observations. Incident event, audit and notification outbox changes are transactional. Health status is independent of deployment status and human resolution. See [INCIDENTS.md](INCIDENTS.md).

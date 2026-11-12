@@ -370,3 +370,7 @@ Raw `textMuted` (#6B7788) is not AA body text on these surfaces (3.92:1 on
 `textOnAccent` (5.23:1). Contrast regression tests cover the readable token pairs;
 physical-device visual/accessibility review is still required. Light theme support
 is deferred; semantic names allow a future alternate palette.
+
+## Milestone 07 setup
+
+See [INCIDENTS.md](INCIDENTS.md#setup-and-migration) for migration 007, the existing worker, verified health origins, Firebase/FCM, optional Expo push security and signed Render webhooks. A new APK is required for expo-notifications; OTA cannot add it to the old runtime. Monitoring is opt-in.

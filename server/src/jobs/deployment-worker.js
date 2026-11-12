@@ -35,7 +35,12 @@ async function main() {
     models,
     githubService,
   });
-  const incidents = createIncidentRuntime({ config, sequelize, models, deployments: service });
+  const incidents = createIncidentRuntime({
+    config,
+    sequelize,
+    models,
+    deployments: service,
+  });
   let stopping = false;
   let nextSnapshot = 0;
   for (const signal of ["SIGTERM", "SIGINT"])
@@ -58,11 +63,17 @@ async function main() {
         }
       }
       try {
-        const deployment = await measureJob(logger, () => service.processNext());
+        const deployment = await measureJob(logger, () =>
+          service.processNext(),
+        );
         const monitor = await incidents.processMonitor();
         const push = await incidents.processNotification();
         if (!deployment && !monitor && !push) await delay(1500);
       } catch {
+        logger.error(
+          { event: "worker.iteration_failed" },
+          "Operation or incident worker failed; lease recovery will retry safe work",
+        );
         await delay(5000);
       }
     }

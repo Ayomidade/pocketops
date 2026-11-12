@@ -16,15 +16,41 @@ export function createRenderWebhookRouter({ service }) {
   const controller = service ? service : null;
   router.post(
     "/",
-    rateLimit(60_000, 120, "WEBHOOK_RATE_LIMITED"),
+    rateLimit({
+      windowMs: 60000,
+      limit: 120,
+      standardHeaders: "draft-7",
+      legacyHeaders: false,
+      handler: (req, res) =>
+        res
+          .status(429)
+          .json({
+            success: false,
+            error: {
+              code: "WEBHOOK_RATE_LIMITED",
+              message: "Too many webhook requests.",
+            },
+            meta: { requestId: req.id },
+          }),
+    }),
     (request, _response, next) => {
       if (!controller) {
         return next(
-          new AppError(503, "WEBHOOK_UNAVAILABLE", "Render webhook integration is not configured."),
+          new AppError(
+            503,
+            "WEBHOOK_UNAVAILABLE",
+            "Render webhook integration is not configured.",
+          ),
         );
       }
       if (!Buffer.isBuffer(request.body)) {
-        return next(new AppError(400, "INVALID_WEBHOOK_BODY", "Render webhook body is invalid."));
+        return next(
+          new AppError(
+            400,
+            "INVALID_WEBHOOK_BODY",
+            "Render webhook body is invalid.",
+          ),
+        );
       }
       return next();
     },
@@ -32,10 +58,12 @@ export function createRenderWebhookRouter({ service }) {
       const result = await controller.acceptWebhook({
         rawBody: request.body,
         signature: request.get("webhook-signature"),
-        deliveryId: request.get("webhook-delivery"),
-        eventType: request.get("webhook-event"),
+        deliveryId: request.get("webhook-id"),
+        timestamp: request.get("webhook-timestamp"),
       });
-      return response.status(202).json({ success: true, data: result, meta: { requestId: request.id } });
+      return response
+        .status(202)
+        .json({ success: true, data: result, meta: { requestId: request.id } });
     }),
   );
   return router;

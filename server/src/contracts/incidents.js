@@ -66,6 +66,7 @@ export function registerIncidentContract({ schemas, endpoint, parameter }) {
       healthPath: str,
     }),
     IncidentHealthHistory: obj({
+      nextCursor: nullable,
       items: {
         type: "array",
         items: obj({
@@ -168,6 +169,7 @@ export function registerIncidentContract({ schemas, endpoint, parameter }) {
           minimum: 1,
           maximum: 50,
         }),
+        parameter("cursor", "query", str),
       ],
     },
   );

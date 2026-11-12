@@ -78,7 +78,10 @@ export const incidentSchemas = {
     .strict(),
   timeline: z.object({ limit: page.limit, cursor }).strict(),
   history: z
-    .object({ limit: z.coerce.number().int().min(1).max(50).default(20) })
+    .object({
+      limit: z.coerce.number().int().min(1).max(50).default(20),
+      cursor,
+    })
     .strict(),
   configure: z
     .object({
@@ -109,16 +112,14 @@ export function createIncidentRouter({ service, authService }) {
     standardHeaders: "draft-7",
     legacyHeaders: false,
     handler: (req, res) =>
-      res
-        .status(429)
-        .json({
-          success: false,
-          error: {
-            code: "INCIDENT_RATE_LIMITED",
-            message: "Too many incident requests.",
-          },
-          meta: { requestId: req.id },
-        }),
+      res.status(429).json({
+        success: false,
+        error: {
+          code: "INCIDENT_RATE_LIMITED",
+          message: "Too many incident requests.",
+        },
+        meta: { requestId: req.id },
+      }),
   });
   const add = (method, path, name, sources, code = 200) =>
     router[method](

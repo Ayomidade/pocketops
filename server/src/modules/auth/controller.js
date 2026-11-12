@@ -61,5 +61,24 @@ export function createAuthController(service) {
       });
       return response.json(successResponse(result, request.id));
     },
+
+    async revokeAllSessions(request, response) {
+      const result = await service.revokeAllSessions({
+        sessionId: request.auth.session.id,
+        userId: request.auth.user.id,
+        requestId: request.id,
+      });
+      return response.json(successResponse(result, request.id));
+    },
+
+    async deleteAccount(request, response) {
+      const result = await service.deleteAccount({
+        sessionId: request.auth.session.id,
+        userId: request.auth.user.id,
+        requestId: request.id,
+        confirmation: request.validated.body.confirmation,
+      });
+      return response.json(successResponse(result, request.id));
+    },
   };
 }

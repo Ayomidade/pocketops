@@ -259,6 +259,77 @@ export function createAuthRepository({ sequelize, models }) {
       });
     },
 
+    async revokeAllSessions({ userId, exceptSessionId, requestId, now }) {
+      return sequelize.transaction(async (transaction) => {
+        const where = { userId, revokedAt: null };
+        if (exceptSessionId) where.id = { [Op.ne]: exceptSessionId };
+        const count = await Session.update(
+          { revokedAt: now },
+          { where, transaction },
+        );
+        await recordEvent(
+          { actorUserId: userId, action: "sessions_revoked_all", requestId },
+          transaction,
+        );
+        return count[0];
+      });
+    },
+
+    async deleteAccount({ userId, requestId, now }) {
+      return sequelize.transaction(async (transaction) => {
+        // Revoke all sessions first so any in-flight requests are invalidated.
+        await Session.update({ revokedAt: now }, { where: { userId }, transaction });
+        // Destroy deployment operations and dependent rows in FK order.
+        // The raw SQL approach handles tables with RESTRICT FKs that Sequelize
+        // cascade options do not cover across different models.
+        await sequelize.query(
+          `DELETE FROM operation_requests WHERE actor_id = :userId OR project_id IN (SELECT id FROM projects WHERE user_id = :userId)`,
+          { replacements: { userId }, transaction },
+        );
+        await sequelize.query(
+          `DELETE FROM deployments WHERE project_id IN (SELECT id FROM projects WHERE user_id = :userId)`,
+          { replacements: { userId }, transaction },
+        );
+        // Incident-related rows cascade from incidents, but monitors and health
+        // checks reference projects; delete monitors and health_checks first.
+        await sequelize.query(
+          `DELETE FROM notification_deliveries WHERE device_id IN (SELECT id FROM push_devices WHERE user_id = :userId)`,
+          { replacements: { userId }, transaction },
+        );
+        await sequelize.query(
+          `DELETE FROM health_checks WHERE project_id IN (SELECT id FROM projects WHERE user_id = :userId)`,
+          { replacements: { userId }, transaction },
+        );
+        await sequelize.query(
+          `DELETE FROM project_monitors WHERE user_id = :userId`,
+          { replacements: { userId }, transaction },
+        );
+        // Incident rows cascade their events/observations.
+        await sequelize.query(
+          `DELETE FROM incidents WHERE user_id = :userId`,
+          { replacements: { userId }, transaction },
+        );
+        await sequelize.query(
+          `DELETE FROM projects WHERE user_id = :userId`,
+          { replacements: { userId }, transaction },
+        );
+        await sequelize.query(
+          `DELETE FROM provider_connections WHERE user_id = :userId`,
+          { replacements: { userId }, transaction },
+        );
+        // Deleting the user cascades sessions, oauth_transactions,
+        // github_installation_links, installation_memberships,
+        // repository_selections, push_devices and notification_preferences.
+        const deleted = await User.destroy({ where: { id: userId }, transaction });
+        if (!deleted) return false;
+        await recordEvent(
+          { actorUserId: userId, action: "account_deleted", requestId },
+          transaction,
+        );
+        return true;
+      });
+    },
+
     async cleanupExpired(oauthRetentionDate, sessionRetentionDate) {
       const [oauthTransactions, sessions] = await Promise.all([
         OAuthTransaction.destroy({

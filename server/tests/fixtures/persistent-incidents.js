@@ -150,6 +150,31 @@ export async function verifyPersistentIncidents({
     requestId: "test",
   });
   const monitor = await models.ProjectMonitor.findByPk(project.id);
+  const signal = {
+    eventId: "evt-fixture",
+    serviceId: project.providerServiceId,
+    observedAt: new Date(),
+    receivedAt: new Date(),
+  };
+  const signals = await Promise.all([
+    r.queueProviderEvent(signal),
+    r.queueProviderEvent(signal),
+  ]);
+  expect(signals.filter((s) => s.duplicate)).toHaveLength(1);
+  expect(
+    await r.queueProviderEvent({
+      ...signal,
+      eventId: "evt-old",
+      observedAt: new Date(0),
+    }),
+  ).toMatchObject({ ignored: true });
+  expect(
+    await r.queueProviderEvent({
+      ...signal,
+      eventId: "evt-other",
+      serviceId: "srv-unmapped",
+    }),
+  ).toMatchObject({ ignored: true });
   // Seed spaced recent observations after incident creation, without sleeping.
   const start = new Date(Date.now() - 125000);
   await models.Incident.update(
@@ -169,6 +194,26 @@ export async function verifyPersistentIncidents({
       checkedAt: new Date(Date.now() - age),
     });
   now = new Date();
+  const checks = await service.healthChecks({
+    userId: user.id,
+    id: project.id,
+    limit: 2,
+  });
+  expect(checks.items).toHaveLength(2);
+  expect(checks.nextCursor).toBeTruthy();
+  const cursor = JSON.parse(
+    Buffer.from(checks.nextCursor, "base64url").toString(),
+  );
+  expect(
+    (
+      await service.healthChecks({
+        userId: user.id,
+        id: project.id,
+        limit: 2,
+        cursor,
+      })
+    ).items,
+  ).toHaveLength(1);
   updated = await service.resolve({
     userId: user.id,
     id: one.id,
@@ -223,4 +268,10 @@ export async function verifyPersistentIncidents({
       where: { action: "incident.updated" },
     }),
   ).toBeGreaterThanOrEqual(3);
+  // Reactivating an old registration must obey the same device quota as a new one.
+  await service.revoke({ userId: user.id, id: device.id });
+  for (let n = 0; n < 10; n++) {
+    await service.register({ userId: user.id, sessionId: session.id, platform: "android", token: `ExpoPushToken[quota_${n}]` });
+  }
+  await expect(service.register({ userId: user.id, sessionId: session.id, platform: "android", token: "ExpoPushToken[synthetic_fixture]" })).rejects.toMatchObject({ code: "DEVICE_LIMIT" });
 }
