@@ -66,3 +66,26 @@ Other modifications already present from the Render task are preserved and are n
 A nonfatal existing React Native `SafeAreaView` deprecation warning is emitted from the shared `Screen` component by the new native authentication tests. It is not a sign-in failure and no warnings were suppressed.
 
 Authentication acceptance: denial forwarding **PASS**; S256 challenge/verifier consistency and credential isolation **PASS**; callback/session race regressions **PASS**; strict callback handling and protected GitHub connections **PASS**. Live end-to-end sign-in is **NOT RUN**, with callback reachability **FAIL** until the public URL is repaired. The incident milestone was not started by this authentication repair.
+
+## GitHub App return troubleshooting — 2026-11-12
+
+A GitHub installation does not prove PocketOps membership was saved. PocketOps authorizes the signed-in GitHub user first, then verifies the installation Setup URL callback before persisting the link. The native `github/callback` route now forwards recognized status hints to Connections and re-fetches membership, including cold starts where the original WebBrowser promise no longer exists. Browser dismissal also reconciles membership; it is not proof of cancellation. Unrecognized/duplicate callback parameters are not forwarded. Server callback failures now log only a safe error code, event name and request ID.
+
+The local mobile environment points to `https://pocketops.onrender.com/api/v1` (public health returned 200). The local backend environment points its API and GitHub App callbacks at `neutral-const-unsigned-greater.trycloudflare.com` (DNS returned ENOTFOUND). These are different environments. Hosted Render environment values and GitHub dashboard settings were **not inspected**; do not infer that the hosted API uses the local `.env`.
+
+For the hosted mobile setup, configure the **Render API environment** and **GitHub App registration** consistently:
+
+```dotenv
+API_PUBLIC_URL=https://pocketops.onrender.com
+GITHUB_APP_OAUTH_CALLBACK_URL=https://pocketops.onrender.com/api/v1/github/oauth/callback
+GITHUB_APP_SETUP_CALLBACK_URL=https://pocketops.onrender.com/api/v1/github/installations/callback
+GITHUB_APP_MOBILE_REDIRECT_URI=pocketops://github/callback
+```
+
+In the GitHub App developer settings (not the identity OAuth App), set Callback URL and Setup URL to the HTTPS values above. Turn **Request user authorization (OAuth) during installation OFF**: PocketOps starts that authorization itself, and GitHub otherwise replaces the Setup URL step with another OAuth callback. Turn **Redirect on update ON** so reconnecting an already-installed App can return through Setup URL. See [GitHub's registration settings documentation](https://docs.github.com/en/apps/maintaining-github-apps/modifying-a-github-app-registration). Never set GitHub's Setup URL directly to the mobile scheme: that skips backend verification and cannot create membership.
+
+Restart/redeploy the backend after changing its environment. Deliver the mobile JS fix through a compatible preview OTA or a new APK. Start a **fresh** Connect GitHub App flow from PocketOps, using the same GitHub account as sign-in; existing state expires and cannot be replayed. Complete the return and explicitly save repository selection. Do not uninstall a working GitHub installation merely to retry linking.
+
+If accounts still do not appear, inspect safe backend event codes `github.oauth_callback_failed` / `github.installation_callback_failed` and confirm that `/api/v1/github/installations/callback` was reached. A GitHub installed-app entry with no completed setup callback explains an empty PocketOps account list. Live Android return and hosted callback settings need device/operator verification; local component tests do not prove that the reported blank screen has been reproduced on hardware.
+
+Verification completed 2026-11-13: all eight new callback/connection component tests and mobile lint pass. Server regression suite: 184 passed, one unrelated OpenAPI route-coverage failure (existing account deletion/session-revocation routes missing from contract), one database test skipped because DATABASE_URL_TEST was not configured. Mobile logic: 46 passed; full UI suite: 74 passed, one existing deployment-list test timed out; focused callback rerun: eight passed. Root lint is blocked by an existing unused `sessionId` in auth account deletion; changed GitHub controller lint passes. Sandbox-blocked HTTP/process tests were rerun with local execution permitted. No environment values, GitHub dashboard settings, hosted service or installed APK were changed by this fix. No migration is required. Hardware reproduction and the deployed fix still need phone verification.

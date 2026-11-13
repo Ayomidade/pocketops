@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, Redirect, useFocusEffect } from "expo-router";
+import {
+  Link,
+  Redirect,
+  useFocusEffect,
+  useLocalSearchParams,
+} from "expo-router";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { Pressable, Text, View } from "react-native";
@@ -50,6 +55,7 @@ export default function ConnectionsPage() {
 }
 
 function AuthenticatedConnectionsPage() {
+  const { githubStatus } = useLocalSearchParams();
   const { authenticatedRequest } = useAuth();
   const githubApi = useMemo(
     () => createGitHubApi(authenticatedRequest),
@@ -66,12 +72,31 @@ function AuthenticatedConnectionsPage() {
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
 
+  useEffect(() => {
+    if (githubStatus === "connected") {
+      setNotice(
+        "GitHub returned to PocketOps. Checking your connected accounts...",
+      );
+    } else if (githubStatus === "cancelled") {
+      setNotice("GitHub connection was cancelled. You can try again.");
+    } else if (githubStatus === "failed") {
+      setNotice(
+        "GitHub could not finish linking this account. Check the server callback settings, then start Connect GitHub App again.",
+      );
+    }
+  }, [githubStatus]);
+
   const loadInstallations = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await githubApi.listInstallations();
       setInstallations(response.data);
+      if (githubStatus === "connected") {
+        setNotice(response.data.length
+          ? "GitHub connection verified. Select the repositories PocketOps may access."
+          : "GitHub returned, but no account was linked on this server. Check the Setup URL and start a fresh connection.");
+      }
       setInstallationId((current) =>
         response.data.some((item) => item.id === current)
           ? current
@@ -82,7 +107,7 @@ function AuthenticatedConnectionsPage() {
     } finally {
       setLoading(false);
     }
-  }, [githubApi]);
+  }, [githubApi, githubStatus]);
 
   useFocusEffect(
     useCallback(() => {
@@ -130,7 +155,10 @@ function AuthenticatedConnectionsPage() {
         redirectUri,
       );
       if (result.type !== "success" || !result.url) {
-        setNotice("GitHub connection was cancelled. You can try again.");
+        setNotice(
+          "The browser closed. Your current connection status is shown below.",
+        );
+        await loadInstallations();
         return;
       }
       const status = parseGitHubAppCallback(result.url, redirectUri);
@@ -236,7 +264,7 @@ function AuthenticatedConnectionsPage() {
           <RemoteState
             kind="empty"
             title="No GitHub App connections"
-            message="Connect a GitHub App installation to choose repositories. This does not change your PocketOps sign-in."
+            message="Installing on GitHub alone does not link the account here. Start Connect GitHub App from PocketOps and complete its return. If it remains empty, check the GitHub App Setup URL and server callback origin."
           />
         </View>
       ) : (

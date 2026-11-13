@@ -35,6 +35,14 @@ export function createGitHubController(service) {
         return response.redirect(302, url);
       } catch (error) {
         if (error instanceof AppError) {
+          request.log?.warn(
+            {
+              code: error.code,
+              requestId: request.id,
+              event: "github.oauth_callback_failed",
+            },
+            "GitHub App authorization callback failed",
+          );
           return response.redirect(
             302,
             await service.callbackFailureRedirect(error),
@@ -55,6 +63,14 @@ export function createGitHubController(service) {
         return response.redirect(302, url);
       } catch (error) {
         if (error instanceof AppError) {
+          request.log?.warn(
+            {
+              code: error.code,
+              requestId: request.id,
+              event: "github.installation_callback_failed",
+            },
+            "GitHub App installation callback failed",
+          );
           return response.redirect(
             302,
             await service.callbackFailureRedirect(error),
