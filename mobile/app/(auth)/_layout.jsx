@@ -8,8 +8,8 @@ export default function AuthLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        statusBarHidden: true,
-        navigationBarHidden: true,
+        statusBarHidden: false,
+        navigationBarHidden: false,
       }}
     />
   );

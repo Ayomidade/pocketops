@@ -1,14 +1,10 @@
+import { useConfirmation } from "../../components/ui/ConfirmationProvider";
+import MasterDetail, { usePaneRouter as useRouter, usePaneParams as useLocalSearchParams } from "../../components/ui/MasterDetail";
+import { ListRow, StatusPill } from "../../components/ui";
+import { Text } from "../../components/ui";
 import { useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  AppState,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
-import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { AppState, KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
+import { Redirect } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import * as Crypto from "expo-crypto";
 import { useAuth } from "../auth/AuthProvider";
@@ -22,13 +18,13 @@ import {
   listItems,
 } from "./queries";
 import {
-  Action,
+  Button,
   Copy,
   Frame,
   Input,
   QueryState,
   Rows,
-  Status,
+  DeploymentStatus,
 } from "./components";
 import { createLogWindow } from "./log-window.js";
 
@@ -67,7 +63,8 @@ function routeId(value) {
   return typeof value === "string" ? value : "";
 }
 
-export function DeploymentsScreen() {
+export function DeploymentsScreen() { return <MasterDetail route="/project/[id]" master={<DeploymentsScreenList />} renderDetail={() => <ProjectScreen />} />; }
+function DeploymentsScreenList() {
   const { router, authenticated, isOffline } = usePage();
   const query = useDeploymentList("projects");
   if (!authenticated) return <SignedOut />;
@@ -82,11 +79,11 @@ export function DeploymentsScreen() {
         empty="No projects mapped. Connect Render and choose a GitHub-backed service."
         header={
           <View className="gap-3 mb-4">
-            <Action
+            <Button
               label="Manage Render connections"
               onPress={() => router.push("/project/connections")}
             />
-            <Action
+            <Button
               label="Map a service"
               disabled={isOffline}
               onPress={() => router.push("/project/new")}
@@ -94,22 +91,7 @@ export function DeploymentsScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <Card>
-            <Copy>{item.name}</Copy>
-            <Copy>
-              {item.providerServiceId} · {item.status}
-            </Copy>
-            <Action
-              label={`Open project ${item.name}`}
-              disabled={isOffline || item.status !== "active"}
-              onPress={() =>
-                router.push({
-                  pathname: "/project/[id]",
-                  params: { id: item.id },
-                })
-              }
-            />
-          </Card>
+          <ListRow icon="deploy" title={item.name} meta="Render service" badge={<StatusPill value={item.status} />} label={`Open project ${item.name}`} disabled={isOffline || item.status !== "active"} onPress={() => router.push({ pathname: "/project/[id]", params: { id: item.id } })} />
         )}
       />
     </Frame>
@@ -117,6 +99,7 @@ export function DeploymentsScreen() {
 }
 
 export function RenderConnectionsScreen() {
+  const requestConfirmation = useConfirmation();
   const { router, authenticated, isOffline } = usePage();
   const api = useDeploymentApi();
   const client = useQueryClient();
@@ -147,7 +130,7 @@ export function RenderConnectionsScreen() {
     }
   }
   function disconnect(item) {
-    Alert.alert(
+    requestConfirmation(
       "Disconnect Render?",
       `${item.displayName}: linked projects become disconnected. An already dispatched deployment may still proceed. Revoke the API key in Render Account Settings to revoke it globally.`,
       [
@@ -210,7 +193,7 @@ export function RenderConnectionsScreen() {
                 persisted on this phone.
               </Copy>
               <ErrorNotice error={error} />
-              <Action
+              <Button
                 label={busy ? "Connecting" : "Connect Render"}
                 disabled={busy || isOffline || !key.trim() || !name.trim()}
                 onPress={connect}
@@ -222,7 +205,7 @@ export function RenderConnectionsScreen() {
               <Copy>
                 {item.displayName} · {item.status}
               </Copy>
-              <Action
+              <Button
                 label={`Disconnect ${item.displayName}`}
                 disabled={busy || isOffline || item.status !== "active"}
                 onPress={() => disconnect(item)}
@@ -257,7 +240,7 @@ function ServiceSelection({ connection, onSelect }) {
             {item.repositoryFullName || "No supported GitHub repository"}
           </Copy>
           <Copy>{item.id}</Copy>
-          <Action
+          <Button
             label={`Select service ${item.name}`}
             disabled={isOffline || !item.repositoryFullName}
             onPress={() => onSelect(item)}
@@ -285,7 +268,7 @@ function RepositorySelection({ service, onSelect }) {
       renderItem={({ item }) => (
         <Card>
           <Copy>{item.fullName}</Copy>
-          <Action
+          <Button
             label={`Map repository ${item.fullName}`}
             disabled={
               isOffline ||
@@ -356,7 +339,7 @@ export function NewProjectScreen() {
           empty="Connect Render before mapping a service."
           header={<Copy>Choose a Render connection.</Copy>}
           renderItem={({ item }) => (
-            <Action
+            <Button
               label={`Choose connection ${item.displayName}`}
               disabled={isOffline}
               onPress={() => setConnection(item)}
@@ -383,7 +366,7 @@ export function LogRow({ item, fontSize = 14 }) {
       >
         {item.message}
       </Text>
-      <Action
+      <Button
         label={`${expanded ? "Collapse" : "Expand"} log ${item.id}`}
         onPress={() => setExpanded(!expanded)}
       />
@@ -410,13 +393,13 @@ function Logs({ projectId, enabled, header }) {
       header={
         <View>
           {header}
-          <View className="gap-2">
-            <Action
+          <View className="flex-row gap-2">
+            <Button
               label="Smaller log text"
               disabled={fontSize <= 12}
               onPress={() => setFontSize((size) => size - 2)}
             />
-            <Action
+            <Button
               label="Larger log text"
               disabled={fontSize >= 24}
               onPress={() => setFontSize((size) => size + 2)}
@@ -425,24 +408,19 @@ function Logs({ projectId, enabled, header }) {
           <Copy>
             Runtime logs · {window.from} → {window.to}
           </Copy>
-          <Copy>
-            Common secrets are redacted; application logs may still contain
-            sensitive information. Lines are capped at 4 KiB, pages at 128 KiB.
-            Only four pages are retained in memory. Logs are not stored on this
-            phone.
-          </Copy>
+          <Text className="text-xs text-textSecondary">Redacted, bounded runtime logs. Not saved on this phone.</Text>
           {query.data?.pages.some((p) => p.data.truncated) ? (
             <Copy alert>
               The page was truncated at the byte limit. Narrow the time window
               or filter by level.
             </Copy>
           ) : null}
-          <Action
+          <Button
             label="Refresh log window"
             disabled={isOffline}
             onPress={() => setWindow(createLogWindow())}
           />
-          <Action
+          <Button
             label={level ? "Show all log levels" : "Show error logs"}
             onPress={() => setLevel(level ? "" : "error")}
           />
@@ -471,7 +449,7 @@ export function ProjectScreen() {
     );
   const header = (
     <View className="gap-2 mb-4">
-      <Action
+      <Button
         label="Refresh project"
         disabled={isOffline || query.isFetching}
         onPress={() => {
@@ -480,8 +458,8 @@ export function ProjectScreen() {
         }}
       />
       <Copy>Project mapping: {project.status}</Copy>
-      <Status value={listItems(history)[0]?.status || "unknown"} />
-      <Action
+      <DeploymentStatus value={listItems(history)[0]?.status || "unknown"} />
+      <Button
         caution
         label="Review redeployment"
         disabled={
@@ -498,7 +476,7 @@ export function ProjectScreen() {
         </Copy>
       ) : null}
       {project.pendingOperation ? (
-        <Action
+        <Button
           label="View current operation"
           onPress={() =>
             router.push({
@@ -509,7 +487,7 @@ export function ProjectScreen() {
         />
       ) : null}
       <View className="gap-3">
-        <Action
+        <Button
           label="Configure incident monitoring"
           onPress={() =>
             router.push({
@@ -518,11 +496,11 @@ export function ProjectScreen() {
             })
           }
         />
-        <Action
+        <Button
           label="Deployment timeline"
           onPress={() => setTab("timeline")}
         />
-        <Action
+        <Button
           label="Runtime logs"
           disabled={!project.capabilities.supportsLogs}
           onPress={() => setTab("logs")}
@@ -540,7 +518,7 @@ export function ProjectScreen() {
         <Logs
           projectId={id}
           enabled={visible && !query.isError}
-          header={header}
+          header={<View className="flex-row items-center gap-2"><StatusPill value={listItems(history)[0]?.status || "unknown"} /><Button label="Deployment timeline" size="sm" onPress={() => setTab("timeline")} /></View>}
         />
       ) : (
         <Rows
@@ -554,7 +532,7 @@ export function ProjectScreen() {
                 {item.status} · {item.startedAt || "Start time unavailable"}
               </Copy>
               <Copy>{item.commitSha || "Commit unavailable"}</Copy>
-              <Action
+              <Button
                 label={`Open deployment ${item.providerDeploymentId}`}
                 disabled={isOffline}
                 onPress={() =>
@@ -573,6 +551,7 @@ export function ProjectScreen() {
 }
 
 export function RedeployScreen() {
+  const requestConfirmation = useConfirmation();
   const { router, authenticated, isOffline } = usePage();
   const { id: rawId } = useLocalSearchParams();
   const id = routeId(rawId);
@@ -616,7 +595,7 @@ export function RedeployScreen() {
         commitSha: project.redeployTarget.commitSha,
       },
     };
-    Alert.alert(
+    requestConfirmation(
       "Confirm deployment request",
       `Redeploy ${project.name}\nRender service: ${project.service.name}\n${project.providerServiceId}\nCommit: ${body.target.commitSha}\nThis rebuilds the selected live commit. It may affect production. Acceptance does not prove success or recovery.`,
       [
@@ -663,7 +642,7 @@ export function RedeployScreen() {
                 submitting another request.
               </Copy>
             ) : null}
-            <Action
+            <Button
               caution
               label={
                 stage === "review"
@@ -677,7 +656,7 @@ export function RedeployScreen() {
                 stage === "review" ? setStage("confirm") : confirm()
               }
             />
-            <Action
+            <Button
               label="Refresh target"
               disabled={busy || isOffline}
               onPress={() => {
@@ -710,15 +689,15 @@ export function DeploymentDetailScreen() {
           <QueryState query={query} />
         ) : (
           <View className="gap-3">
-            <Status value={d.status} />
+            <DeploymentStatus value={d.status} />
             <Copy>Provider status: {d.providerStatus}</Copy>
             <Copy>{d.providerDeploymentId}</Copy>
             <Copy>Commit: {d.commitSha || "Unavailable"}</Copy>
             <Copy>Started: {d.startedAt || "Unavailable"}</Copy>
             <Copy>Finished: {d.finishedAt || "Unavailable"}</Copy>
-            <Action label="Refresh deployment" onPress={query.refetch} />
+            <Button label="Refresh deployment" onPress={query.refetch} />
             {d.projectId ? (
-              <Action
+              <Button
                 label="View service runtime logs"
                 onPress={() =>
                   router.push({
@@ -780,13 +759,13 @@ export function OperationScreen() {
               </Copy>
             ) : null}
             {op.errorCode ? <Copy alert>{op.errorCode}</Copy> : null}
-            <Action
+            <Button
               label="Refresh operation status"
               disabled={isOffline}
               onPress={query.refetch}
             />
             {op.deploymentId ? (
-              <Action
+              <Button
                 label="View provider deployment"
                 disabled={isOffline}
                 onPress={() =>

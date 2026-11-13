@@ -1,3 +1,4 @@
+jest.mock("../src/hooks/useBreakpoint", () => ({ useBreakpoint: () => ({ compact: true, size: "compact", width: 390, height: 844 }) }));
 import {
   act,
   cleanup,
@@ -369,7 +370,7 @@ describe("native Render deployment workflow", () => {
       ).toBe(true),
     );
     expect(
-      screen.getByText(/Only four pages are retained in memory/),
+      screen.getByText(/Redacted, bounded runtime logs/),
     ).toBeTruthy();
     screen.unmount();
     const row = setup(

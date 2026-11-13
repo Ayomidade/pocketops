@@ -121,7 +121,7 @@ function showDocument(message) {
       active.editable.of(EditorView.editable.of(!active.readOnly)),
       EditorView.theme(
         {
-          "&": { height: "100%", color: "#E6EDF3", backgroundColor: "#0B0F14" },
+          "&": { height: "100%", color: "var(--editor-text)", backgroundColor: "var(--editor-bg)" },
           ".cm-scroller": {
             overflow: "auto",
             fontFamily: "JetBrainsMono, monospace",
@@ -129,12 +129,12 @@ function showDocument(message) {
           },
           ".cm-content": { minHeight: "100%", padding: "12px 0" },
           ".cm-gutters": {
-            color: "#9AA7B8",
-            backgroundColor: "#121821",
+            color: "var(--editor-secondary)",
+            backgroundColor: "var(--editor-surface)",
             border: "0",
           },
-          ".cm-activeLine": { backgroundColor: "#1A2230" },
-          ".cm-activeLineGutter": { backgroundColor: "#1A2230" },
+          ".cm-activeLine": { backgroundColor: "var(--editor-raised)" },
+          ".cm-activeLineGutter": { backgroundColor: "var(--editor-raised)" },
         },
         { dark: true },
       ),

@@ -1,41 +1,8 @@
-import { Pressable, Text, View } from "react-native";
-import { useRouter } from "expo-router";
-import Icon from "./Icon";
-export default function AppHeader({ title, subtitle, onBack }) {
-  const router = useRouter();
-  return (
-    <View className="border-b border-border px-5 py-3">
-      <View className="flex-row items-center gap-2">
-        {onBack ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            onPress={onBack}
-            className="min-h-12 min-w-12 items-center justify-center"
-          >
-            <Icon name="back" />
-          </Pressable>
-        ) : null}
-        <Text
-          accessibilityRole="header"
-          className="flex-1 text-2xl font-semibold text-textPrimary"
-        >
-          {title}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Account and settings"
-          onPress={() => router.push("/(tabs)/settings")}
-          className="min-h-12 min-w-12 items-center justify-center rounded-full border border-border bg-surface"
-        >
-          <Icon name="profile" />
-        </Pressable>
-      </View>
-      {subtitle ? (
-        <Text className="mt-2 text-sm leading-5 text-textSecondary">
-          {subtitle}
-        </Text>
-      ) : null}
-    </View>
-  );
+import { View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Text, IconButton } from './ui';
+import { useTheme } from '../theme/ThemeProvider';
+export default function AppHeader({ title, subtitle, onBack, action }) {
+  const router = useRouter(); const { colors } = useTheme();
+  return <View style={{ paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>{onBack ? <IconButton icon="back" label="Back" onPress={onBack} /> : null}<Text accessibilityRole="header" maxFontSizeMultiplier={1.3} style={{ flex: 1, fontSize: 24, fontWeight: '600' }}>{title}</Text>{action}<IconButton icon="profile" label="Account and settings" onPress={() => router.push('/(tabs)/settings')} /></View>{subtitle ? <Text style={{ color: colors.textSecondary, fontSize: 13, marginBottom: 4 }}>{subtitle}</Text> : null}</View>;
 }

@@ -1,3 +1,5 @@
+import { TouchTarget } from "../src/components/ui";
+import { Text } from "../src/components/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Link,
@@ -7,8 +9,8 @@ import {
 } from "expo-router";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
-import { Pressable, Text, View } from "react-native";
-import InfoCard from "../src/components/InfoCard";
+import { View } from "react-native";
+import { Card } from "../src/components/ui";
 import RemoteState from "../src/components/RemoteState";
 import Screen from "../src/components/Screen";
 import { useAuth } from "../src/features/auth/AuthProvider";
@@ -215,7 +217,7 @@ function AuthenticatedConnectionsPage() {
       title="GitHub connections"
       subtitle="Identity sign-in and repository permissions are separate. Only repositories you select here are exposed to PocketOps."
     >
-      <InfoCard
+      <Card
         title="Repository permissions"
         description="Browsing needs Contents and Metadata read access. The source editor additionally needs Contents and Pull requests write permissions. Identity sign-in alone grants neither."
         badge="GitHub App"
@@ -245,7 +247,7 @@ function AuthenticatedConnectionsPage() {
         </Text>
       ) : null}
 
-      <Pressable
+      <TouchTarget
         className="mt-5 min-h-14 items-center justify-center rounded-xl bg-accent px-5"
         accessibilityRole="button"
         accessibilityLabel="Connect GitHub App"
@@ -256,7 +258,7 @@ function AuthenticatedConnectionsPage() {
         <Text className="font-semibold text-textOnAccent">
           {connecting ? "Waiting for GitHub..." : "Connect GitHub App"}
         </Text>
-      </Pressable>
+      </TouchTarget>
       <Text className="mt-3 text-sm leading-5 text-textSecondary">
         GitHub will ask which account and repositories to grant. PocketOps
         checks both the app installation and your signed-in GitHub account
@@ -279,7 +281,7 @@ function AuthenticatedConnectionsPage() {
             Connected accounts
           </Text>
           {installations.map((installation) => (
-            <Pressable
+            <TouchTarget
               key={installation.id}
               className={`mb-2 min-h-14 justify-center rounded-xl border px-4 ${
                 installation.id === installationId
@@ -300,7 +302,7 @@ function AuthenticatedConnectionsPage() {
                 {installation.selectedRepositoryCount} selected of{" "}
                 {installation.repositoryCount} currently authorized
               </Text>
-            </Pressable>
+            </TouchTarget>
           ))}
 
           {currentInstallation ? (
@@ -325,7 +327,7 @@ function AuthenticatedConnectionsPage() {
                     repository.githubRepositoryId,
                   );
                   return (
-                    <Pressable
+                    <TouchTarget
                       key={repository.githubRepositoryId}
                       className="mb-2 min-h-14 flex-row items-center rounded-xl border border-border bg-surface px-4"
                       accessibilityRole="checkbox"
@@ -347,11 +349,11 @@ function AuthenticatedConnectionsPage() {
                           {repository.archived ? " · Archived" : ""}
                         </Text>
                       </View>
-                    </Pressable>
+                    </TouchTarget>
                   );
                 })
               )}
-              <Pressable
+              <TouchTarget
                 className="mt-2 min-h-14 items-center justify-center rounded-xl border border-accent px-5"
                 accessibilityRole="button"
                 accessibilityLabel="Save selected repositories"
@@ -364,7 +366,7 @@ function AuthenticatedConnectionsPage() {
                     ? "Verifying and saving..."
                     : "Save repository selection"}
                 </Text>
-              </Pressable>
+              </TouchTarget>
             </>
           ) : null}
         </View>

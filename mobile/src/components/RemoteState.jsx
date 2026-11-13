@@ -1,5 +1,7 @@
-import { colors } from "../theme/tokens";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { TouchTarget } from "./ui";
+import { Text } from "./ui";
+import { useTheme } from "../theme/ThemeProvider";
+import { ActivityIndicator, View } from "react-native";
 
 export default function RemoteState({
   kind,
@@ -8,6 +10,7 @@ export default function RemoteState({
   onRetry,
   retryLabel = "Try again",
 }) {
+  const { colors } = useTheme();
   if (kind === "loading") {
     return (
       <View
@@ -35,14 +38,14 @@ export default function RemoteState({
         <Text className="text-textSecondary mt-2 text-center">{message}</Text>
       ) : null}
       {kind === "error" && onRetry ? (
-        <Pressable
+        <TouchTarget
           className="mt-4 min-h-12 min-w-32 items-center justify-center rounded-xl bg-accent px-5"
           accessibilityRole="button"
           accessibilityLabel={retryLabel}
           onPress={onRetry}
         >
           <Text className="text-textOnAccent font-semibold">{retryLabel}</Text>
-        </Pressable>
+        </TouchTarget>
       ) : null}
     </View>
   );

@@ -1,17 +1,8 @@
-import { colors } from "../../theme/tokens";
+import { useConfirmation } from "../../components/ui/ConfirmationProvider";
+import { Text } from "../../components/ui";
+import { useTheme } from "../../theme/ThemeProvider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  AppState,
-  BackHandler,
-  FlatList,
-  Keyboard,
-  Linking,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, AppState, BackHandler, FlatList, Keyboard, Linking, TextInput, View } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { usePreventRemove } from "@react-navigation/native";
@@ -23,7 +14,7 @@ import { useConnectivity } from "../../hooks/useConnectivity";
 import { useRepository } from "../repositories/queries.js";
 import { useRepositoryApi } from "../repositories/queries.js";
 import {
-  Action,
+  Button,
   RetryState,
   RepositorySkeleton,
 } from "../repositories/components.jsx";
@@ -88,7 +79,7 @@ function NativeFrame({ title, subtitle, onBack, children }) {
       edges={["top", "left", "right", "bottom"]}
     >
       <View className="border-b border-border px-5 pb-4 pt-2">
-        <Action label="Back" onPress={onBack} />
+        <Button label="Back" onPress={onBack} />
         <Text
           accessibilityRole="header"
           className="mt-3 text-2xl font-bold text-textPrimary"
@@ -103,6 +94,7 @@ function NativeFrame({ title, subtitle, onBack, children }) {
 }
 
 function NativeDiff({ before, after }) {
+  const { colors } = useTheme();
   const rows = useMemo(
     () =>
       diffLines(before, after)
@@ -114,19 +106,19 @@ function NativeDiff({ before, after }) {
               id: `${partIndex}:${lineIndex}`,
               text: `${part.added ? "+ " : part.removed ? "− " : "  "}${line}`,
               color: part.added
-                ? "#86efac"
+                ? colors.diffAdded
                 : part.removed
-                  ? "#fca5a5"
-                  : "#cbd5e1",
+                  ? colors.diffRemoved
+                  : colors.textSecondary,
               backgroundColor: part.added
-                ? "#123126"
+                ? colors.diffAddedBg
                 : part.removed
-                  ? "#3a2029"
+                  ? colors.diffRemovedBg
                   : "transparent",
             })),
         )
         .slice(0, 10000),
-    [before, after],
+    [before, after, colors],
   );
   return (
     <FlatList
@@ -159,6 +151,8 @@ function NativeDiff({ before, after }) {
 }
 
 export default function EditorScreen() {
+  const requestConfirmation = useConfirmation();
+  const { colors } = useTheme();
   const params = useLocalSearchParams();
   const repositoryId = singleParam(params.id);
   const path = singleParam(params.path);
@@ -368,7 +362,7 @@ export default function EditorScreen() {
           : null;
         if (cancelled) return;
         if (draft) {
-          Alert.alert(
+          requestConfirmation(
             "Saved draft found",
             "Restore the encrypted local draft? It expires after 24 hours and has not been sent to GitHub.",
             [
@@ -516,7 +510,7 @@ export default function EditorScreen() {
   ]);
 
   const discardAndLeave = useCallback(() => {
-    Alert.alert(
+    requestConfirmation(
       "Discard unsaved changes?",
       "Your encrypted local draft will be deleted.",
       [
@@ -541,7 +535,7 @@ export default function EditorScreen() {
   }, [user?.id, branch, repositoryId, path, router]);
 
   usePreventRemove(dirty && ["edit", "diff"].includes(stage), ({ data }) => {
-    Alert.alert(
+    requestConfirmation(
       "Unsaved changes",
       "Save an encrypted draft or discard your changes before leaving.",
       [
@@ -705,7 +699,7 @@ export default function EditorScreen() {
   }
 
   async function confirmCommit() {
-    Alert.alert(
+    requestConfirmation(
       "Commit to fix branch?",
       `${repository.data?.data.fullName}\n${branch}\n${path}\n\nThis creates a commit on the new fix branch. It does not run tests or deploy.`,
       [
@@ -771,7 +765,7 @@ export default function EditorScreen() {
   async function confirmPullRequest() {
     if (!pullTitle.trim())
       return setError(new Error("Enter a pull request title."));
-    Alert.alert(
+    requestConfirmation(
       "Open pull request?",
       `From ${branch} into ${baseRef}. GitHub checks and review still apply.`,
       [
@@ -880,6 +874,7 @@ export default function EditorScreen() {
     ...activeBridgeIds,
     nonce: activeBridgeIds.sessionId,
     codeMirrorBundle,
+    palette: colors,
   });
 
   return (
@@ -904,12 +899,12 @@ export default function EditorScreen() {
           {error.code === "FILE_VERSION_CONFLICT" ||
           error.message?.includes("crashed") ||
           error.message?.includes("stopped") ? (
-            <Action
+            <Button
               label="Reload editor and current file"
               onPress={reloadCurrentFile}
             />
           ) : (
-            <Action
+            <Button
               label="Dismiss"
               onPress={() => {
                 setError(null);
@@ -935,7 +930,7 @@ export default function EditorScreen() {
             This file is binary, oversized, or marked non-editable by GitHub. It
             remains available in read-only preview.
           </Text>
-          <Action label="Back to preview" onPress={() => router.back()} />
+          <Button label="Back to preview" onPress={() => router.back()} />
         </View>
       ) : null}
       {stage === "loading" ||
@@ -1003,7 +998,7 @@ export default function EditorScreen() {
             sharedCookiesEnabled={false}
             thirdPartyCookiesEnabled={false}
             accessibilityLabel="Local source code editor"
-            style={{ flex: 1, backgroundColor: "#0b1220" }}
+            style={{ flex: 1, backgroundColor: colors.bg }}
           />
           {stage === "edit" ? (
             <View className="gap-3 border-t border-border p-4">
@@ -1023,11 +1018,11 @@ export default function EditorScreen() {
                     accessibilityLabel="New fix branch name"
                     className="min-h-12 rounded-xl border border-border bg-surface px-3 text-textPrimary"
                   />
-                  <Action
+                  <Button
                     label={busy ? "Creating branch…" : "Create fix branch"}
                     disabled={busy || !baseSha}
                     onPress={() =>
-                      Alert.alert(
+                      requestConfirmation(
                         "Create a new branch?",
                         `Create ${branchName || "fix/…"} from ${baseRef}.`,
                         [
@@ -1044,7 +1039,7 @@ export default function EditorScreen() {
                     Create a separate fix branch before editing this base
                     branch.
                   </Text>
-                  <Action
+                  <Button
                     label="Choose fix branch"
                     disabled={busy || !baseSha}
                     onPress={() => setShowBranchForm(true)}
@@ -1061,7 +1056,7 @@ export default function EditorScreen() {
                     placeholderTextColor={colors.textSecondary}
                     className="min-h-12 rounded-xl border border-border bg-surface px-3 text-textPrimary"
                   />
-                  <Action
+                  <Button
                     label={busy ? "Reading editor…" : "Review native diff"}
                     disabled={busy || !dirty || !commitMessage.trim()}
                     onPress={showDiff}
@@ -1078,12 +1073,12 @@ export default function EditorScreen() {
                   {repository.data?.data.fullName} · {branch} → commit message:{" "}
                   {commitMessage}
                 </Text>
-                <Action
+                <Button
                   label={busy ? "Committing…" : "Confirm and commit"}
                   disabled={busy || !dirty}
                   onPress={confirmCommit}
                 />
-                <Action
+                <Button
                   label="Continue editing"
                   disabled={busy}
                   onPress={() => setStage("edit")}
@@ -1120,7 +1115,7 @@ export default function EditorScreen() {
           <Text className="text-sm text-textSecondary">
             {branch} → {baseRef}
           </Text>
-          <Action
+          <Button
             label={
               busy ? "Opening pull request…" : "Review and open pull request"
             }
@@ -1138,11 +1133,11 @@ export default function EditorScreen() {
             GitHub CI and review determine whether it can merge. PocketOps has
             not merged or deployed it.
           </Text>
-          <Action
+          <Button
             label="Open on GitHub"
             onPress={() => void Linking.openURL(pullRequest.url)}
           />
-          <Action label="Done" onPress={() => router.back()} />
+          <Button label="Done" onPress={() => router.back()} />
         </View>
       ) : null}
       {busy ? (

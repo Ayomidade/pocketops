@@ -1,3 +1,6 @@
+import { ConfirmationProvider } from "../src/components/ui/ConfirmationProvider";
+import interFont from "../assets/fonts/Inter.ttf";
+import { ThemeProvider, useTheme } from "../src/theme/ThemeProvider";
 import editorFont from "../assets/fonts/JetBrainsMono-Regular.ttf";
 import { useFonts } from "expo-font";
 import { NotificationBridge } from "../src/features/incidents/NotificationBridge";
@@ -8,19 +11,24 @@ import { AuthProvider } from "../src/features/auth/AuthProvider";
 import { RepositoryProvider } from "../src/features/repositories/RepositoryProvider";
 
 export default function RootLayout() {
-  const [fontsLoaded, fontError] = useFonts({ JetBrainsMono: editorFont });
+  const [fontsLoaded, fontError] = useFonts({ Inter: interFont, JetBrainsMono: editorFont });
   if (!fontsLoaded && !fontError) return null;
   return (
-    <AuthProvider>
+    <ThemeProvider><ConfirmationProvider><AppContent /></ConfirmationProvider></ThemeProvider>
+  );
+}
+function AppContent() {
+  const { scheme } = useTheme();
+  return (<AuthProvider>
       <RepositoryProvider>
         <NotificationBridge />
-        <StatusBar style="light" hidden />
+        <StatusBar style={scheme === "dark" ? "light" : "dark"} />
         <Stack
           initialRouteName="(tabs)"
           screenOptions={{
             headerShown: false,
-            statusBarHidden: true,
-            navigationBarHidden: true,
+            statusBarHidden: false,
+            navigationBarHidden: false,
           }}
         />
       </RepositoryProvider>

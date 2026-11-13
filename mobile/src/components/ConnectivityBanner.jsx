@@ -1,4 +1,5 @@
-import { Text, View } from "react-native";
+import { Text } from "./ui";
+import { View } from "react-native";
 import { useConnectivity } from "../hooks/useConnectivity";
 
 export default function ConnectivityBanner() {

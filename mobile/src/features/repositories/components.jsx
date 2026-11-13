@@ -1,49 +1,18 @@
+import { TouchTarget } from "../../components/ui";
+import { Text } from "../../components/ui";
+import { Button, Skeleton, ListRow, Badge } from "../../components/ui";
 import AppHeader from "../../components/AppHeader";
 import Icon from "../../components/Icon";
-import { colors } from "../../theme/tokens";
+import { useTheme } from "../../theme/ThemeProvider";
 import { useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  ScrollView,
-  Pressable,
-  Text,
-  View,
-} from "react-native";
+import { FlatList, Modal, ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { cssInterop } from "nativewind";
 import { breadcrumbs, previewReason, readError } from "./model.js";
 
 cssInterop(SafeAreaView, { className: "style" });
 
-export function Action({ label, onPress, disabled = false, caution = false }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => ({
-        opacity: disabled ? 0.55 : pressed ? 0.7 : 1,
-      })}
-      className={`min-h-12 justify-center rounded-xl border px-4 py-3 ${caution ? "border-warning bg-warning/10" : "border-border"}`}
-    >
-      <Text
-        className={
-          disabled
-            ? "text-textMutedReadable"
-            : caution
-              ? "font-semibold text-warning"
-              : "font-semibold text-accentHi"
-        }
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
+export { Button } from "../../components/ui";
 
 export function RepositoryFrame({ title, subtitle, onBack, children }) {
   return (
@@ -52,26 +21,12 @@ export function RepositoryFrame({ title, subtitle, onBack, children }) {
       edges={["top", "left", "right", "bottom"]}
     >
       <AppHeader title={title} subtitle={subtitle} onBack={onBack} />
-      {children}
+      <View style={{ flex: 1, width: "100%", maxWidth: 1280, alignSelf: "center" }}>{children}</View>
     </SafeAreaView>
   );
 }
 
-export function RepositorySkeleton({ label = "Loading repository data" }) {
-  return (
-    <View
-      accessibilityRole="progressbar"
-      accessibilityLabel={label}
-      className="gap-3 p-5"
-    >
-      <ActivityIndicator color={colors.accentHi} />
-      <Text className="text-center text-textSecondary">{label}</Text>
-      {[0, 1, 2].map((key) => (
-        <View key={key} className="h-16 rounded-xl bg-surface" />
-      ))}
-    </View>
-  );
-}
+export function RepositorySkeleton({ label = "Loading repository data" }) { return <Skeleton label={label} />; }
 
 export function RetryState({ error, onRetry }) {
   return (
@@ -84,7 +39,7 @@ export function RetryState({ error, onRetry }) {
         Unable to load
       </Text>
       <Text className="leading-6 text-textSecondary">{readError(error)}</Text>
-      <Action label="Retry" onPress={onRetry} />
+      <Button label="Retry" onPress={onRetry} />
     </View>
   );
 }
@@ -106,7 +61,7 @@ export function ConnectionEmptyState({ connected, searching, onConnect }) {
             ? "Choose repositories in GitHub connections to start browsing."
             : "Sign-in identifies you. A GitHub App connection separately grants read-only repository access."}
       </Text>
-      <Action label="Manage GitHub connections" onPress={onConnect} />
+      <Button label="Manage GitHub connections" onPress={onConnect} />
     </View>
   );
 }
@@ -130,29 +85,7 @@ export function CacheNotice({ offline, checking, updatedAt }) {
 }
 
 export function RepositoryCard({ repository, onOpen, disabled }) {
-  return (
-    <Pressable
-      onPress={() => onOpen(repository)}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={`Open repository ${repository.fullName}`}
-      accessibilityState={{ disabled }}
-      className="mx-5 min-h-20 border-b border-border py-4"
-    >
-      <View className="flex-row items-start justify-between gap-3">
-        <Text className="flex-1 text-lg font-semibold text-textPrimary">
-          {repository.fullName}
-        </Text>
-        <Text className="text-sm text-textSecondary">
-          {repository.private ? "PRIVATE" : "PUBLIC"}
-        </Text>
-      </View>
-      <Text className="mt-2 text-sm text-textSecondary">
-        {repository.defaultBranch || "No default branch"}
-        {repository.archived ? " · Archived" : ""}
-      </Text>
-    </Pressable>
-  );
+ return <View className="px-5"><ListRow title={repository.fullName} meta={`${repository.defaultBranch || "No default branch"}${repository.archived ? " · Archived" : ""}`} badge={<Badge label={repository.private ? "Private" : "Public"} />} label={`Open repository ${repository.fullName}`} onPress={() => onOpen(repository)} disabled={disabled} /></View>;
 }
 
 export function RepositoryList({
@@ -196,7 +129,7 @@ export function Breadcrumbs({ path, onNavigate, disabled }) {
       accessibilityLabel="Directory breadcrumbs"
     >
       {breadcrumbs(path).map((crumb) => (
-        <Pressable
+        <TouchTarget
           key={crumb.path}
           onPress={() => onNavigate(crumb.path)}
           disabled={disabled}
@@ -205,17 +138,18 @@ export function Breadcrumbs({ path, onNavigate, disabled }) {
           className="min-h-12 justify-center px-2"
         >
           <Text className="text-accentHi">{crumb.label} /</Text>
-        </Pressable>
+        </TouchTarget>
       ))}
     </ScrollView>
   );
 }
 
 export function FileTreeRow({ entry, onOpen, disabled }) {
+  const { colors } = useTheme();
   const directory = entry.type === "dir";
   const supported = directory || entry.type === "file";
   return (
-    <Pressable
+    <TouchTarget
       className="mx-5 min-h-16 flex-row items-center gap-3 border-b border-border py-3"
       onPress={() => onOpen(entry)}
       disabled={disabled || !supported}
@@ -235,7 +169,7 @@ export function FileTreeRow({ entry, onOpen, disabled }) {
         </Text>
       </View>
       <Text className="text-accentHi">›</Text>
-    </Pressable>
+    </TouchTarget>
   );
 }
 
@@ -258,7 +192,7 @@ export function BranchSelector({
   };
   return (
     <View className="px-5 py-3">
-      <Action
+      <Button
         label={`Branch: ${current || "No branch"}`}
         disabled={disabled}
         onPress={() => {
@@ -284,7 +218,7 @@ export function BranchSelector({
               Changing branches returns to the repository root. File contents
               may differ.
             </Text>
-            <Action label="Close branches" onPress={close} />
+            <Button label="Close branches" onPress={close} />
           </View>
           {loading ? (
             <RepositorySkeleton label="Loading branches" />
@@ -296,7 +230,7 @@ export function BranchSelector({
               keyExtractor={(item) => item.name}
               initialNumToRender={12}
               renderItem={({ item }) => (
-                <Pressable
+                <TouchTarget
                   className="mx-5 min-h-14 justify-center border-b border-border py-3"
                   accessibilityRole="radio"
                   accessibilityLabel={`Select branch ${item.name}`}
@@ -310,7 +244,7 @@ export function BranchSelector({
                     {item.name}
                     {item.protected ? " · Protected" : ""}
                   </Text>
-                </Pressable>
+                </TouchTarget>
               )}
               ListEmptyComponent={
                 <Text className="p-5 text-textSecondary">
@@ -319,7 +253,7 @@ export function BranchSelector({
               }
               ListFooterComponent={
                 hasMore ? (
-                  <Action label="Load more branches" onPress={onMore} />
+                  <Button label="Load more branches" onPress={onMore} />
                 ) : null
               }
             />
@@ -331,6 +265,7 @@ export function BranchSelector({
 }
 
 export function FilePreview({ file }) {
+  const { colors } = useTheme();
   const [fontSize, setFontSize] = useState(14);
   const reason = previewReason(file);
   if (reason)
@@ -351,12 +286,12 @@ export function FilePreview({ file }) {
       ListHeaderComponent={
         <View className="p-5">
           <View className="flex-row gap-2 mb-3">
-            <Action
+            <Button
               label="Smaller preview text"
               disabled={fontSize <= 12}
               onPress={() => setFontSize((size) => size - 2)}
             />
-            <Action
+            <Button
               label="Larger preview text"
               disabled={fontSize >= 24}
               onPress={() => setFontSize((size) => size + 2)}

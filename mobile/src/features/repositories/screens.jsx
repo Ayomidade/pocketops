@@ -1,11 +1,12 @@
-import { colors } from "../../theme/tokens";
+import MasterDetail, { usePaneRouter as useRouter, usePaneParams as useLocalSearchParams } from "../../components/ui/MasterDetail";
+import { IconButton } from "../../components/ui";
+import { Text } from "../../components/ui";
+import { useTheme } from "../../theme/ThemeProvider";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BackHandler, FlatList, Text, TextInput, View } from "react-native";
+import { BackHandler, FlatList, TextInput, View } from "react-native";
 import {
   Redirect,
   useFocusEffect,
-  useLocalSearchParams,
-  useRouter,
 } from "expo-router";
 import { useAuth } from "../auth/AuthProvider";
 import { useSourceVisible } from "./RepositoryProvider";
@@ -26,7 +27,7 @@ import {
   useRepositoryList,
 } from "./queries.js";
 import {
-  Action,
+  Button,
   BranchSelector,
   Breadcrumbs,
   CacheNotice,
@@ -51,7 +52,9 @@ function useBack() {
     router.canGoBack() ? router.back() : router.replace("/(tabs)/repositories");
 }
 
-export function RepositoriesScreen() {
+export function RepositoriesScreen() { return <MasterDetail route="/repository/[id]" master={<RepositoriesScreenList />} renderDetail={() => <DirectoryScreen />} />; }
+function RepositoriesScreenList() {
+  const { colors } = useTheme();
   const authenticated = useAccess();
   const router = useRouter();
   const { isOffline } = useConnectivity();
@@ -78,16 +81,10 @@ export function RepositoriesScreen() {
   return (
     <RepositoryFrame
       title="Repositories"
-      subtitle="Your selected codebases. Read-only access, checked by PocketOps."
+      
     >
       <View className="gap-3 p-5">
-        <View className="flex-row justify-between">
-          <Text className="font-semibold text-accentHi">GITHUB WORKSPACE</Text>
-          <Action
-            label="Connections"
-            onPress={() => router.push("/connections")}
-          />
-        </View>
+        <View className="flex-row items-center justify-between"><Text className="text-sm text-textSecondary">GitHub repositories</Text><IconButton icon="settings" label="Connections" onPress={() => router.push("/connections")} /></View>
         <TextInput
           value={input}
           onChangeText={setInput}
@@ -99,14 +96,6 @@ export function RepositoriesScreen() {
           accessibilityLabel="Search repositories"
           className="min-h-12 rounded-xl border border-border bg-surface px-4 text-textPrimary"
         />
-        {installations.data && !denied(installations.error) ? (
-          <Text className="text-sm text-textSecondary">
-            Connected accounts:{" "}
-            {installations.data.data
-              .map((item) => item.accountLogin)
-              .join(", ") || "None"}
-          </Text>
-        ) : null}
       </View>
       <CacheNotice
         offline={isOffline}
@@ -164,7 +153,7 @@ export function RepositoriesScreen() {
             footer={
               repositories.hasNextPage ? (
                 <View className="p-5">
-                  <Action
+                  <Button
                     label={
                       repositories.isFetchingNextPage
                         ? "Loading more…"
@@ -444,7 +433,7 @@ function VisibleFileScreen() {
                 Editing creates a new fix branch and requires confirmation
                 before committing.
               </Text>
-              <Action
+              <Button
                 label="Edit on a fix branch"
                 onPress={() =>
                   router.push({

@@ -4,7 +4,7 @@
     "slug": "pocketops",
     "scheme": "pocketops",
     "version": "0.1.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "automatic",
     "platforms": [
       "android",
@@ -22,8 +22,7 @@
     "android": {
       "package": "com.pocketops.mobile",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0B1220"
+        "foregroundImage": "./assets/adaptive-icon.png"
       }
     },
     "ios": {
@@ -43,7 +42,7 @@
     },
     "icon": "./assets/icon.png",
     "androidStatusBar": {
-      "hidden": true
+      "hidden": false
     }
   }
 }

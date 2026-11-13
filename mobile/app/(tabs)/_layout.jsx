@@ -1,5 +1,6 @@
+import { useBreakpoint } from "../../src/hooks/useBreakpoint";
 import Icon from "../../src/components/Icon";
-import { colors } from "../../src/theme/tokens";
+import { useTheme } from "../../src/theme/ThemeProvider";
 import { Link, Redirect, Tabs } from "expo-router";
 import { View } from "react-native";
 import RemoteState from "../../src/components/RemoteState";
@@ -12,6 +13,8 @@ const tabs = [
   { name: "incidents", title: "Incidents", icon: "incident", label: "Incidents tab" },
 ];
 export default function TabLayout() {
+  const { colors } = useTheme();
+  const { compact } = useBreakpoint();
   const { status, message, restoreSession } = useAuth();
   const routeAction = protectedRouteAction(status);
   if (routeAction === "loading") {
@@ -47,6 +50,8 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarPosition: compact ? "bottom" : "left",
+        tabBarLabelPosition: compact ? "below-icon" : "beside-icon",
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,

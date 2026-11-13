@@ -1,12 +1,15 @@
+import { useConfirmation } from "../../components/ui/ConfirmationProvider";
+import MasterDetail, { usePaneRouter as useRouter, usePaneParams as useLocalSearchParams } from "../../components/ui/MasterDetail";
+import { FilterChips, ListRow, StatusPill } from "../../components/ui";
 import { useRef, useState } from "react";
-import { Alert, FlatList, View } from "react-native";
-import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
+import { FlatList, View } from "react-native";
+import { Redirect } from "expo-router";
 import * as Crypto from "expo-crypto";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../auth/AuthProvider";
 import { useConnectivity } from "../../hooks/useConnectivity";
 import {
-  Action,
+  Button,
   Copy,
   Frame,
   Input,
@@ -41,19 +44,7 @@ function Guard({ children }) {
     <Redirect href="/(auth)/login" />
   );
 }
-function Choices({ values, value, onChange, label }) {
-  return (
-    <View className="flex-row flex-wrap">
-      {values.map((v) => (
-        <Action
-          key={v}
-          label={`${label}: ${v || "all"}${value === v ? " (selected)" : ""}`}
-          onPress={() => onChange(v)}
-        />
-      ))}
-    </View>
-  );
-}
+function Choices(props) { return <FilterChips {...props} />; }
 function Failure({ error }) {
   return error ? (
     <Copy alert>{error.message || "Request failed. Refresh and retry."}</Copy>
@@ -65,7 +56,8 @@ function LoadState({ query }) {
     <QueryState query={query} />
   ) : null;
 }
-export function IncidentsScreen() {
+export function IncidentsScreen() { return <MasterDetail route="/incident/[id]" master={<IncidentsScreenList />} renderDetail={() => <IncidentDetailScreen />} />; }
+function IncidentsScreenList() {
   const router = useRouter();
   const [status, setStatus] = useState(""),
     [severity, setSeverity] = useState("");
@@ -83,11 +75,11 @@ export function IncidentsScreen() {
         empty="No incidents match these filters."
         header={
           <View>
-            <Action
-              label="Report incident"
+            <Button
+              variant="primary" label="Report incident"
               onPress={() => router.push("/incident/create")}
             />
-            <Action
+            <Button
               label="Notification preferences"
               onPress={() => router.push("/incident/notifications")}
             />
@@ -106,21 +98,7 @@ export function IncidentsScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View className="border-b border-border py-4">
-            <Copy>{item.title}</Copy>
-            <Copy>
-              {item.severity} · {item.status}
-            </Copy>
-            <Action
-              label={`Open incident ${item.title}`}
-              onPress={() =>
-                router.push({
-                  pathname: "/incident/[id]",
-                  params: { id: item.id },
-                })
-              }
-            />
-          </View>
+          <ListRow icon="incident" title={item.title} meta={`${item.status}${item.createdAt ? " · " + new Date(item.createdAt).toLocaleString() : ""}`} badge={<StatusPill value={item.severity} />} label={`Open incident ${item.title}`} onPress={() => router.push({ pathname: "/incident/[id]", params: { id: item.id } })} />
         )}
       />
     </Frame>
@@ -188,20 +166,20 @@ export function CreateIncidentScreen() {
         ) : null}
         {!projects.isError &&
           listItems(projects).map((p) => (
-            <Action
+            <Button
               key={p.id}
               label={`Project: ${p.name}${projectId === p.id ? " (selected)" : ""}`}
               onPress={() => setProjectId(p.id)}
             />
           ))}
         {projects.hasNextPage ? (
-          <Action
+          <Button
             label="More projects"
             onPress={() => projects.fetchNextPage()}
           />
         ) : null}
         <Failure error={error} />
-        <Action
+        <Button
           label={busy ? "Creating incident" : "Create incident"}
           disabled={busy || isOffline || !title.trim() || !projectId}
           onPress={create}
@@ -211,6 +189,7 @@ export function CreateIncidentScreen() {
   );
 }
 export function IncidentDetailScreen() {
+  const requestConfirmation = useConfirmation();
   const { id } = useLocalSearchParams();
   const api = useIncidentApi(),
     router = useRouter(),
@@ -252,7 +231,7 @@ export function IncidentDetailScreen() {
             Deployment completion is separate from application health
             verification.
           </Copy>
-          <Action
+          <Button
             label="Inspect deployment history and runtime logs"
             onPress={() =>
               router.push({
@@ -261,7 +240,7 @@ export function IncidentDetailScreen() {
               })
             }
           />
-          <Action
+          <Button
             label="Browse repository and create a fix PR"
             onPress={() =>
               router.push({
@@ -270,7 +249,7 @@ export function IncidentDetailScreen() {
               })
             }
           />
-          <Action
+          <Button
             label="Configure automated health checks"
             onPress={() =>
               router.push({
@@ -280,7 +259,7 @@ export function IncidentDetailScreen() {
             }
           />
           {next[incident.status]?.map((s) => (
-            <Action
+            <Button
               key={s}
               label={`Move to ${s}`}
               disabled={busy}
@@ -296,11 +275,11 @@ export function IncidentDetailScreen() {
             }}
           />
           {incident.status === "monitoring" ? (
-            <Action
+            <Button
               label="Resolve verified incident"
               disabled={busy || incident.health.status !== "verified"}
               onPress={() =>
-                Alert.alert(
+                requestConfirmation(
                   "Resolve incident?",
                   "Confirm application recovery after reviewing the health observations.",
                   [
@@ -341,7 +320,7 @@ export function IncidentDetailScreen() {
               </Copy>
             ) : null}
             {item.metadata?.status ? (
-              <Copy>Status: {item.metadata.status}</Copy>
+              <Copy>DeploymentStatus: {item.metadata.status}</Copy>
             ) : null}
           </View>
         )}
@@ -350,6 +329,7 @@ export function IncidentDetailScreen() {
   );
 }
 export function MonitorScreen() {
+  const requestConfirmation = useConfirmation();
   const { projectId } = useLocalSearchParams();
   const api = useIncidentApi(),
     client = useQueryClient();
@@ -393,11 +373,11 @@ export function MonitorScreen() {
           maxLength={256}
         />
         <Failure error={error} />
-        <Action
+        <Button
           label="Enable monitoring and incident detection"
           disabled={isOffline || busy}
           onPress={() =>
-            Alert.alert(
+            requestConfirmation(
               "Enable monitoring?",
               "PocketOps will periodically read this project’s deployment status and approved health endpoint. It will never deploy or resolve incidents automatically.",
               [
@@ -407,7 +387,7 @@ export function MonitorScreen() {
             )
           }
         />
-        <Action
+        <Button
           label="Disable monitoring"
           disabled={isOffline || busy}
           onPress={() => configure(false)}
@@ -455,12 +435,12 @@ export function NotificationSettingsScreen() {
         </Copy>
         <LoadState query={query} />
         <Failure error={error} />
-        <Action
+        <Button
           label="Enable notifications on this device"
           disabled={busy || isOffline}
           onPress={() => change(true)}
         />
-        <Action
+        <Button
           label="Disable all incident notifications"
           disabled={busy || isOffline}
           onPress={() => change(false)}
@@ -476,7 +456,7 @@ export function NotificationSettingsScreen() {
           scrollEnabled={false}
           keyExtractor={(i) => i.id}
           renderItem={({ item }) => (
-            <Action
+            <Button
               label={`Revoke ${item.platform} device ${item.id.slice(0, 8)}`}
               disabled={busy || isOffline}
               onPress={() => revoke(item.id)}

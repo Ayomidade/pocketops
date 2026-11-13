@@ -6,8 +6,8 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
-      colors,
-      fontFamily: { mono: ["JetBrainsMono", "monospace"] },
+      colors: Object.fromEntries(Object.keys(colors).map(key => [key, `rgb(var(--color-${key}) / <alpha-value>)`])),
+      fontFamily: { sans: ["Inter"], mono: ["JetBrainsMono", "monospace"] },
     },
   },
   plugins: [],

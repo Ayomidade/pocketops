@@ -1,56 +1,19 @@
-import Screen from "../../src/components/Screen";
-import InfoCard from "../../src/components/InfoCard";
-import { Pressable, Text, View } from "react-native";
-import { Link, useRouter } from "expo-router";
-import { useAuth } from "../../src/features/auth/AuthProvider";
-
+import { useState } from 'react';
+import { useRouter } from 'expo-router';
+import Screen from '../../src/components/Screen';
+import { Text, Card, SectionHeader, FilterChips, ListRow, Button, BottomSheet } from '../../src/components/ui';
+import { useTheme } from '../../src/theme/ThemeProvider';
+import { useAuth } from '../../src/features/auth/AuthProvider';
 export default function Page() {
-  const router = useRouter();
-  const { user, session, message, logout } = useAuth();
-  return (
-    <Screen
-      title="Account"
-      onBack={() => router.canGoBack() ? router.back() : router.replace("/(tabs)")}
-      subtitle="Manage your PocketOps identity and session."
-    >
-      <InfoCard
-        title={user?.username || "Signed in"}
-        description={
-          user?.email
-            ? `${user.email}\nSession expires ${new Date(session.expiresAt).toLocaleDateString()}.`
-            : `GitHub email is not available or public.\nSession expires ${new Date(session.expiresAt).toLocaleDateString()}.`
-        }
-        badge="GitHub identity"
-      />
-      {message ? (
-        <Text className="mb-3 text-amber-200" accessibilityRole="alert">
-          {message}
-        </Text>
-      ) : null}
-      <Pressable
-        className="min-h-14 items-center justify-center rounded-xl border border-border px-5"
-        accessibilityRole="button"
-        accessibilityLabel="Sign out and revoke this session"
-        onPress={() => void logout().catch(() => {})}
-      >
-        <Text className="text-textSecondary font-semibold">Sign out</Text>
-      </Pressable>
-      <View className="mt-6 gap-4">
-        <Link href="/project/connections" className="min-h-12 py-3 text-accentHi">Manage Render connections</Link>
-        <Link href="/incident/notifications" className="min-h-12 py-3 text-accentHi">Notification preferences</Link>
-        <InfoCard
-          title="Repository access"
-          description="GitHub App access is separate from identity sign-in. Connect an installation and select repositories explicitly."
-          badge="Manage connection"
-        />
-        <Link
-          className="mt-3 min-h-12 text-center text-accentHi"
-          href="/connections"
-          accessibilityRole="link"
-        >
-          Manage GitHub connections
-        </Link>
-      </View>
-    </Screen>
-  );
+ const router = useRouter(); const { user, logout, message } = useAuth(); const { mode, setMode } = useTheme(); const [confirm, setConfirm] = useState(false); const [busy, setBusy] = useState(false);
+ return <Screen title="Settings" onBack={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')}>
+  <Card title={user?.username || 'Account'} description={user?.email || 'Signed in with GitHub'} />
+  <SectionHeader title="Appearance" /><FilterChips label="Theme" values={['system','light','dark']} value={mode} onChange={setMode} />
+  <SectionHeader title="Connections" /><ListRow icon="repo" title="GitHub" meta="Accounts and selected repositories" onPress={() => router.push('/connections')} /><ListRow icon="deploy" title="Render" meta="Connected services" onPress={() => router.push('/project/connections')} />
+  <SectionHeader title="Preferences" /><ListRow icon="bell" title="Notifications" onPress={() => router.push('/incident/notifications')} />
+  <SectionHeader title="About" /><Text>PocketOps · Native incident response</Text>
+  {message ? <Text accessibilityRole="alert">{message}</Text> : null}
+  <Button label="Sign out and revoke this session" variant="danger" onPress={() => setConfirm(true)} />
+  <BottomSheet visible={confirm} title="Sign out of PocketOps?" onClose={() => !busy && setConfirm(false)}><Text>This revokes the current session. Save any unsaved work first.</Text><Button label="Confirm sign out" variant="danger" loading={busy} onPress={async () => { setBusy(true); try { await logout(); setConfirm(false); } catch { /* AuthProvider displays the safe error. */ } finally { setBusy(false); } }} /></BottomSheet>
+ </Screen>;
 }

@@ -7,6 +7,7 @@ export function createEditorHtml({
   bootRequestId,
   nonce,
   codeMirrorBundle,
+  palette = tokens.colors,
 }) {
   const session = JSON.stringify({ sessionId, bootRequestId });
   return `<!doctype html>
@@ -18,11 +19,12 @@ export function createEditorHtml({
   <base href="${editorOrigin}/">
   <style nonce="${nonce}">
     @font-face { font-family: JetBrainsMono; src: url(data:font/ttf;base64,${fontData}); }
-    html, body, #editor { height: 100%; margin: 0; padding: 0; overflow: hidden; background: ${tokens.colors.bg}; }
+    html, body, #editor { height: 100%; margin: 0; padding: 0; overflow: hidden; background: ${palette.bg}; }
+    :root { --editor-bg: ${palette.bg}; --editor-text: ${palette.textPrimary}; --editor-surface: ${palette.surface}; --editor-secondary: ${palette.textSecondary}; --editor-raised: ${palette.surfaceHi}; }
     body { overscroll-behavior: contain; }
     .cm-editor { height: 100%; }
     .cm-scroller { -webkit-overflow-scrolling: touch; }
-    .cm-search { background: ${tokens.colors.surface}; color: ${tokens.colors.textPrimary}; }
+    .cm-search { background: ${palette.surface}; color: ${palette.textPrimary}; }
   </style>
 </head>
 <body>

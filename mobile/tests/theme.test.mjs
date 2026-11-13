@@ -13,13 +13,17 @@ function luminance(hex) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 test("operational palette keeps readable text and action labels at AA contrast", () => {
-  const { colors } = tokens;
+  for (const colors of Object.values(tokens.themes)) {
   for (const foreground of [
     "textPrimary",
     "textSecondary",
     "textMutedReadable",
     "accentHi",
     "warning",
+    "critical",
+    "success",
+    "info",
+    "done",
   ]) {
     for (const background of ["bg", "surface", "surfaceHi"]) {
       const a = luminance(colors[foreground]);
@@ -35,4 +39,6 @@ test("operational palette keeps readable text and action labels at AA contrast",
       (luminance(colors.accent) + 0.05) >=
       4.5,
   );
+  assert.ok((luminance(colors.textOnAccent) + 0.05) / (luminance(colors.primary) + 0.05) >= 4.5);
+  }
 });

@@ -1,4 +1,4 @@
-import { ScrollView } from "react-native";
+import { ScrollView, View, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { cssInterop } from "nativewind";
 import ConnectivityBanner from "./ConnectivityBanner";
@@ -9,12 +9,12 @@ export default function Screen({ title, subtitle, children, onBack }) {
     <SafeAreaView className="flex-1 bg-bg" edges={["top", "left", "right"]}>
       <ConnectivityBanner />
       <AppHeader title={title} subtitle={subtitle} onBack={onBack} />
-      <ScrollView
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}><ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 32, flexGrow: 1 }}
       >
-        {children}
-      </ScrollView>
+        <View style={{ width: "100%", maxWidth: 720, alignSelf: "center", gap: 12 }}>{children}</View>
+      </ScrollView></KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

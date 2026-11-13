@@ -1,3 +1,4 @@
+jest.mock("../src/hooks/useBreakpoint", () => ({ useBreakpoint: () => ({ compact: true, size: "compact", width: 390, height: 844 }) }));
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { Alert } from "react-native";
 import {
