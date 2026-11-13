@@ -93,9 +93,11 @@ function AuthenticatedConnectionsPage() {
       const response = await githubApi.listInstallations();
       setInstallations(response.data);
       if (githubStatus === "connected") {
-        setNotice(response.data.length
-          ? "GitHub connection verified. Select the repositories PocketOps may access."
-          : "GitHub returned, but no account was linked on this server. Check the Setup URL and start a fresh connection.");
+        setNotice(
+          response.data.length
+            ? "GitHub connection verified. Select the repositories PocketOps may access."
+            : "GitHub returned, but no account was linked on this server. Check the Setup URL and start a fresh connection.",
+        );
       }
       setInstallationId((current) =>
         response.data.some((item) => item.id === current)
@@ -234,7 +236,11 @@ function AuthenticatedConnectionsPage() {
         </View>
       ) : null}
       {notice ? (
-        <Text className="mt-4 text-accentHi" accessibilityRole="status">
+        <Text
+          className="mt-4 text-accentHi"
+          accessibilityRole="text"
+          accessibilityLiveRegion="polite"
+        >
           {notice}
         </Text>
       ) : null}

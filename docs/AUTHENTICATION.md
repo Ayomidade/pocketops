@@ -89,3 +89,23 @@ Restart/redeploy the backend after changing its environment. Deliver the mobile 
 If accounts still do not appear, inspect safe backend event codes `github.oauth_callback_failed` / `github.installation_callback_failed` and confirm that `/api/v1/github/installations/callback` was reached. A GitHub installed-app entry with no completed setup callback explains an empty PocketOps account list. Live Android return and hosted callback settings need device/operator verification; local component tests do not prove that the reported blank screen has been reproduced on hardware.
 
 Verification completed 2026-11-13: all eight new callback/connection component tests and mobile lint pass. Server regression suite: 184 passed, one unrelated OpenAPI route-coverage failure (existing account deletion/session-revocation routes missing from contract), one database test skipped because DATABASE_URL_TEST was not configured. Mobile logic: 46 passed; full UI suite: 74 passed, one existing deployment-list test timed out; focused callback rerun: eight passed. Root lint is blocked by an existing unused `sessionId` in auth account deletion; changed GitHub controller lint passes. Sandbox-blocked HTTP/process tests were rerun with local execution permitted. No environment values, GitHub dashboard settings, hosted service or installed APK were changed by this fix. No migration is required. Hardware reproduction and the deployed fix still need phone verification.
+
+## Confirmed Android connection-notice crash — 2026-11-13
+
+A physical Android device running PocketOps 0.1.0 (versionCode 6) confirmed a native failure when returning to Connections. Filtered ADB crash diagnostics contained:
+
+```text
+Process: com.pocketops.mobile
+Error while updating property 'accessibilityRole' of a view managed by: RCTText
+Caused by: java.lang.IllegalArgumentException: Invalid accessibility role value: status
+```
+
+The notice in `mobile/app/connections.jsx` used the web-style value `accessibilityRole="status"`. React Native 0.81's Android `AccessibilityRole.fromValue` rejects it. Any notice after success, cancellation or a failed return could therefore break the native screen before the account/repository list was visible. The earlier redirect-only fix and host-renderer tests missed this native failure; callback configuration mismatch alone did not explain the blank Android screen.
+
+The notice now uses `accessibilityRole="text"` and `accessibilityLiveRegion="polite"`. The callback remains a status hint; the authenticated server list still determines connected accounts. No backend authorization, credential, schema or GitHub registration changes are required for this crash correction. It does not prove an installation was successfully linked: once the screen works, the account list and saved repository selection still need checking.
+
+Regression coverage includes the notice, loading an account's repositories and saving explicit repository selection. `mobile/tests/native-accessibility.test.mjs` parses the installed React Native Android role enum and checks literal JSX accessibility roles across app/source files, covering the native boundary that Jest's mocked host renderer omits.
+
+Delivery: publish a compatible preview OTA containing this JavaScript fix, or build/download a new EAS preview APK and install over the existing app using `adb -s <device> install -r <apk>`. No new native dependency or runtime-version bump is needed. Close/reopen PocketOps after delivery, then retry Connect GitHub App; do not uninstall either PocketOps or the GitHub App to address this crash. The new code has not yet been installed or verified on the phone. ADB reproduced the installed release's return path and supplied the crash evidence; no GitHub installation, repository or deployment was mutated.
+
+Crash-fix validation: `npm run test -w mobile` PASS (47 Node tests, 76 UI tests); `npm run lint -w mobile` PASS; `git diff --check` PASS. Required root `npm test` still reports the existing account-route OpenAPI mismatch (184 server tests pass, one fails, one database test skips without DATABASE_URL_TEST); required root `npm run lint` still reports the pre-existing unused account-deletion `sessionId`. These unrelated baseline failures were not bypassed. Files changed for the crash repair: `mobile/app/connections.jsx`, `mobile/tests/github-connections.test.jsx`, `mobile/tests/native-accessibility.test.mjs`, `docs/AUTHENTICATION.md`. No credential, environment or migration change was made.

@@ -90,3 +90,52 @@ it("reconciles accounts after browser dismissal rather than assuming cancellatio
     ).toHaveLength(2),
   );
 });
+it("renders the returned connection notice with native-safe accessibility and exposes repositories", async () => {
+  mockParams = { githubStatus: "connected" };
+  mockRequest.mockImplementation(async (path) => ({
+    data:
+      path === "/github/installations"
+        ? [
+            {
+              id: "installation",
+              accountLogin: "fixture-owner",
+              accountType: "User",
+              selectedRepositoryCount: 0,
+              repositoryCount: 1,
+            },
+          ]
+        : [
+            {
+              githubRepositoryId: "repo-1",
+              fullName: "fixture-owner/test-repository",
+              selected: false,
+            },
+          ],
+  }));
+  const screen = render(<Connections />);
+  const notice = await screen.findByText(
+    "GitHub connection verified. Select the repositories PocketOps may access.",
+  );
+  expect(notice.props.accessibilityRole).toBe("text");
+  expect(notice.props.accessibilityLiveRegion).toBe("polite");
+  await waitFor(() =>
+    expect(
+      screen.getByLabelText("Select fixture-owner/test-repository"),
+    ).toBeTruthy(),
+  );
+  fireEvent.press(
+    screen.getByLabelText("Select fixture-owner/test-repository"),
+  );
+  fireEvent.press(screen.getByLabelText("Save selected repositories"));
+  await waitFor(() =>
+    expect(mockRequest).toHaveBeenCalledWith(
+      "/github/installations/sync",
+      expect.objectContaining({
+        body: {
+          installationId: "installation",
+          githubRepositoryIds: ["repo-1"],
+        },
+      }),
+    ),
+  );
+});
