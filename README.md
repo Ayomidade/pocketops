@@ -67,3 +67,9 @@ See [manual Render deployment implementation and validation](docs/DEPLOYMENTS.md
 ## Private beta hardening
 
 The current candidate is **NO-GO**, with unresolved dependency and staging/device gates. See [review and evidence](docs/BETA_HARDENING.md), [beta operations/onboarding](docs/BETA_RUNBOOK.md), and [draft data-handling policy](docs/PRIVACY.md). No public release is authorized.
+
+CHANGES MADE FROM MOBILE DEVICE
+[x] Edit
+[o] Commit
+[o] Push
+[o] Deploy
