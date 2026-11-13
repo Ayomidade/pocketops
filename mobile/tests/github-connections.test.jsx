@@ -8,6 +8,7 @@ jest.mock("expo-router", () => {
   const { useEffect } = jest.requireActual("react");
   const { Text } = jest.requireActual("react-native");
   return {
+    useRouter: () => ({ push: jest.fn() }),
     useLocalSearchParams: () => mockParams,
     useFocusEffect: (fn) => useEffect(fn, [fn]),
     Redirect: ({ href }) => (

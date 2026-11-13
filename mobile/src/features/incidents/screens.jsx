@@ -72,6 +72,7 @@ export function IncidentsScreen() {
   const query = useIncidentPages("list", "", { status, severity });
   return (
     <Guard>
+      <Frame title="Incidents" subtitle="Investigate, mitigate and verify recovery.">
       <Rows
         query={query}
         items={
@@ -82,7 +83,6 @@ export function IncidentsScreen() {
         empty="No incidents match these filters."
         header={
           <View>
-            <Copy>Incidents</Copy>
             <Action
               label="Report incident"
               onPress={() => router.push("/incident/create")}
@@ -106,7 +106,7 @@ export function IncidentsScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View className="m-3 rounded-xl bg-surface p-4">
+          <View className="border-b border-border py-4">
             <Copy>{item.title}</Copy>
             <Copy>
               {item.severity} · {item.status}
@@ -123,6 +123,7 @@ export function IncidentsScreen() {
           </View>
         )}
       />
+    </Frame>
     </Guard>
   );
 }

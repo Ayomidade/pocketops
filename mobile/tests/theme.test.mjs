@@ -31,8 +31,8 @@ test("operational palette keeps readable text and action labels at AA contrast",
     }
   }
   assert.ok(
-    (luminance(colors.accent) + 0.05) /
-      (luminance(colors.textOnAccent) + 0.05) >=
+    (luminance(colors.textOnAccent) + 0.05) /
+      (luminance(colors.accent) + 0.05) >=
       4.5,
   );
 });

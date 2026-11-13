@@ -1,14 +1,16 @@
 import Screen from "../../src/components/Screen";
 import InfoCard from "../../src/components/InfoCard";
 import { Pressable, Text, View } from "react-native";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { useAuth } from "../../src/features/auth/AuthProvider";
 
 export default function Page() {
+  const router = useRouter();
   const { user, session, message, logout } = useAuth();
   return (
     <Screen
-      title="Settings"
+      title="Account"
+      onBack={() => router.canGoBack() ? router.back() : router.replace("/(tabs)")}
       subtitle="Manage your PocketOps identity and session."
     >
       <InfoCard
@@ -33,7 +35,9 @@ export default function Page() {
       >
         <Text className="text-textSecondary font-semibold">Sign out</Text>
       </Pressable>
-      <View className="mt-6">
+      <View className="mt-6 gap-4">
+        <Link href="/project/connections" className="min-h-12 py-3 text-accentHi">Manage Render connections</Link>
+        <Link href="/incident/notifications" className="min-h-12 py-3 text-accentHi">Notification preferences</Link>
         <InfoCard
           title="Repository access"
           description="GitHub App access is separate from identity sign-in. Connect an installation and select repositories explicitly."

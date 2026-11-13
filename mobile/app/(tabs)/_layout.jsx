@@ -1,20 +1,15 @@
+import Icon from "../../src/components/Icon";
 import { colors } from "../../src/theme/tokens";
 import { Link, Redirect, Tabs } from "expo-router";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import RemoteState from "../../src/components/RemoteState";
 import { useAuth } from "../../src/features/auth/AuthProvider";
 import { protectedRouteAction } from "../../src/features/auth/session";
 const tabs = [
-  { name: "index", title: "Home", icon: "⌂", label: "Home tab" },
-  { name: "repositories", title: "Code", icon: "⌘", label: "Repositories tab" },
-  { name: "incidents", title: "Incidents", icon: "!", label: "Incidents tab" },
-  {
-    name: "deployments",
-    title: "Deploys",
-    icon: "↑",
-    label: "Deployments tab",
-  },
-  { name: "settings", title: "Settings", icon: "⚙", label: "Settings tab" },
+  { name: "index", title: "Overview", icon: "home", label: "Overview tab" },
+  { name: "repositories", title: "Repositories", icon: "repo", label: "Repositories tab" },
+  { name: "deployments", title: "Projects", icon: "deploy", label: "Projects tab" },
+  { name: "incidents", title: "Incidents", icon: "incident", label: "Incidents tab" },
 ];
 export default function TabLayout() {
   const { status, message, restoreSession } = useAuth();
@@ -55,7 +50,7 @@ export default function TabLayout() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 70,
+
         },
         tabBarItemStyle: {
           minHeight: 56,
@@ -72,13 +67,12 @@ export default function TabLayout() {
             title: t.title,
             tabBarAccessibilityLabel: t.label,
             tabBarIcon: ({ color }) => (
-              <Text accessible={false} style={{ color, fontSize: 20 }}>
-                {t.icon}
-              </Text>
+              <Icon name={t.icon} color={color} />
             ),
           }}
         />
       ))}
+      <Tabs.Screen name="settings" options={{ href: null }} />
     </Tabs>
   );
 }

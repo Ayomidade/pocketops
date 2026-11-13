@@ -8,7 +8,6 @@ import {
   FlatList,
   Keyboard,
   Linking,
-  Platform,
   Text,
   TextInput,
   View,
@@ -143,7 +142,7 @@ function NativeDiff({ before, after }) {
           style={{
             color: item.color,
             backgroundColor: item.backgroundColor,
-            fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+            fontFamily: "JetBrainsMono",
             fontSize: 12,
             paddingHorizontal: 10,
             paddingVertical: 2,

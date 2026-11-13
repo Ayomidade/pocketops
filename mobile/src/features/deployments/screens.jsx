@@ -73,8 +73,8 @@ export function DeploymentsScreen() {
   if (!authenticated) return <SignedOut />;
   return (
     <Frame
-      title="Deployments"
-      subtitle="Manual releases. Provider status and application health are tracked separately."
+      title="Projects"
+      subtitle="Services, deployment history and runtime logs."
     >
       <Rows
         query={query}
@@ -368,7 +368,7 @@ export function NewProjectScreen() {
   );
 }
 
-export function LogRow({ item }) {
+export function LogRow({ item, fontSize = 14 }) {
   const [expanded, setExpanded] = useState(false);
   return (
     <View>
@@ -378,6 +378,7 @@ export function LogRow({ item }) {
       <Text
         selectable
         className="font-mono text-textPrimary"
+        style={{ fontSize, lineHeight: fontSize * 1.6 }}
         numberOfLines={expanded ? undefined : 20}
       >
         {item.message}
@@ -390,6 +391,7 @@ export function LogRow({ item }) {
   );
 }
 function Logs({ projectId, enabled, header }) {
+  const [fontSize, setFontSize] = useState(14);
   const [window, setWindow] = useState(() => createLogWindow());
   const [level, setLevel] = useState("");
   const { isOffline } = useConnectivity();
@@ -408,6 +410,18 @@ function Logs({ projectId, enabled, header }) {
       header={
         <View>
           {header}
+          <View className="gap-2">
+            <Action
+              label="Smaller log text"
+              disabled={fontSize <= 12}
+              onPress={() => setFontSize((size) => size - 2)}
+            />
+            <Action
+              label="Larger log text"
+              disabled={fontSize >= 24}
+              onPress={() => setFontSize((size) => size + 2)}
+            />
+          </View>
           <Copy>
             Runtime logs · {window.from} → {window.to}
           </Copy>
@@ -434,19 +448,19 @@ function Logs({ projectId, enabled, header }) {
           />
         </View>
       }
-      renderItem={({ item }) => <LogRow item={item} />}
+      renderItem={({ item }) => <LogRow item={item} fontSize={fontSize} />}
     />
   );
 }
 
 export function ProjectScreen() {
   const { router, authenticated, isOffline } = usePage();
-  const { id: rawId } = useLocalSearchParams();
+  const { id: rawId, tab: initialTab } = useLocalSearchParams();
   const id = routeId(rawId);
   const query = useDeploymentDetail("project", id);
   const history = useDeploymentList("deployments", id);
   const visible = useSourceVisible();
-  const [tab, setTab] = useState("timeline");
+  const [tab, setTab] = useState(initialTab === "logs" ? "logs" : "timeline");
   const project = query.data?.data;
   if (!authenticated) return <SignedOut />;
   if (!project || query.isError)
@@ -467,7 +481,6 @@ export function ProjectScreen() {
       />
       <Copy>Project mapping: {project.status}</Copy>
       <Status value={listItems(history)[0]?.status || "unknown"} />
-      <Copy>Health verification is unavailable in this milestone.</Copy>
       <Action
         caution
         label="Review redeployment"
@@ -484,7 +497,6 @@ export function ProjectScreen() {
           known live commit, or a pending operation.
         </Copy>
       ) : null}
-      <Copy>Rollback and promotion are unavailable.</Copy>
       {project.pendingOperation ? (
         <Action
           label="View current operation"
@@ -496,8 +508,16 @@ export function ProjectScreen() {
           }
         />
       ) : null}
-      <View className="flex-row gap-3">
-        <Action label="Configure incident monitoring" onPress={() => router.push({ pathname: "/incident/monitor", params: { projectId: id } })} />
+      <View className="gap-3">
+        <Action
+          label="Configure incident monitoring"
+          onPress={() =>
+            router.push({
+              pathname: "/incident/monitor",
+              params: { projectId: id },
+            })
+          }
+        />
         <Action
           label="Deployment timeline"
           onPress={() => setTab("timeline")}
@@ -697,6 +717,21 @@ export function DeploymentDetailScreen() {
             <Copy>Started: {d.startedAt || "Unavailable"}</Copy>
             <Copy>Finished: {d.finishedAt || "Unavailable"}</Copy>
             <Action label="Refresh deployment" onPress={query.refetch} />
+            {d.projectId ? (
+              <Action
+                label="View service runtime logs"
+                onPress={() =>
+                  router.push({
+                    pathname: "/project/[id]",
+                    params: { id: d.projectId, tab: "logs" },
+                  })
+                }
+              />
+            ) : null}
+            <Copy>
+              Runtime logs cover the service. Build output is not provided by
+              this view.
+            </Copy>
           </View>
         )}
       </ScrollView>

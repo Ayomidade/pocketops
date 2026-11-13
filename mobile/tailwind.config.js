@@ -7,6 +7,7 @@ module.exports = {
   theme: {
     extend: {
       colors,
+      fontFamily: { mono: ["JetBrainsMono", "monospace"] },
     },
   },
   plugins: [],

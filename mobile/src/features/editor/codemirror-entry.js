@@ -124,7 +124,7 @@ function showDocument(message) {
           "&": { height: "100%", color: "#E6EDF3", backgroundColor: "#0B0F14" },
           ".cm-scroller": {
             overflow: "auto",
-            fontFamily: "ui-monospace, monospace",
+            fontFamily: "JetBrainsMono, monospace",
             fontSize: "14px",
           },
           ".cm-content": { minHeight: "100%", padding: "12px 0" },

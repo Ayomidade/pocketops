@@ -230,11 +230,11 @@ describe("deployment screens", () => {
     };
     const screen = render(<ProjectScreen />);
     expect(
-      screen.getByText("Rollback and promotion are unavailable."),
-    ).toBeTruthy();
+      screen.queryByText("Rollback and promotion are unavailable."),
+    ).toBeNull();
     expect(
-      screen.getByText("Health verification is unavailable in this milestone."),
-    ).toBeTruthy();
+      screen.queryByText("Health verification is unavailable in this milestone."),
+    ).toBeNull();
     expect(
       screen.getByLabelText("Review redeployment").props.accessibilityState
         .disabled,

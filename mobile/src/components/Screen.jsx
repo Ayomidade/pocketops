@@ -1,23 +1,18 @@
-import { SafeAreaView, ScrollView, Text, View } from "react-native";
+import { ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { cssInterop } from "nativewind";
 import ConnectivityBanner from "./ConnectivityBanner";
-
-export default function Screen({ title, subtitle, children }) {
+import AppHeader from "./AppHeader";
+cssInterop(SafeAreaView, { className: "style" });
+export default function Screen({ title, subtitle, children, onBack }) {
   return (
-    <SafeAreaView className="flex-1 bg-bg">
+    <SafeAreaView className="flex-1 bg-bg" edges={["top", "left", "right"]}>
       <ConnectivityBanner />
+      <AppHeader title={title} subtitle={subtitle} onBack={onBack} />
       <ScrollView
-        contentContainerStyle={{
-          padding: 22,
-          paddingTop: 54,
-          paddingBottom: 40,
-        }}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
       >
-        <Text className="text-textPrimary text-3xl font-bold">{title}</Text>
-        {subtitle ? (
-          <Text className="text-textSecondary mt-2 mb-6">{subtitle}</Text>
-        ) : (
-          <View className="h-6" />
-        )}
         {children}
       </ScrollView>
     </SafeAreaView>

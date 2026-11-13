@@ -1,10 +1,12 @@
+import AppHeader from "../../components/AppHeader";
+import Icon from "../../components/Icon";
 import { colors } from "../../theme/tokens";
 import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Modal,
-  Platform,
+  ScrollView,
   Pressable,
   Text,
   View,
@@ -23,6 +25,9 @@ export function Action({ label, onPress, disabled = false, caution = false }) {
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
+      style={({ pressed }) => ({
+        opacity: disabled ? 0.55 : pressed ? 0.7 : 1,
+      })}
       className={`min-h-12 justify-center rounded-xl border px-4 py-3 ${caution ? "border-warning bg-warning/10" : "border-border"}`}
     >
       <Text
@@ -46,20 +51,7 @@ export function RepositoryFrame({ title, subtitle, onBack, children }) {
       className="flex-1 bg-bg"
       edges={["top", "left", "right", "bottom"]}
     >
-      <View className="border-b border-border px-5 pb-4 pt-2">
-        {onBack ? <Action label="Back" onPress={onBack} /> : null}
-        <Text
-          accessibilityRole="header"
-          className="mt-3 text-3xl font-bold text-textPrimary"
-        >
-          {title}
-        </Text>
-        {subtitle ? (
-          <Text className="mt-2 text-sm leading-5 text-textSecondary">
-            {subtitle}
-          </Text>
-        ) : null}
-      </View>
+      <AppHeader title={title} subtitle={subtitle} onBack={onBack} />
       {children}
     </SafeAreaView>
   );
@@ -145,13 +137,13 @@ export function RepositoryCard({ repository, onOpen, disabled }) {
       accessibilityRole="button"
       accessibilityLabel={`Open repository ${repository.fullName}`}
       accessibilityState={{ disabled }}
-      className="mx-5 my-2 min-h-24 rounded-2xl border border-border bg-surface p-4"
+      className="mx-5 min-h-20 border-b border-border py-4"
     >
       <View className="flex-row items-start justify-between gap-3">
         <Text className="flex-1 text-lg font-semibold text-textPrimary">
           {repository.fullName}
         </Text>
-        <Text className="text-xs text-accentHi">
+        <Text className="text-sm text-textSecondary">
           {repository.private ? "PRIVATE" : "PUBLIC"}
         </Text>
       </View>
@@ -197,8 +189,10 @@ export function RepositoryList({
 
 export function Breadcrumbs({ path, onNavigate, disabled }) {
   return (
-    <View
-      className="flex-row flex-wrap gap-1 px-4 py-2"
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ paddingHorizontal: 16, gap: 4 }}
       accessibilityLabel="Directory breadcrumbs"
     >
       {breadcrumbs(path).map((crumb) => (
@@ -213,7 +207,7 @@ export function Breadcrumbs({ path, onNavigate, disabled }) {
           <Text className="text-accentHi">{crumb.label} /</Text>
         </Pressable>
       ))}
-    </View>
+    </ScrollView>
   );
 }
 
@@ -229,9 +223,10 @@ export function FileTreeRow({ entry, onOpen, disabled }) {
       accessibilityLabel={`${directory ? "Open directory" : "Preview file"} ${entry.name}`}
       accessibilityState={{ disabled: disabled || !supported }}
     >
-      <Text className="w-10 text-xs font-bold text-accentHi">
-        {directory ? "DIR" : "FILE"}
-      </Text>
+      <Icon
+        name={directory ? "folder" : "file"}
+        color={directory ? colors.accentHi : colors.textSecondary}
+      />
       <View className="flex-1">
         <Text className="text-base text-textPrimary">{entry.name}</Text>
         <Text className="mt-1 text-xs text-textSecondary">
@@ -336,6 +331,7 @@ export function BranchSelector({
 }
 
 export function FilePreview({ file }) {
+  const [fontSize, setFontSize] = useState(14);
   const reason = previewReason(file);
   if (reason)
     return (
@@ -354,6 +350,18 @@ export function FilePreview({ file }) {
       windowSize={5}
       ListHeaderComponent={
         <View className="p-5">
+          <View className="flex-row gap-2 mb-3">
+            <Action
+              label="Smaller preview text"
+              disabled={fontSize <= 12}
+              onPress={() => setFontSize((size) => size - 2)}
+            />
+            <Action
+              label="Larger preview text"
+              disabled={fontSize >= 24}
+              onPress={() => setFontSize((size) => size + 2)}
+            />
+          </View>
           <Text className="text-accentHi">
             Read-only · {file.encoding} ·{" "}
             {file.editable ? "Text supported" : "Not editable"}
@@ -375,11 +383,11 @@ export function FilePreview({ file }) {
           <Text
             selectable
             style={{
-              fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+              fontFamily: "JetBrainsMono",
               flex: 1,
-              color: "#E2E8F0",
-              fontSize: 13,
-              lineHeight: 21,
+              color: colors.textPrimary,
+              fontSize,
+              lineHeight: fontSize * 1.6,
             }}
           >
             {item.slice(0, 2000) || " "}

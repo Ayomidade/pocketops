@@ -1,3 +1,5 @@
+import fontData from "./font-data.js";
+import tokens from "../../theme/tokens.js";
 export const editorOrigin = "https://editor.pocketops.invalid";
 
 export function createEditorHtml({
@@ -15,11 +17,12 @@ export function createEditorHtml({
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; connect-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; script-src 'nonce-${nonce}'">
   <base href="${editorOrigin}/">
   <style nonce="${nonce}">
-    html, body, #editor { height: 100%; margin: 0; padding: 0; overflow: hidden; background: #0B0F14; }
+    @font-face { font-family: JetBrainsMono; src: url(data:font/ttf;base64,${fontData}); }
+    html, body, #editor { height: 100%; margin: 0; padding: 0; overflow: hidden; background: ${tokens.colors.bg}; }
     body { overscroll-behavior: contain; }
     .cm-editor { height: 100%; }
     .cm-scroller { -webkit-overflow-scrolling: touch; }
-    .cm-search { background: #121821; color: #E6EDF3; }
+    .cm-search { background: ${tokens.colors.surface}; color: ${tokens.colors.textPrimary}; }
   </style>
 </head>
 <body>
